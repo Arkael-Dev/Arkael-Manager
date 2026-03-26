@@ -1,64 +1,18 @@
+// Untuk ZixineTileService.java
 package com.zixine.engine;
-
-import android.service.quicksettings.Tile;
-import android.service.quicksettings.TileService;
-import java.io.DataOutputStream;
+import android.service.quicksettings.*;
 
 public class ZixineTileService extends TileService {
-
-    private String[] targets = {
-        "com.android.vending", "com.google.android.gms", "com.google.android.youtube", 
-        "com.google.android.gm", "com.android.chrome", "com.miui.analytics", 
-        "com.xiaomi.joyose", "com.miui.msa.global", "com.whatsapp"
-    };
-
-    // Cek status saat panel ditarik
-    @Override
-    public void onStartListening() {
-        Tile tile = getQsTile();
-        // Kamu bisa kembangkan logika cek status di sini, 
-        // tapi untuk sekarang kita buat default Inactive.
-        tile.setState(Tile.STATE_INACTIVE);
-        tile.updateTile();
-    }
-
     @Override
     public void onClick() {
-        Tile tile = getQsTile();
-        if (tile.getState() == Tile.STATE_INACTIVE) {
-            // AKTIFKAN BRUTAL MODE
-            runBrutal(true);
-            tile.setState(Tile.STATE_ACTIVE);
-            tile.setLabel("ZIXINE: ON 🔥");
+        Tile t = getQsTile();
+        if (t.getState() == Tile.STATE_INACTIVE) {
+            try { Runtime.getRuntime().exec(new String[]{"su", "-c", "pm disable-user --user 0 com.android.vending"}); } catch(Exception e){}
+            t.setState(Tile.STATE_ACTIVE);
         } else {
-            // MATIKAN (NORMAL MODE)
-            runBrutal(false);
-            tile.setState(Tile.STATE_INACTIVE);
-            tile.setLabel("ZIXINE: OFF 🌍");
+            try { Runtime.getRuntime().exec(new String[]{"su", "-c", "pm enable com.android.vending"}); } catch(Exception e){}
+            t.setState(Tile.STATE_INACTIVE);
         }
-        tile.updateTile();
-    }
-
-    private void runBrutal(boolean enable) {
-        StringBuilder sb = new StringBuilder();
-        if (enable) {
-            sb.append("pm disable com.miui.powerkeeper/.statemachine.PowerStateMachineService; ");
-            for (String app : targets) {
-                sb.append("am force-stop ").append(app).append("; ");
-                sb.append("pm suspend ").append(app).append("; ");
-            }
-        } else {
-            sb.append("pm enable com.miui.powerkeeper/.statemachine.PowerStateMachineService; ");
-            for (String app : targets) {
-                sb.append("pm unsuspend ").append(app).append("; ");
-            }
-        }
-        
-        try {
-            Process p = Runtime.getRuntime().exec("su");
-            DataOutputStream os = new DataOutputStream(p.getOutputStream());
-            os.writeBytes(sb.toString() + "\nexit\n");
-            os.flush();
-        } catch (Exception ignored) {}
+        t.updateTile();
     }
 }
