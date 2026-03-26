@@ -1,0 +1,12 @@
+plugins { id 'com.android.application' }
+android {
+    namespace 'com.zixine.engine'
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.zixine.engine"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+}
