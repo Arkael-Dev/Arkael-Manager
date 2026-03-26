@@ -1,18 +1,30 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.VIBRATE" />
-    <application android:label="Zixine Engine" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+    <application android:label="Zixine Ultra" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service android:name=".ZixineTileService" android:icon="@android:drawable/ic_lock_power_off" android:label="Zixine Brutal" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
+
+        <service android:name=".ZixineTileService"
+            android:icon="@android:drawable/ic_lock_power_off"
+            android:label="Zixine Brutal"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
         </service>
-        <service android:name=".CustomScriptTileService" android:icon="@android:drawable/ic_menu_edit" android:label="Zixine Script" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
+
+        <service android:name=".CustomScriptTileService"
+            android:icon="@android:drawable/ic_menu_edit"
+            android:label="Zixine Script"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
         </service>
+
     </application>
 </manifest>
