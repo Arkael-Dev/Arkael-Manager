@@ -3,7 +3,7 @@ name: Build Zixine Signed APK
 on:
   push:
     branches: [ "main" ]
-  workflow_dispatch: # Supaya bisa kamu jalankan manual lewat tombol
+  workflow_dispatch:
 
 jobs:
   build:
@@ -19,7 +19,6 @@ jobs:
           distribution: 'temurin'
 
       - name: Build APK (System Gradle)
-        # Kita pakai 'gradle' langsung karena file 'gradlew' kamu tidak ada
         run: gradle assembleRelease
 
       - name: Sign Android Release
@@ -31,6 +30,9 @@ jobs:
           alias: ${{ secrets.ALIAS }}
           keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
           keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          # FIX: Paksa pake Build Tools versi terbaru biar gak nyari versi 29
+          BUILD_TOOLS_VERSION: "34.0.0"
 
       - name: Upload Finished APK
         uses: actions/upload-artifact@v4
