@@ -1,0 +1,24 @@
+name: Zixine Keystore Generator
+
+on: 
+  workflow_dispatch: # Tombol manual buat jalanin skrip
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create JKS File
+        run: |
+          # Bikin file keystore secara otomatis
+          keytool -genkey -v -keystore zixine.jks -keyalg RSA -keysize 2048 -validity 10000 \
+          -alias zixine_alias \
+          -keypass "Zixine123" \
+          -storepass "Zixine123" \
+          -dname "CN=Zixine, OU=Dev, O=ZixineEngine, L=Jakarta, S=ID, C=ID"
+          
+      - name: Output Base64 String
+        run: |
+          # Ubah jadi teks panjang (Base64) biar bisa di-copy
+          echo "================ SCROLL KE BAWAH & COPY TEKS INI ================"
+          base64 zixine.jks | tr -d '\n'
+          echo -e "\n==============================================================="
