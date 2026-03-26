@@ -1,28 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="#000814"
-    android:padding="20dp">
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:background="#000814">
+    <LinearLayout android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="25dp">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="ZIXINE MANAGER V17" android:textColor="#00d4ff" android:textSize="22sp" android:textStyle="bold" android:layout_gravity="center" />
+        
+        <TextView android:id="@+id/txt_temp" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Temp: --°C" android:textColor="#ffffff" android:gravity="center" android:layout_marginTop="10dp" />
 
-    <TextView
-        android:id="@+id/title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:text="ZIXINE ENGINE V13"
-        android:textColor="#00d4ff"
-        android:textSize="24sp"
-        android:textStyle="bold" />
+        <Button android:id="@+id/btn_brutal" android:layout_width="match_parent" android:layout_height="80dp" android:layout_marginTop="20dp" android:text="ACTIVATE BRUTAL MODE" android:backgroundTint="#007bff" />
+        
+        <Button android:id="@+id/btn_fix" android:layout_width="match_parent" android:layout_height="50dp" android:layout_marginTop="10dp" android:text="FIX PERMISSION (755)" android:backgroundTint="#444" android:textSize="10sp" />
 
-    <Button
-        android:id="@+id/btnBrutal"
-        android:layout_width="match_parent"
-        android:layout_height="100dp"
-        android:layout_centerInParent="true"
-        android:backgroundTint="#007bff"
-        android:text="ACTIVATE BRUTAL MODE"
-        android:textColor="#ffffff"
-        android:textSize="18sp" />
-
-</RelativeLayout>
+        <EditText android:id="@+id/edit_script_path" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="30dp" android:hint="/sdcard/script.sh" android:textColor="#ffffff" android:backgroundTint="#00d4ff" />
+        <Button android:id="@+id/btn_run_custom" android:layout_width="match_parent" android:layout_height="60dp" android:layout_marginTop="10dp" android:text="RUN CUSTOM SCRIPT" android:backgroundTint="#00d4ff" />
+        <TextView android:id="@+id/txt_log" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Status: Ready" android:textColor="#88ffffff" android:textSize="10sp" android:layout_marginTop="10dp" />
+    </LinearLayout>
+</ScrollView>
