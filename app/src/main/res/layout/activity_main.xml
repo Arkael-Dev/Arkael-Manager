@@ -1,26 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent" android:layout_height="match_parent" android:background="#000814">
-    <LinearLayout android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content" android:padding="20dp">
-        
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="ZIXINE MANAGER ULTRA" android:textColor="#00d4ff" android:textSize="22sp" android:textStyle="bold" android:layout_gravity="center" />
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="#000814" android:orientation="vertical" android:padding="20dp">
+    
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+        android:text="NARUKAMI ENGINE V23" android:textColor="#00d4ff" android:textSize="20sp" android:textStyle="bold" android:layout_gravity="center" />
 
-        <LinearLayout android:layout_marginTop="20dp" android:padding="15dp" android:background="#112233" android:orientation="vertical" android:layout_width="match_parent" android:layout_height="wrap_content">
-            <TextView android:id="@+id/txt_temp" android:text="Temp: --°C" android:textColor="#ffffff" android:layout_width="wrap_content" android:layout_height="wrap_content" />
-            <TextView android:id="@+id/txt_cpu" android:text="CPU: loading..." android:textColor="#00d4ff" android:layout_width="wrap_content" android:layout_height="wrap_content" />
-            <TextView android:id="@+id/txt_gpu" android:text="GPU: loading..." android:textColor="#00ff88" android:layout_width="wrap_content" android:layout_height="wrap_content" />
-        </LinearLayout>
+    <Button android:id="@+id/btn_gms" android:layout_width="match_parent" android:layout_height="80dp" android:layout_marginTop="30dp" android:text="GMS KILLER" android:textStyle="bold" />
+    <Button android:id="@+id/btn_extreme" android:layout_width="match_parent" android:layout_height="80dp" android:layout_marginTop="15dp" android:text="EXTREME SEAL" android:textStyle="bold" />
+    <Button android:id="@+id/btn_perf" android:layout_width="match_parent" android:layout_height="80dp" android:layout_marginTop="15dp" android:text="PERFORMANCE BOOST" android:textStyle="bold" />
 
-        <Button android:id="@+id/btn_cpu_perf" android:layout_marginTop="15dp" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="CPU: PERFORMANCE" android:backgroundTint="#007bff" />
-        <Button android:id="@+id/btn_gpu_max" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="GPU: MAX POWER" android:backgroundTint="#00ff88" android:textColor="#000" />
-
-        <Button android:id="@+id/btn_brutal" android:layout_marginTop="20dp" android:layout_width="match_parent" android:layout_height="70dp" android:text="ACTIVATE BRUTAL MODE" android:backgroundTint="#ff3131" />
-        
-        <EditText android:id="@+id/edit_script_path" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:hint="/sdcard/script.sh" android:textColor="#ffffff" android:backgroundTint="#00d4ff" />
-        <Button android:id="@+id/btn_run_custom" android:layout_width="match_parent" android:layout_height="60dp" android:text="RUN SCRIPT" android:backgroundTint="#00d4ff" />
-        
-        <Button android:id="@+id/btn_fix" android:layout_width="match_parent" android:layout_height="40dp" android:layout_marginTop="10dp" android:text="FIX PERMISSION 755" android:backgroundTint="#333" android:textSize="10sp" />
-
-    </LinearLayout>
-</ScrollView>
+    <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:text="Manual Game List &amp; Optimization Active" android:textColor="#44ffffff" android:gravity="center" android:layout_marginTop="20dp" android:textSize="10sp" />
+</LinearLayout>
