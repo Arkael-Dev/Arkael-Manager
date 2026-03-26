@@ -1,90 +1,95 @@
 package com.zixine.engine;
 
 import android.app.Activity;
-import android.os.Bundle;
+import android.content.SharedPreferences;
+import android.os.*;
 import android.view.View;
-import android.widget.Button;
-import android.widget.Toast;
-import java.io.DataOutputStream;
+import android.widget.*;
+import java.io.*;
 
 public class MainActivity extends Activity {
-    
-    // Daftar Target Brutal
-    private String[] targets = {
-        "com.android.vending", "com.google.android.gms", "com.google.android.youtube", 
-        "com.google.android.gm", "com.android.chrome", "com.miui.analytics", 
-        "com.xiaomi.joyose", "com.miui.msa.global", "com.whatsapp", 
-        "com.brave.browser", "id.co.bri.brimo", "id.dana"
-    };
-
-    private boolean isBrutalActive = false;
+    private String modulePath = "/data/adb/modules/garnet_game_boost/service.sh";
+    private EditText editPath;
+    private TextView txtTemp, txtLog;
+    private boolean isBrutal = false;
+    private Handler handler = new Handler();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        final Button btnBrutal = findViewById(R.id.btnBrutal);
-        
-        btnBrutal.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (!isBrutalActive) {
-                    activateBrutalMode();
-                    btnBrutal.setText("DEACTIVATE NORMAL MODE");
-                    btnBrutal.setBackgroundColor(0xFFFF3131); // Warna Merah
-                    isBrutalActive = true;
-                } else {
-                    deactivateBrutalMode();
-                    btnBrutal.setText("ACTIVATE BRUTAL MODE");
-                    btnBrutal.setBackgroundColor(0xFF007BFF); // Warna Biru
-                    isBrutalActive = false;
-                }
+        txtTemp = findViewById(R.id.txt_temp);
+        txtLog = findViewById(R.id.txt_log);
+        editPath = findViewById(R.id.edit_script_path);
+        Button btnBrutal = findViewById(R.id.btn_brutal);
+        Button btnRun = findViewById(R.id.btn_run_custom);
+        Button btnFix = findViewById(R.id.btn_fix);
+
+        SharedPreferences prefs = getSharedPreferences("Zixine", MODE_PRIVATE);
+        editPath.setText(prefs.getString("path", "/data/local/tmp/boost.sh"));
+
+        // Cek file saat start
+        checkServiceFile();
+        startThermalMonitor();
+
+        btnBrutal.setOnClickListener(v -> animate(v, () -> {
+            if (!isBrutal) {
+                execRoot("pm disable com.miui.powerkeeper/.statemachine.PowerStateMachineService; for a in com.android.vending com.google.android.gms com.xiaomi.joyose; do pm disable-user --user 0 $a; done; am kill-all;");
+                btnBrutal.setText("NORMAL MODE");
+                isBrutal = true;
+            } else {
+                execRoot("pm enable com.miui.powerkeeper/.statemachine.PowerStateMachineService; for a in com.android.vending com.google.android.gms com.xiaomi.joyose; do pm enable $a; done;");
+                btnBrutal.setText("BRUTAL MODE");
+                isBrutal = false;
             }
-        });
+        }));
+
+        btnRun.setOnClickListener(v -> animate(v, () -> {
+            String p = editPath.getText().toString();
+            prefs.edit().putString("path", p).apply();
+            execRoot("sh " + p);
+            Toast.makeText(this, "Script Done!", 0).show();
+        }));
+
+        btnFix.setOnClickListener(v -> animate(v, () -> {
+            execRoot("chmod 755 " + modulePath);
+            Toast.makeText(this, "Permission Fixed to 755!", 0).show();
+            checkServiceFile();
+        }));
     }
 
-    private void activateBrutalMode() {
-        StringBuilder sb = new StringBuilder();
-        
-        // 1. Lumpuhkan PowerKeeper HyperOS
-        sb.append("pm disable com.miui.powerkeeper/.statemachine.PowerStateMachineService; ");
-        
-        // 2. Kill & Suspend semua target
-        for (String app : targets) {
-            sb.append("am force-stop ").append(app).append("; ");
-            sb.append("pm suspend ").append(app).append("; ");
-        }
-        
-        execRoot(sb.toString());
-        Toast.makeText(this, "Narukami Seal: ACTIVE! ⚡", Toast.LENGTH_SHORT).show();
+    private void checkServiceFile() {
+        File f = new File(modulePath);
+        if (!f.exists()) Toast.makeText(this, "⚠️ service.sh TIDAK ADA di folder modul!", 1).show();
+        else if (f.length() == 0) Toast.makeText(this, "⚠️ service.sh KOSONG!", 1).show();
     }
 
-    private void deactivateBrutalMode() {
-        StringBuilder sb = new StringBuilder();
-        
-        // 1. Hidupkan PowerKeeper kembali
-        sb.append("pm enable com.miui.powerkeeper/.statemachine.PowerStateMachineService; ");
-        
-        // 2. Hidupkan semua target
-        for (String app : targets) {
-            sb.append("pm unsuspend ").append(app).append("; ");
-        }
-        
-        execRoot(sb.toString());
-        Toast.makeText(this, "Narukami Seal: RELEASED! 🌍", Toast.LENGTH_SHORT).show();
+    private void startThermalMonitor() {
+        handler.postDelayed(new Runnable() {
+            @Override public void run() {
+                try {
+                    BufferedReader r = new BufferedReader(new FileReader("/sys/class/thermal/thermal_zone0/temp"));
+                    double t = Double.parseDouble(r.readLine()) / 1000.0;
+                    txtTemp.setText("System Temp: " + String.format("%.1f", t) + "°C");
+                    if (t > 45) txtTemp.setTextColor(0xFFFF3131); else txtTemp.setTextColor(0xFF00D4FF);
+                } catch (Exception e) { txtTemp.setText("Temp: Unsupported"); }
+                handler.postDelayed(this, 3000);
+            }
+        }, 1000);
     }
 
-    private void execRoot(String command) {
+    private void animate(View v, Runnable r) {
+        v.animate().scaleX(0.9f).scaleY(0.9f).setDuration(80).withEndAction(() -> {
+            v.animate().scaleX(1f).scaleY(1f).setDuration(80).withEndAction(r).start();
+        }).start();
+    }
+
+    private void execRoot(String c) {
         try {
             Process p = Runtime.getRuntime().exec("su");
-            DataOutputStream os = new DataOutputStream(p.getOutputStream());
-            os.writeBytes(command + "\n");
-            os.writeBytes("exit\n");
-            os.flush();
-            p.waitFor();
-        } catch (Exception e) {
-            Toast.makeText(this, "Root Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
-        }
+            DataOutputStream o = new DataOutputStream(p.getOutputStream());
+            o.writeBytes(c + "\nexit\n"); o.flush();
+        } catch (Exception e) { txtLog.setText("Root Error!"); }
     }
 }
