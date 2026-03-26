@@ -3,11 +3,24 @@
     <application
         android:label="Zixine Engine"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".ZixineTileService"
+            android:icon="@android:drawable/ic_menu_manage"
+            android:label="Zixine Mode"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
     </application>
 </manifest>
