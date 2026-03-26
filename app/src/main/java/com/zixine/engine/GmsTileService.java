@@ -12,22 +12,27 @@ public class GmsTileService extends TileService {
         boolean active = (t.getState() == Tile.STATE_INACTIVE);
         
         if (active) {
-            exec("pm suspend com.google.android.gms com.android.vending &");
-            t.setState(Tile.STATE_ACTIVE); // Warna Nyala
-            Toast.makeText(this, "GMS: LOCKED 🛡️", Toast.LENGTH_SHORT).show();
+            // SIKAT GMS: Suspend User 0 + Force Stop semua komponen
+            String cmd = "pm suspend --user 0 com.google.android.gms com.android.vending; " +
+                         "am force-stop com.google.android.gms; " +
+                         "am force-stop com.android.vending; " +
+                         "am kill com.google.android.gms;";
+            exec(cmd);
+            t.setState(Tile.STATE_ACTIVE);
+            Toast.makeText(this, "GMS: EXECUTED! 💀", 0).show();
         } else {
-            exec("pm unsuspend com.google.android.gms com.android.vending &");
-            t.setState(Tile.STATE_INACTIVE); // Warna Mati
-            Toast.makeText(this, "GMS: RESTORED 🌍", Toast.LENGTH_SHORT).show();
+            // RESTORE GMS
+            exec("pm unsuspend --user 0 com.google.android.gms com.android.vending;");
+            t.setState(Tile.STATE_INACTIVE);
+            Toast.makeText(this, "GMS: ALIVE 🌍", 0).show();
         }
         t.updateTile();
     }
-
     private void exec(String c) {
         try {
             java.lang.Process p = Runtime.getRuntime().exec("su");
             DataOutputStream o = new DataOutputStream(p.getOutputStream());
             o.writeBytes(c + "\nexit\n"); o.flush();
-        } catch (Exception ignored) {}
+        } catch (Exception e) {}
     }
 }
