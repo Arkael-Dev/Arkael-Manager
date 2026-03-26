@@ -10,9 +10,9 @@ import java.io.*;
 public class MainActivity extends Activity {
     private String modulePath = "/data/adb/modules/garnet_game_boost/service.sh";
     private EditText editPath;
-    private TextView txtTemp, txtLog;
+    private TextView txtTemp;
     private boolean isBrutal = false;
-    private Handler handler = new Handler();
+    private Handler handler = new Handler(Looper.getMainLooper());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -20,7 +20,6 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         txtTemp = findViewById(R.id.txt_temp);
-        txtLog = findViewById(R.id.txt_log);
         editPath = findViewById(R.id.edit_script_path);
         Button btnBrutal = findViewById(R.id.btn_brutal);
         Button btnRun = findViewById(R.id.btn_run_custom);
@@ -29,8 +28,6 @@ public class MainActivity extends Activity {
         SharedPreferences prefs = getSharedPreferences("Zixine", MODE_PRIVATE);
         editPath.setText(prefs.getString("path", "/data/local/tmp/boost.sh"));
 
-        // Cek file saat start
-        checkServiceFile();
         startThermalMonitor();
 
         btnBrutal.setOnClickListener(v -> animate(v, () -> {
@@ -49,20 +46,13 @@ public class MainActivity extends Activity {
             String p = editPath.getText().toString();
             prefs.edit().putString("path", p).apply();
             execRoot("sh " + p);
-            Toast.makeText(this, "Script Done!", 0).show();
+            Toast.makeText(this, "Script Executed!", Toast.LENGTH_SHORT).show();
         }));
 
         btnFix.setOnClickListener(v -> animate(v, () -> {
             execRoot("chmod 755 " + modulePath);
-            Toast.makeText(this, "Permission Fixed to 755!", 0).show();
-            checkServiceFile();
+            Toast.makeText(this, "Fixed Permission 755!", Toast.LENGTH_SHORT).show();
         }));
-    }
-
-    private void checkServiceFile() {
-        File f = new File(modulePath);
-        if (!f.exists()) Toast.makeText(this, "⚠️ service.sh TIDAK ADA di folder modul!", 1).show();
-        else if (f.length() == 0) Toast.makeText(this, "⚠️ service.sh KOSONG!", 1).show();
     }
 
     private void startThermalMonitor() {
@@ -72,7 +62,7 @@ public class MainActivity extends Activity {
                     BufferedReader r = new BufferedReader(new FileReader("/sys/class/thermal/thermal_zone0/temp"));
                     double t = Double.parseDouble(r.readLine()) / 1000.0;
                     txtTemp.setText("System Temp: " + String.format("%.1f", t) + "°C");
-                    if (t > 45) txtTemp.setTextColor(0xFFFF3131); else txtTemp.setTextColor(0xFF00D4FF);
+                    txtTemp.setTextColor(t > 45 ? 0xFFFF3131 : 0xFF00D4FF);
                 } catch (Exception e) { txtTemp.setText("Temp: Unsupported"); }
                 handler.postDelayed(this, 3000);
             }
@@ -85,11 +75,13 @@ public class MainActivity extends Activity {
         }).start();
     }
 
+    // DISINI PERBAIKANNYA: Pakai java.lang.Process secara eksplisit
     private void execRoot(String c) {
         try {
-            Process p = Runtime.getRuntime().exec("su");
+            java.lang.Process p = Runtime.getRuntime().exec("su");
             DataOutputStream o = new DataOutputStream(p.getOutputStream());
-            o.writeBytes(c + "\nexit\n"); o.flush();
-        } catch (Exception e) { txtLog.setText("Root Error!"); }
+            o.writeBytes(c + "\nexit\n"); 
+            o.flush();
+        } catch (Exception ignored) {}
     }
 }
