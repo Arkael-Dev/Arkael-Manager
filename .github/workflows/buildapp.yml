@@ -1,36 +1,39 @@
-name: Build Zixine APK
+name: Build Zixine Signed APK
 
 on:
   push:
     branches: [ "main" ]
+  workflow_dispatch: # Supaya bisa kamu jalankan manual lewat tombol
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
 
-    - name: Build with Gradle
-      run: chmod +x gradlew && ./gradlew assembleRelease
+      - name: Build APK (System Gradle)
+        # Kita pakai 'gradle' langsung karena file 'gradlew' kamu tidak ada
+        run: gradle assembleRelease
 
-    - name: Sign APK
-      uses: r0adkll/sign-android-release@v1
-      id: sign_app
-      with:
-        releaseDirectory: app/build/outputs/apk/release
-        signingKeyBase64: ${{ secrets.SIGNING_KEY }}
-        alias: ${{ secrets.ALIAS }}
-        keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
-        keyPassword: ${{ secrets.KEY_PASSWORD }}
+      - name: Sign Android Release
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
+        with:
+          releaseDirectory: app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
 
-    - name: Upload Finished APK
-      uses: actions/upload-artifact@v4
-      with:
-        name: Zixine-Engine-Final
-        path: ${{ steps.sign_app.outputs.signedReleaseFile }}
+      - name: Upload Finished APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: ZixineEngine-Final-Signed
+          path: ${{ steps.sign_app.outputs.signedReleaseFile }}
