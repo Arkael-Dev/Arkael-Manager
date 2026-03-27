@@ -8,9 +8,7 @@ import android.widget.*;
 import java.io.*;
 
 public class MainActivity extends Activity {
-    // LIST GAME MANUAL (EDIT DISINI)
     private String GAMES = "com.dts.freefireth com.dts.freefiremax com.mobile.legends com.tencent.ig com.pubg.imobile com.miHoYo.GenshinImpact com.hoYoverse.hkrpg com.riotgames.league.wildrift com.garena.game.codm";
-    // WHITELIST (JANGAN DISUSPEND)
     private String WHITELIST = "com.zcqptx.dcwihze com.termux android com.android.systemui com.miui.home com.zixine.engine com.android.settings com.miui.securitycenter com.android.phone com.android.server.telecom";
 
     private Button btnGms, btnExt, btnPerf;
@@ -20,7 +18,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        prefs = getSharedPreferences("NarukamiV25", MODE_PRIVATE);
+        prefs = getSharedPreferences("NarukamiV26", MODE_PRIVATE);
         btnGms = findViewById(R.id.btn_gms);
         btnExt = findViewById(R.id.btn_extreme);
         btnPerf = findViewById(R.id.btn_perf);
@@ -30,11 +28,11 @@ public class MainActivity extends Activity {
             boolean active = !prefs.getBoolean("gms", false);
             String target = "com.google.android.gms com.android.vending com.google.android.gsf";
             if (active) {
-                execRoot("pm suspend --user 0 " + target + "; am force-stop com.google.android.gms;");
-                Toast.makeText(this, "GMS: KILLED 💀", 0).show();
+                execRoot("for p in " + target + "; do pm disable-user --user 0 $p; done; am force-stop com.google.android.gms;");
+                Toast.makeText(this, "GMS: COMA 💀", 0).show();
             } else {
-                execRoot("pm unsuspend --user 0 " + target + ";");
-                Toast.makeText(this, "GMS: RESTORED 🌍", 0).show();
+                execRoot("for p in " + target + "; do pm enable $p; done;");
+                Toast.makeText(this, "GMS: ALIVE 🌍", 0).show();
             }
             save("gms", active);
         }));
@@ -46,13 +44,14 @@ public class MainActivity extends Activity {
                              "for p in $PKGS; do " +
                              "  MATCH=false; " +
                              "  for w in " + WHITELIST + " " + GAMES + "; do [ \"$p\" == \"$w\" ] && MATCH=true && break; done; " +
-                             "  [ \"$MATCH\" == \"false\" ] && pm suspend --user 0 $p && am force-stop $p; " +
+                             "  [ \"$MATCH\" == \"false\" ] && pm disable-user --user 0 $p && am force-stop $p; " +
                              "done; pm disable com.miui.powerkeeper/.statemachine.PowerStateMachineService;";
                 execRoot(cmd);
                 Toast.makeText(this, "EXTREME: SEALED 🛡️", 0).show();
             } else {
-                execRoot("PKGS=$(pm list packages -u | cut -d ':' -f2); for p in $PKGS; do pm unsuspend --user 0 $p & done; pm enable com.miui.powerkeeper/.statemachine.PowerStateMachineService;");
-                Toast.makeText(this, "SYSTEM: NORMAL 🌍", 0).show();
+                // RESTORE: Menggunakan parallel & agar proses enable super cepat
+                execRoot("PKGS=$(pm list packages -d | cut -d ':' -f2); for p in $PKGS; do pm enable $p & done; pm enable com.miui.powerkeeper/.statemachine.PowerStateMachineService;");
+                Toast.makeText(this, "SYSTEM: RESTORED 🌍", 0).show();
             }
             save("ext", active);
         }));
@@ -60,10 +59,10 @@ public class MainActivity extends Activity {
         btnPerf.setOnClickListener(v -> animate(v, () -> {
             boolean active = !prefs.getBoolean("perf", false);
             if (active) {
-                execRoot("setprop touch.pressure.scale 0.001; setprop persist.sys.composition.type gpu; setprop debug.cpurenderer true; setprop persist.sys.perf.top_app 1; setprop net.tcp.2g_init_rwnd 10;");
-                Toast.makeText(this, "PERF: ON 🚀", 0).show();
+                execRoot("setprop touch.pressure.scale 0.001; setprop persist.sys.composition.type gpu; setprop debug.cpurenderer true;");
+                Toast.makeText(this, "PERF: BOOST 🚀", 0).show();
             } else {
-                execRoot("setprop touch.pressure.scale 1.0; setprop persist.sys.composition.type c2d; setprop debug.cpurenderer false; setprop persist.sys.perf.top_app 0;");
+                execRoot("setprop touch.pressure.scale 1.0; setprop persist.sys.composition.type c2d;");
                 Toast.makeText(this, "PERF: NORMAL 🌍", 0).show();
             }
             save("perf", active);
