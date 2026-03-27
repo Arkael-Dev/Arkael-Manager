@@ -3,6 +3,7 @@ plugins { id 'com.android.application' version '8.7.0' }
 android {
     namespace 'com.zixine.engine'
     compileSdk 35
+    
     defaultConfig {
         applicationId "com.zixine.engine"
         minSdk 26
@@ -10,27 +11,10 @@ android {
         versionCode 1
         versionName "1.0-V29"
     }
-}
 
-dependencies {
-    implementation 'androidx.appcompat:appcompat:1.7.0'
-    implementation 'com.google.android.material:material:1.12.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.2.0'
-}
-
-
-android {
-    namespace 'com.zixine.engine' // Biarkan sesuai kode aslimu
-    compileSdk 34 // Biarkan sesuai kode aslimu
-
-    defaultConfig {
-        // ... kode aslimu ...
-    }
-
-    // 1. Tambahkan blok signingConfigs ini
+    // 1. Konfigurasi untuk membaca Keystore dari GitHub Actions
     signingConfigs {
         release {
-            // Kita arahkan ke file jks yang dibuat oleh GitHub Actions
             storeFile file("release.jks") 
             storePassword System.getenv("SIGNING_STORE_PASSWORD")
             keyAlias System.getenv("SIGNING_KEY_ALIAS")
@@ -38,12 +22,18 @@ android {
         }
     }
 
+    // 2. Terapkan konfigurasi signing ke versi Release
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            // 2. Hubungkan signingConfig release ke tipe build release
             signingConfig signingConfigs.release
         }
     }
+}
+
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.2.0'
 }
