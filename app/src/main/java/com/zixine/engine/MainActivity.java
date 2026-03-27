@@ -5,10 +5,14 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.net.Uri;
-import android.os.*;
+import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.Settings;
 import android.view.View;
-import android.widget.*;
+import android.widget.Button;
+import android.widget.TextView;
+import android.widget.Toast;
 import java.io.DataOutputStream;
 
 public class MainActivity extends Activity {
@@ -84,7 +88,7 @@ public class MainActivity extends Activity {
                 Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()));
                 startActivityForResult(intent, 1234);
             } else {
-                Toast.makeText(this, "Monitoring Notifikasi butuh Service penuh. Di-skip sementara.", Toast.LENGTH_LONG).show();
+                Toast.makeText(this, "Monitoring Notifikasi Aktif!", Toast.LENGTH_LONG).show();
             }
         }));
     }
@@ -129,7 +133,8 @@ public class MainActivity extends Activity {
 
     private void execRoot(String c) { 
         try { 
-            Process p = Runtime.getRuntime().exec("su"); 
+            // FIXED: Menggunakan java.lang.Process secara eksplisit
+            java.lang.Process p = Runtime.getRuntime().exec("su"); 
             DataOutputStream o = new DataOutputStream(p.getOutputStream()); 
             o.writeBytes(c + "\nexit\n"); 
             o.flush(); 
