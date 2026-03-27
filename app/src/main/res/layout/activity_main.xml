@@ -1,94 +1,34 @@
-<?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout 
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@color/zixine_bg"
-    android:padding="16dp">
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@color/bg_dark" android:padding="16dp">
 
-    <TextView
-        android:id="@+id/tv_title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="zixine"
-        android:textColor="@color/zixine_text"
-        android:textSize="24sp"
-        android:textStyle="bold"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent" />
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="zixine engine" android:textColor="@color/accent_blue" android:textSize="28sp" android:textStyle="bold" />
 
-    <LinearLayout
-        android:id="@+id/ll_dashboard"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="8dp"
-        app:layout_constraintTop_toBottomOf="@id/tv_title"
-        android:layout_marginTop="20dp">
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp"
+            app:cardBackgroundColor="@color/card_dark" app:cardCornerRadius="12dp" app:strokeColor="#30363D" app:strokeWidth="1dp">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
+                <TextView android:id="@+id/tv_cpu_fps" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="System Info Loading..." android:textColor="#7D8590" />
+                <TextView android:id="@+id/tv_battery_ram" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Hardware Info Loading..." android:textColor="#7D8590" />
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
 
-        <TextView
-            android:id="@+id/tv_cpu_fps"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="CPU: ---°C | GPU: ---°C"
-            android:textColor="@color/zixine_accent" />
-
-        <TextView
-            android:id="@+id/tv_battery_ram"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Baterai: ---% (---°C) | RAM: --- GB / --- GB"
-            android:textColor="@color/zixine_accent" />
+        <GridLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:columnCount="2">
+            <com.google.android.material.card.MaterialCardView android:id="@+id/card_gms" android:layout_width="0dp" android:layout_height="110dp" android:layout_columnWeight="1" android:layout_margin="8dp" app:cardBackgroundColor="@color/btn_dongker" app:cardCornerRadius="16dp" android:clickable="true">
+                <TextView android:id="@+id/txt_gms" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="⚡\nGMS" android:textColor="#FFF" android:textStyle="bold" android:textAlignment="center"/>
+            </com.google.android.material.card.MaterialCardView>
+            <com.google.android.material.card.MaterialCardView android:id="@+id/card_extreme" android:layout_width="0dp" android:layout_height="110dp" android:layout_columnWeight="1" android:layout_margin="8dp" app:cardBackgroundColor="@color/btn_dongker" app:cardCornerRadius="16dp" android:clickable="true">
+                <TextView android:id="@+id/txt_ext" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="🔥\nEXTREME" android:textColor="#FFF" android:textStyle="bold" android:textAlignment="center"/>
+            </com.google.android.material.card.MaterialCardView>
+            <com.google.android.material.card.MaterialCardView android:id="@+id/card_perf" android:layout_width="0dp" android:layout_height="110dp" android:layout_columnWeight="1" android:layout_margin="8dp" app:cardBackgroundColor="@color/btn_dongker" app:cardCornerRadius="16dp" android:clickable="true">
+                <TextView android:id="@+id/txt_perf" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="🚀\nPERF" android:textColor="#FFF" android:textStyle="bold" android:textAlignment="center"/>
+            </com.google.android.material.card.MaterialCardView>
+            <com.google.android.material.card.MaterialCardView android:id="@+id/card_monitor" android:layout_width="0dp" android:layout_height="110dp" android:layout_columnWeight="1" android:layout_margin="8dp" app:cardBackgroundColor="@color/btn_dongker" app:cardCornerRadius="16dp" android:clickable="true">
+                <TextView android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="📊\nMONITOR" android:textColor="#FFF" android:textStyle="bold" android:textAlignment="center"/>
+            </com.google.android.material.card.MaterialCardView>
+        </GridLayout>
     </LinearLayout>
-
-    <GridLayout
-        android:id="@+id/gl_buttons"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:columnCount="2"
-        android:rowCount="2"
-        android:useDefaultMargins="true"
-        app:layout_constraintTop_toBottomOf="@id/ll_dashboard"
-        app:layout_constraintBottom_toBottomOf="parent"
-        android:layout_marginTop="20dp">
-
-        <Button
-            android:id="@+id/btn_gms"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:background="@color/zixine_dongker"
-            android:text="GMS"
-            android:textColor="#FFFFFF" />
-
-        <Button
-            android:id="@+id/btn_extreme"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:background="@color/zixine_dongker"
-            android:text="EXTREME"
-            android:textColor="#FFFFFF" />
-
-        <Button
-            android:id="@+id/btn_perf"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:background="@color/zixine_dongker"
-            android:text="PERF"
-            android:textColor="#FFFFFF" />
-
-        <Button
-            android:id="@+id/btn_monitor"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_columnWeight="1"
-            android:background="@color/zixine_dongker"
-            android:text="MONITOR"
-            android:textColor="#FFFFFF" />
-
-    </GridLayout>
-
-</androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>
