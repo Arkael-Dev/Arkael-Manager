@@ -1,35 +1,41 @@
-name: Build Zixine Engine V29
+name: Build Zixine Signed APK
 
 on:
-  workflow_dispatch: # Jalankan manual dari tab Actions
   push:
-    branches: [ main, master ]
-    paths:
-      - 'app/**'
-      - '**.gradle'
-      - 'gradle.properties'
+    branches: [ "main" ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout Repository
+      - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Set up JDK 17
+      - name: Set up Java 17
         uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
 
-      # KITA LANGSUNG PAKAI GRADLE GLOBAL, GAK PAKE ./GRADLEW LAGI
-      - name: Build Release APK
+      - name: Build APK (System Gradle)
         run: gradle assembleRelease
 
-      - name: Upload APK Artifact
+      - name: Sign Android Release
+        uses: r0adkll/sign-android-release@v1
+        id: sign_app
+        with:
+          releaseDirectory: app/build/outputs/apk/release
+          signingKeyBase64: ${{ secrets.SIGNING_KEY }}
+          alias: ${{ secrets.ALIAS }}
+          keyStorePassword: ${{ secrets.KEYSTORE_PASSWORD }}
+          keyPassword: ${{ secrets.KEY_PASSWORD }}
+        env:
+          # FIX: Paksa pake Build Tools versi terbaru biar gak nyari versi 29
+          BUILD_TOOLS_VERSION: "34.0.0"
+
+      - name: Upload Finished APK
         uses: actions/upload-artifact@v4
         with:
-          name: zixine-v29-apk
-          path: app/build/outputs/apk/release/*.apk
-          retention-days: 7
+          name: ZixineEngine-Final-Signed
+          path: ${{ steps.sign_app.outputs.signedReleaseFile }}
