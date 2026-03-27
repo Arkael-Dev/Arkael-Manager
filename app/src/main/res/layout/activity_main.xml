@@ -4,8 +4,15 @@
     android:background="@color/bg_dark" android:padding="16dp">
 
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="zixine engine" android:textColor="@color/accent_blue" android:textSize="28sp" android:textStyle="bold" />
+        
+        <TextView 
+            android:layout_width="wrap_content" 
+            android:layout_height="wrap_content"
+            android:layout_marginTop="48dp"
+            android:text="zixine engine" 
+            android:textColor="@color/accent_blue" 
+            android:textSize="28sp" 
+            android:textStyle="bold" />
 
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp"
