@@ -18,15 +18,20 @@ dependencies {
     implementation 'androidx.constraintlayout:constraintlayout:2.2.0'
 }
 
-android {
-    // ... (keep your existing namespace and compileSdk)
 
+android {
+    namespace 'com.contoh.aplikasimu' // Biarkan sesuai kode aslimu
+    compileSdk 34 // Biarkan sesuai kode aslimu
+
+    defaultConfig {
+        // ... kode aslimu ...
+    }
+
+    // 1. Tambahkan blok signingConfigs ini
     signingConfigs {
         release {
-            // "release.jks" otomatis dicari di folder /app karena file gradle ini ada di sana
-            storeFile file("release.jks")
-            
-            // Mengambil password dari Environment Variables yang dikirim GitHub Actions
+            // Kita arahkan ke file jks yang dibuat oleh GitHub Actions
+            storeFile file("release.jks") 
             storePassword System.getenv("SIGNING_STORE_PASSWORD")
             keyAlias System.getenv("SIGNING_KEY_ALIAS")
             keyPassword System.getenv("SIGNING_KEY_PASSWORD")
@@ -35,11 +40,10 @@ android {
 
     buildTypes {
         release {
-            // Pakai konfigurasi signing release yang kita buat di atas
-            signingConfig signingConfigs.release
-            
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // 2. Hubungkan signingConfig release ke tipe build release
+            signingConfig signingConfigs.release
         }
     }
 }
