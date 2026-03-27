@@ -1,25 +1,19 @@
 name: Build Zixine Engine V29
 
 on:
-  # 1. Tombol Manual di tab Actions GitHub
+  # 1. Tombol Manual (WAJIB ADA buat kamu yang suka trial-error)
   workflow_dispatch:
 
-  # 2. Jalan otomatis HANYA jika ada push di branch main/master
+  # 2. Jalan otomatis hanya jika ada perubahan di file sistem/app
   push:
     branches:
       - main
       - master
-    # HANYA jalan jika file-file penting ini berubah
     paths:
       - 'app/**'
       - 'build.gradle'
       - 'settings.gradle'
       - 'gradle.properties'
-    # JANGAN jalan jika hanya edit file berikut
-    paths-ignore:
-      - '**.md'
-      - '.gitignore'
-      - 'LICENSE'
 
 jobs:
   build:
@@ -36,15 +30,15 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Grant Execute Permission for Gradlew
+      - name: Grant Execute Permission
         run: chmod +x gradlew
 
-      - name: Build Release APK (Unsigned)
+      - name: Build Release APK
         run: ./gradlew assembleRelease
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: zixine-v29-release-apk
+          name: zixine-v29-apk
           path: app/build/outputs/apk/release/*.apk
           retention-days: 7
