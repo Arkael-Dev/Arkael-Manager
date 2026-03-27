@@ -21,29 +21,36 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Find and Fix Gradlew Permission
-        run: |
-          # Perintah ini bakal nyari gradlew di mana pun dan kasih izin eksekusi
-          find . -name "gradlew" -exec chmod +x {} +
-          echo "Gradlew found and permission granted."
-
       - name: Decode Keystore
         env:
           SIGNING_KEY_BASE64: ${{ secrets.SIGNING_KEY }}
         run: |
-          # Kita buat file jks di root project dan di folder app biar aman
+          # Buat file jks di root dan di folder app (jaga-jaga buat semua struktur project)
           echo "$SIGNING_KEY_BASE64" | base64 --decode > release.jks
-          echo "$SIGNING_KEY_BASE64" | base64 --decode > app/release.jks
+          # Cek apakah folder app ada, kalau ada copy ke sana juga
+          if [ -d "app" ]; then
+            echo "$SIGNING_KEY_BASE64" | base64 --decode > app/release.jks
+          fi
 
       - name: Build with Gradle
-        run: |
-          # Cari lokasi gradlew lalu eksekusi assembleRelease
-          GRADLEW_PATH=$(find . -name "gradlew" | head -n 1)
-          $GRADLEW_PATH assembleRelease
         env:
           SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          # Cari lokasi gradlew secara presisi
+          GRADLEW_PATH=$(find . -name "gradlew" -not -path "*/.*" | head -n 1)
+          
+          if [ -z "$GRADLEW_PATH" ]; then
+            echo "KONTOL! File gradlew gak ketemu di folder mana pun. Cek lagi project lu!"
+            exit 1
+          fi
+          
+          echo "Ketemu gradlew di: $GRADLEW_PATH"
+          chmod +x "$GRADLEW_PATH"
+          
+          # Jalankan build pake path lengkap yang udah ketemu
+          $GRADLEW_PATH assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
