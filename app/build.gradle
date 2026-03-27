@@ -1,6 +1,5 @@
 plugins {
-    // Tambahkan id versi di sini (Versi 8.7.0 atau 9.0.0 sesuai Gradle 9.4)
-    id 'com.android.application' version '8.7.0' 
+    id 'com.android.application'
 }
 
 android {
