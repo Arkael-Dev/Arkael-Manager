@@ -5,7 +5,7 @@ import android.widget.Toast;
 
 public class ExtremeTileService extends TileService {
     private String GAMES = "com.dts.freefireth com.dts.freefiremax com.mobile.legends com.tencent.ig com.pubg.imobile com.miHoYo.GenshinImpact com.hoYoverse.hkrpg";
-    private String WHITELIST = "com.zcqptx.dcwihze com.termux android com.android.systemui com.miui.home com.zixine.engine com.android.settings com.miui.securitycenter";
+    private String WHITELIST = "com.zcqptx.dcwihze com.termux android com.android.systemui com.miui.home com.zixine.engine com.android.settings";
 
     @Override
     public void onClick() {
@@ -14,15 +14,15 @@ public class ExtremeTileService extends TileService {
         if (active) {
             String cmd = "PKGS=$(pm list packages -e | cut -d ':' -f2); for p in $PKGS; do " +
                          "MATCH=false; for w in " + WHITELIST + " " + GAMES + "; do [ \"$p\" == \"$w\" ] && MATCH=true && break; done; " +
-                         "[ \"$MATCH\" == \"false\" ] && pm suspend --user 0 $p && am force-stop $p; " +
+                         "[ \"$MATCH\" == \"false\" ] && pm disable-user --user 0 $p && am force-stop $p; " +
                          "done; pm disable com.miui.powerkeeper/.statemachine.PowerStateMachineService;";
             exec(cmd);
             t.setState(Tile.STATE_ACTIVE);
-            Toast.makeText(this, "EXTREME: ON 🛡️", 0).show();
+            Toast.makeText(this, "EXTREME: SEALED 🛡️", 0).show();
         } else {
-            exec("PKGS=$(pm list packages -u | cut -d ':' -f2); for p in $PKGS; do pm unsuspend --user 0 $p & done; pm enable com.miui.powerkeeper/.statemachine.PowerStateMachineService;");
+            exec("PKGS=$(pm list packages -d | cut -d ':' -f2); for p in $PKGS; do pm enable $p & done; pm enable com.miui.powerkeeper/.statemachine.PowerStateMachineService;");
             t.setState(Tile.STATE_INACTIVE);
-            Toast.makeText(this, "EXTREME: OFF 🌍", 0).show();
+            Toast.makeText(this, "EXTREME: NORMAL 🌍", 0).show();
         }
         t.updateTile();
     }
