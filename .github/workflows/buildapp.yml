@@ -1,8 +1,8 @@
-name: Build Android APK
+name: Build Android APK Signed
 
 on:
   push:
-    branches: [ "main", "master" ] # Jalankan saat lu push ke main atau master
+    branches: [ "main", "master" ]
   pull_request:
     branches: [ "main", "master" ]
 
@@ -21,26 +21,32 @@ jobs:
           distribution: 'temurin'
           cache: gradle
 
-      - name: Grant Execute Permission for Gradlew
-        run: chmod +x gradlew
+      - name: Find and Fix Gradlew Permission
+        run: |
+          # Perintah ini bakal nyari gradlew di mana pun dan kasih izin eksekusi
+          find . -name "gradlew" -exec chmod +x {} +
+          echo "Gradlew found and permission granted."
 
-      # LANGKAH KRUSIAL: Decode Keystore ke folder app/
       - name: Decode Keystore
         env:
           SIGNING_KEY_BASE64: ${{ secrets.SIGNING_KEY }}
         run: |
+          # Kita buat file jks di root project dan di folder app biar aman
+          echo "$SIGNING_KEY_BASE64" | base64 --decode > release.jks
           echo "$SIGNING_KEY_BASE64" | base64 --decode > app/release.jks
 
-      - name: Build Release APK
-        run: ./gradlew assembleRelease
+      - name: Build with Gradle
+        run: |
+          # Cari lokasi gradlew lalu eksekusi assembleRelease
+          GRADLEW_PATH=$(find . -name "gradlew" | head -n 1)
+          $GRADLEW_PATH assembleRelease
         env:
-          # Variabel ini akan dibaca oleh build.gradle
           SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
-      - name: Upload APK Artifact
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: app-release
-          path: app/build/outputs/apk/release/*.apk
+          name: Production-APK
+          path: "**/build/outputs/apk/release/*.apk"
