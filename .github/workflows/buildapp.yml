@@ -1,18 +1,12 @@
 name: Build Zixine Engine V29
 
 on:
-  # 1. Tombol Manual (WAJIB ADA buat kamu yang suka trial-error)
-  workflow_dispatch:
-
-  # 2. Jalan otomatis hanya jika ada perubahan di file sistem/app
+  workflow_dispatch: # Jalankan manual dari tab Actions
   push:
-    branches:
-      - main
-      - master
+    branches: [ main, master ]
     paths:
       - 'app/**'
-      - 'build.gradle'
-      - 'settings.gradle'
+      - '**.gradle'
       - 'gradle.properties'
 
 jobs:
@@ -28,13 +22,10 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
-          cache: gradle
 
-      - name: Grant Execute Permission
-        run: chmod +x gradlew
-
+      # KITA LANGSUNG PAKAI GRADLE GLOBAL, GAK PAKE ./GRADLEW LAGI
       - name: Build Release APK
-        run: ./gradlew assembleRelease
+        run: gradle assembleRelease
 
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
