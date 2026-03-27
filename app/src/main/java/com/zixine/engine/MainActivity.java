@@ -1,143 +1,60 @@
 package com.zixine.engine;
-
-import android.app.Activity;
-import android.content.Context;
-import android.content.Intent;
-import android.content.SharedPreferences;
-import android.net.Uri;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
-import android.provider.Settings;
-import android.view.View;
-import android.widget.Button;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.app.*;
+import android.content.*;
+import android.os.*;
+import android.widget.*;
+import com.google.android.material.card.MaterialCardView;
 import java.io.DataOutputStream;
 
 public class MainActivity extends Activity {
-    private final String GAMES = "com.dts.freefireth com.dts.freefiremax com.mobile.legends com.tencent.ig com.pubg.imobile com.miHoYo.GenshinImpact com.hoYoverse.hkrpg";
-    private final String WHITELIST = "com.zcqptx.dcwihze com.termux android com.android.systemui com.miui.home com.zixine.engine com.android.settings com.miui.securitycenter";
-    private final String BLACKLIST_MANUAL = "com.facebook.katana com.facebook.orca com.instagram.android com.ss.android.ugc.trill com.zhiliaoapp.musically com.whatsapp com.whatsapp.w4b com.twitter.android com.shopee.id com.tokopedia.tkpd com.lazada.android";
-
-    private Button btnGms, btnExt, btnPerf, btnMonitor;
-    private TextView tvCpu, tvBattery;
     private SharedPreferences prefs;
-    private Handler monitorHandler = new Handler(Looper.getMainLooper());
+    private TextView tvCpu, tvBattery;
+    private Handler h = new Handler(Looper.getMainLooper());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
-        prefs = getSharedPreferences("NarukamiV27", Context.MODE_PRIVATE);
-        btnGms = findViewById(R.id.btn_gms);
-        btnExt = findViewById(R.id.btn_extreme);
-        btnPerf = findViewById(R.id.btn_perf);
-        btnMonitor = findViewById(R.id.btn_monitor);
+        prefs = getSharedPreferences("zixine_v29", MODE_PRIVATE);
         tvCpu = findViewById(R.id.tv_cpu_fps);
         tvBattery = findViewById(R.id.tv_battery_ram);
 
-        updateUI();
-        startDashboardMonitoring();
+        findViewById(R.id.card_gms).setOnClickListener(v -> toggleGms());
+        findViewById(R.id.card_extreme).setOnClickListener(v -> toggleExtreme());
+        findViewById(R.id.card_perf).setOnClickListener(v -> togglePerf());
+        findViewById(R.id.card_monitor).setOnClickListener(v -> startService(new Intent(this, MonitorService.class)));
 
-        btnGms.setOnClickListener(v -> animate(v, () -> {
-            boolean active = !prefs.getBoolean("gms", false);
-            String target = "com.google.android.gms com.android.vending com.google.android.gsf";
-            if (active) {
-                execRoot("for p in " + target + "; do pm disable-user --user 0 $p; done;");
-                Toast.makeText(this, "GMS: DEAD 💀", Toast.LENGTH_SHORT).show();
-            } else {
-                execRoot("for p in " + target + "; do pm enable $p; done;");
-                Toast.makeText(this, "GMS: AKTIF 🌍", Toast.LENGTH_SHORT).show();
-            }
-            save("gms", active);
-        }));
-
-        btnExt.setOnClickListener(v -> animate(v, () -> {
-            boolean active = !prefs.getBoolean("ext", false);
-            if (active) {
-                String cmd = "for p in " + BLACKLIST_MANUAL + "; do pm suspend --user 0 $p; am force-stop $p; done; " +
-                             "PKGS=$(pm list packages -3 | cut -d ':' -f2); for p in $PKGS; do " +
-                             "MATCH=false; for w in " + WHITELIST + " " + GAMES + " " + BLACKLIST_MANUAL + "; do [ \"$p\" == \"$w\" ] && MATCH=true && break; done; " +
-                             "[ \"$MATCH\" == \"false\" ] && pm suspend --user 0 $p && am force-stop $p; " +
-                             "done;";
-                execRoot(cmd);
-                Toast.makeText(this, "EXTREME: KILLED 🛡️", Toast.LENGTH_SHORT).show();
-            } else {
-                execRoot("PKGS=$(pm list packages -u | cut -d ':' -f2); for p in $PKGS; do pm unsuspend --user 0 $p & done;");
-                Toast.makeText(this, "EXTREME: NORMAL 🌍", Toast.LENGTH_SHORT).show();
-            }
-            save("ext", active);
-        }));
-
-        btnPerf.setOnClickListener(v -> animate(v, () -> {
-            boolean active = !prefs.getBoolean("perf", false);
-            if (active) {
-                execRoot("setprop debug.cpurenderer true; setprop persist.sys.composition.type gpu;");
-                Toast.makeText(this, "PERF: RATA KANAN 🚀", Toast.LENGTH_SHORT).show();
-            } else {
-                execRoot("setprop touch.pressure.scale 1.0; setprop persist.sys.composition.type c2d;");
-                Toast.makeText(this, "PERF: NORMAL 🌍", Toast.LENGTH_SHORT).show();
-            }
-            save("perf", active);
-        }));
-
-        btnMonitor.setOnClickListener(v -> animate(v, () -> {
-            if (!Settings.canDrawOverlays(this)) {
-                Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:" + getPackageName()));
-                startActivityForResult(intent, 1234);
-            } else {
-                Toast.makeText(this, "Monitoring Notifikasi Aktif!", Toast.LENGTH_LONG).show();
-            }
-        }));
+        h.post(new Runnable() { @Override public void run() { updateDash(); h.postDelayed(this, 2000); }});
     }
 
-    private void startDashboardMonitoring() {
-        monitorHandler.post(new Runnable() {
-            @Override
-            public void run() {
-                updateDashboard();
-                monitorHandler.postDelayed(this, 2000);
-            }
-        });
+    private void updateDash() {
+        ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+        ((ActivityManager)getSystemService(ACTIVITY_SERVICE)).getMemoryInfo(mi);
+        Intent bat = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+        tvCpu.setText("Model: POCO X6 5G | Baterai: " + bat.getIntExtra("level", 0) + "%");
+        tvBattery.setText("RAM: " + (mi.totalMem - mi.availMem)/1048576L/1024 + "GB / " + mi.totalMem/1048576L/1024 + "GB");
     }
 
-    private void updateDashboard() {
-        tvCpu.setText("CPU: POCO X6 Stable | FPS: READY"); 
-        tvBattery.setText("Baterai: Monitoring Active | RAM: Safe");
+    private void toggleGms() {
+        boolean act = !prefs.getBoolean("gms", false);
+        exec(act ? "for p in com.google.android.gms com.android.vending; do pm disable-user --user 0 $p; done" : "pm enable com.google.android.gms; pm enable com.android.vending");
+        prefs.edit().putBoolean("gms", act).apply();
+        Toast.makeText(this, act ? "GMS: DEAD 💀" : "GMS: ALIVE 🌍", 0).show();
     }
 
-    @Override 
-    protected void onDestroy() { 
-        super.onDestroy(); 
-        monitorHandler.removeCallbacksAndMessages(null); 
+    private void toggleExtreme() {
+        boolean act = !prefs.getBoolean("ext", false);
+        exec(act ? "PKGS=$(pm list packages -3 | cut -d ':' -f2); for p in $PKGS; do [ \"$p\" != \"com.zixine.engine\" ] && pm suspend --user 0 $p; done" : "PKGS=$(pm list packages -u | cut -d ':' -f2); for p in $PKGS; do pm unsuspend --user 0 $p; done");
+        prefs.edit().putBoolean("ext", act).apply();
+        Toast.makeText(this, act ? "EXTREME: ACTIVE 🔥" : "EXTREME: OFF 🌍", 0).show();
     }
 
-    private void save(String k, boolean v) { 
-        prefs.edit().putBoolean(k, v).apply(); 
-        updateUI(); 
+    private void togglePerf() {
+        boolean act = !prefs.getBoolean("perf", false);
+        exec(act ? "setprop debug.cpurenderer true; setprop persist.sys.composition.type gpu" : "setprop debug.cpurenderer false");
+        prefs.edit().putBoolean("perf", act).apply();
+        Toast.makeText(this, "PERF: " + (act ? "ULTRA 🚀" : "NORMAL"), 0).show();
     }
 
-    private void updateUI() {
-        boolean g = prefs.getBoolean("gms", false); btnGms.setTextColor(g ? 0xFFFF3131 : 0xFFFFFFFF);
-        boolean e = prefs.getBoolean("ext", false); btnExt.setTextColor(e ? 0xFFFF3131 : 0xFFFFFFFF);
-        boolean p = prefs.getBoolean("perf", false); btnPerf.setTextColor(p ? 0xFF00FF88 : 0xFFFFFFFF);
-    }
-
-    private void animate(View v, Runnable r) { 
-        v.animate().scaleX(0.9f).scaleY(0.9f).setDuration(70).withEndAction(() -> 
-            v.animate().scaleX(1f).scaleY(1f).setDuration(70).withEndAction(r).start()
-        ).start(); 
-    }
-
-    private void execRoot(String c) { 
-        try { 
-            // FIXED: Menggunakan java.lang.Process secara eksplisit
-            java.lang.Process p = Runtime.getRuntime().exec("su"); 
-            DataOutputStream o = new DataOutputStream(p.getOutputStream()); 
-            o.writeBytes(c + "\nexit\n"); 
-            o.flush(); 
-        } catch (Exception ignored) {} 
-    }
+    private void exec(String c) { try { java.lang.Process p = Runtime.getRuntime().exec("su"); DataOutputStream o = new DataOutputStream(p.getOutputStream()); o.writeBytes(c + "\nexit\n"); o.flush(); } catch (Exception e) {} }
 }
