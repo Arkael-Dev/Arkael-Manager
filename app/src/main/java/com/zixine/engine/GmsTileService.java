@@ -10,13 +10,13 @@ public class GmsTileService extends TileService {
         boolean active = (t.getState() == Tile.STATE_INACTIVE);
         String target = "com.google.android.gms com.android.vending com.google.android.gsf";
         if (active) {
-            exec("pm suspend --user 0 " + target + "; am force-stop com.google.android.gms;");
+            exec("for p in " + target + "; do pm disable-user --user 0 $p; done;");
             t.setState(Tile.STATE_ACTIVE);
-            Toast.makeText(this, "GMS: KILLED 💀", 0).show();
+            Toast.makeText(this, "GMS: DEAD 💀", 0).show();
         } else {
-            exec("pm unsuspend --user 0 " + target + ";");
+            exec("for p in " + target + "; do pm enable $p; done;");
             t.setState(Tile.STATE_INACTIVE);
-            Toast.makeText(this, "GMS: RESTORED 🌍", 0).show();
+            Toast.makeText(this, "GMS: ALIVE 🌍", 0).show();
         }
         t.updateTile();
     }
