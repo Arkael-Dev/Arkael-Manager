@@ -10,6 +10,7 @@ public class GmsTileService extends TileService {
         boolean active = (t.getState() == Tile.STATE_INACTIVE);
         String target = "com.google.android.gms com.android.vending com.google.android.gsf";
         if (active) {
+            // GMS PAKAI DISABLE-USER (KOMA)
             exec("for p in " + target + "; do pm disable-user --user 0 $p; done;");
             t.setState(Tile.STATE_ACTIVE);
             Toast.makeText(this, "GMS: DEAD 💀", 0).show();
