@@ -1,7 +1,7 @@
 name: Build Zixine Signed APK
 
 on:
-  push:
+  workflow_dispatch:
     branches: [ "main" ]
   workflow_dispatch:
 
