@@ -19,13 +19,14 @@ dependencies {
 }
 
 android {
-    // ...
+    // ... (keep your existing namespace and compileSdk)
+
     signingConfigs {
         release {
-            // Membaca file yang kita decode tadi di GitHub Actions
+            // "release.jks" otomatis dicari di folder /app karena file gradle ini ada di sana
             storeFile file("release.jks")
             
-            // Membaca data dari Environment Variables yang dikirim workflow
+            // Mengambil password dari Environment Variables yang dikirim GitHub Actions
             storePassword System.getenv("SIGNING_STORE_PASSWORD")
             keyAlias System.getenv("SIGNING_KEY_ALIAS")
             keyPassword System.getenv("SIGNING_KEY_PASSWORD")
@@ -34,7 +35,9 @@ android {
 
     buildTypes {
         release {
+            // Pakai konfigurasi signing release yang kita buat di atas
             signingConfig signingConfigs.release
+            
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
