@@ -1,3 +1,6 @@
-<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="zixine_bg">#12182B</color> <color name="zixine_dongker">#1A2B56</color> <color name="zixine_accent">#00E5FF</color> <color name="zixine_text">#E0E0E0</color> </resources>
+    <color name="bg_dark">#0D1117</color>
+    <color name="card_dark">#161B22</color>
+    <color name="accent_blue">#58A6FF</color>
+    <color name="btn_dongker">#1A2B56</color>
+</resources>
