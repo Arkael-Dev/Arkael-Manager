@@ -1,24 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <uses-permission android:name="android.permission.VIBRATE" />
-    <application android:label="Zixine V23" android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
-        <activity android:name=".MainActivity" android:exported="true">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    package="com.zixine.engine">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="zixine"
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <service android:name=".GmsTileService" android:label="Zixine GMS" android:icon="@android:drawable/ic_menu_close_clear_cancel" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
-            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
-        </service>
-
-        <service android:name=".ExtremeTileService" android:label="Zixine Extreme" android:icon="@android:drawable/ic_lock_power_off" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
-            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
-        </service>
-
-        <service android:name=".PerfTileService" android:label="Zixine Perf" android:icon="@android:drawable/ic_menu_compass" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
-            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
-        </service>
     </application>
 </manifest>
