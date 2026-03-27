@@ -1,23 +1,32 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-    <application android:label="zixine" android:icon="@mipmap/ic_launcher" android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
+    
+    <application 
+        android:label="zixine" 
+        android:icon="@mipmap/ic_launcher" 
+        android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
+        
         <activity android:name=".MainActivity" android:exported="true">
-            <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
         </activity>
-        <service android:name=".ExtremeTileService" android:label="Extreme Mode" android:icon="@drawable/ic_extreme" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
-            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
-        </service>        
-        <service android:name=".GmsTileService" android:label="GMS Kill" android:icon="@drawable/ic_gms" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
-            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
-        </service>
-        <service android:name=".PerfTileService" android:label="PERF Boost" android:icon="@drawable/ic_perf" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
+
+        <service android:name=".MonitorService" android:foregroundServiceType="specialUse" />
+        
+        <service android:name=".ExtremeTileService" android:label="Extreme Mode" android:icon="@mipmap/ic_launcher" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
         </service>
+        
+        <service android:name=".GmsTileService" android:label="GMS Kill" android:icon="@mipmap/ic_launcher" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
         </service>
-        <service android:name=".GmsTileService" android:label="GMS Kill" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
+
+        <service android:name=".PerfTileService" android:label="PERF Boost" android:icon="@mipmap/ic_launcher" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
         </service>
+
     </application>
 </manifest>
