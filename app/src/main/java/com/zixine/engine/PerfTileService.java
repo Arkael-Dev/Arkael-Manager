@@ -15,37 +15,56 @@ public class PerfTileService extends TileService {
                                         "/sys/class/qcom-battery/restricted_current " +
                                         "/sys/class/power_supply/usb/pd_allowed";
 
-    private final String LIMIT_PATHS = "/sys/class/power_supply/battery/step_charging_enabled " +
-                                       "/sys/class/power_supply/battery/thermal_limit";
-
     @Override
     public void onClick() {
         Tile t = getQsTile();
         boolean active = (t.getState() == Tile.STATE_INACTIVE);
         
         if (active) {
-            // A. GPU Boost & Aim Lengket
-            String cmdBoost = "setprop touch.pressure.scale 0.001; setprop persist.sys.composition.type gpu; setprop debug.cpurenderer true; " +
-                              "settings put system pointer_speed 7; setprop windowsmgr.max_events_per_sec 300; setprop view.touch_slop 2; ";
+            // A. Aim Lengket Extreme & GPU HWUI Rendering
+            String cmdBoost = "setprop touch.pressure.scale 0.001; setprop touch.size.scale 0.001; setprop debug.touch.filter 0; " +
+                              "setprop persist.sys.composition.type gpu; setprop debug.hwui.renderer opengl; setprop debug.cpurenderer false; " +
+                              "settings put system pointer_speed 7; setprop windowsmgr.max_events_per_sec 1000; setprop view.touch_slop 2; " +
+                              "settings put secure long_press_timeout 150; ";
 
-            // B. Charging Limit Bypass & Arus ±18 Watt
-            String cmdCharge = "for limit in " + LIMIT_PATHS + "; do if [ -f \"$limit\" ]; then chmod 666 \"$limit\"; echo 0 > \"$limit\"; fi; done; " +
-                               "for path in " + CHARGE_PATHS + "; do if [ -f \"$path\" ]; then chmod 666 \"$path\"; echo 2000000 > \"$path\"; fi; done; ";
+            // B. Instan UI (Matikan Animasi) -> Bikin HP terasa sangat ngebut
+            String cmdAnimOff = "settings put global window_animation_scale 0.0; " +
+                                "settings put global transition_animation_scale 0.0; " +
+                                "settings put global animator_duration_scale 0.0; ";
+
+            // C. Anti-Screen Dimming & Anti-FPS Drop
+            String cmdAntiDrop = "resetprop ro.vendor.display.framework_thermal_dimming false; " +
+                                 "resetprop ro.vendor.fps.switch.thermal false; " +
+                                 "resetprop ro.vendor.thermal.dimming.enable false; ";
+
+            // D. Charging Limit Bypass ±18 Watt
+            String cmdCharge = "for path in " + CHARGE_PATHS + "; do if [ -f \"$path\" ]; then chmod 666 \"$path\"; echo 3500000 > \"$path\"; fi; done; ";
             
-            exec(cmdBoost + cmdCharge);
+            exec(cmdBoost + cmdAnimOff + cmdAntiDrop + cmdCharge);
             t.setState(Tile.STATE_ACTIVE);
-            Toast.makeText(this, "PERF 🔥 | FPS LOCK | CHARGE BOOST", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "PERF 🔥 | EXTREME AIM | 0 LAG", Toast.LENGTH_SHORT).show();
             
         } else {
-            String cmdNormal = "setprop touch.pressure.scale 1.0; setprop persist.sys.composition.type c2d; setprop debug.cpurenderer false; " +
-                               "settings put system pointer_speed 3; setprop windowsmgr.max_events_per_sec 90; setprop view.touch_slop 8; ";
+            // Mengembalikan ke setelan pabrik
+            String cmdNormal = "setprop touch.pressure.scale 1.0; setprop touch.size.scale 1.0; setprop debug.touch.filter 1; " +
+                               "setprop persist.sys.composition.type c2d; setprop debug.hwui.renderer default; setprop debug.cpurenderer false; " +
+                               "settings put system pointer_speed 3; setprop windowsmgr.max_events_per_sec 90; setprop view.touch_slop 8; " +
+                               "settings put secure long_press_timeout 400; ";
 
-            String cmdChargeReset = "for limit in " + LIMIT_PATHS + "; do if [ -f \"$limit\" ]; then chmod 666 \"$limit\"; echo 1 > \"$limit\"; fi; done; " +
-                                    "for path in " + CHARGE_PATHS + "; do if [ -f \"$path\" ]; then chmod 666 \"$path\"; echo 6000000 > \"$path\"; fi; done; ";
+            // Mengembalikan Animasi Sistem
+            String cmdAnimOn = "settings put global window_animation_scale 1.0; " +
+                               "settings put global transition_animation_scale 1.0; " +
+                               "settings put global animator_duration_scale 1.0; ";
+
+            String cmdAntiDropReset = "resetprop ro.vendor.display.framework_thermal_dimming true; " +
+                                      "resetprop ro.vendor.fps.switch.thermal true; " +
+                                      "resetprop ro.vendor.thermal.dimming.enable true; ";
+
+            String cmdChargeReset = "for path in " + CHARGE_PATHS + "; do if [ -f \"$path\" ]; then chmod 666 \"$path\"; echo 6000000 > \"$path\"; fi; done; ";
             
-            exec(cmdNormal + cmdChargeReset);
+            exec(cmdNormal + cmdAnimOn + cmdAntiDropReset + cmdChargeReset);
             t.setState(Tile.STATE_INACTIVE);
-            Toast.makeText(this, "NORMAL 🌍 | FAST CHARGE", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "NORMAL 🌍 | ANIMATION ON", Toast.LENGTH_SHORT).show();
         }
         t.updateTile();
     }
