@@ -40,14 +40,14 @@ public class PerfTileService extends TileService {
             String cmdIO = "for q in /sys/block/*/queue/read_ahead_kb; do echo 4096 > \"$q\"; done; " +
                            "resetprop audio.deep_buffer.media false; resetprop af.fast_track_multiplier 1; ";
 
-            // F. MODE TURNAMEN (Bypass DND, Bius Thermal QCOM, FSTRIM Storage)
-            String cmdExtreme = "cmd notification set_dnd on; " +
+            // F. MODE TURNAMEN (DND Priority Mode agar suara game tidak hilang, Bius Thermal QCOM, FSTRIM)
+            String cmdExtreme = "settings put global zen_mode 1; " + 
                                 "killall -STOP thermald; killall -STOP thermal-engine; " + 
                                 "fstrim -v /data; fstrim -v /cache; ";
             
             exec(cmdBoost + cmdAnimOff + cmdAntiDrop + cmdNetRam + cmdIO + cmdExtreme);
             t.setState(Tile.STATE_ACTIVE);
-            Toast.makeText(this, "GOD MODE 🔥 | ZRAM OFF | LIMITS DESTROYED", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "GOD MODE 🔥 | ZRAM OFF | DND ON", Toast.LENGTH_SHORT).show();
             
         } else {
             // Restore A (Kembalikan Touch, 60Hz-120Hz Auto, UI Normal)
@@ -74,7 +74,7 @@ public class PerfTileService extends TileService {
                                  "resetprop audio.deep_buffer.media true; resetprop af.fast_track_multiplier 2; ";
 
             // Restore F (Matikan DND, Bangunkan Pemantau Thermal)
-            String cmdExtremeRestore = "cmd notification set_dnd off; " +
+            String cmdExtremeRestore = "settings put global zen_mode 0; " +
                                        "killall -CONT thermald; killall -CONT thermal-engine; ";
             
             exec(cmdNormal + cmdRestore2 + cmdRestore3 + cmdExtremeRestore);
