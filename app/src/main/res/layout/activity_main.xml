@@ -7,7 +7,7 @@
     android:padding="24dp">
 
     <LinearLayout
-        android:id="@+id/header_layout"
+        android:id="@+id/header"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
@@ -41,7 +41,8 @@
         app:cardCornerRadius="20dp"
         app:strokeColor="#FF1744"
         app:strokeWidth="1dp"
-        android:visibility="gone">
+        android:visibility="gone"
+        android:elevation="10dp">
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -51,7 +52,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="SECURITY CHECK"
+                android:text="SECURITY CHECK FAILED"
                 android:textColor="#FF1744"
                 android:textStyle="bold" />
             <EditText
@@ -69,7 +70,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="15dp"
-                android:text="UNLOCK"
+                android:text="UNLOCK ZIXINE"
                 android:backgroundTint="#FF1744" />
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
@@ -136,9 +137,10 @@
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
         android:layout_marginBottom="20dp"
-        android:text="INFO: PERF (Hz/Touch), GMS (Disable), EXTREME (Suspend Apps)"
+        android:text="ZIXINE ENGINE | KERNEL EXCLUSIVE"
         android:textColor="#66FFFFFF"
         android:textSize="10sp"
         android:gravity="center"
         android:visibility="gone" />
+
 </RelativeLayout>
