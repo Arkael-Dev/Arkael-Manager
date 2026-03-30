@@ -1,41 +1,64 @@
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent" android:layout_height="match_parent"
-    android:background="@color/bg_dark" android:padding="16dp">
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0F111A">
 
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical">
+    <TextView
+        android:id="@+id/title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ZIXINE 445"
+        android:textColor="#FF1744"
+        android:textSize="32sp"
+        android:textStyle="bold"
+        android:layout_centerHorizontal="true"
+        android:layout_marginTop="60dp"
+        android:letterSpacing="0.1" />
+
+    <TextView
+        android:layout_below="@id/title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="ELYSIUM KERNEL CONTROLLER"
+        android:textColor="#44FFFFFF"
+        android:textSize="10sp"
+        android:layout_centerHorizontal="true" />
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/btn_ignite"
+        android:layout_width="250dp"
+        android:layout_height="250dp"
+        android:layout_centerInParent="true"
+        app:cardBackgroundColor="#131521"
+        app:cardCornerRadius="125dp"
+        app:cardElevation="15dp">
         
-        <TextView 
-            android:layout_width="wrap_content" 
-            android:layout_height="wrap_content"
-            android:layout_marginTop="48dp"
-            android:text="zixine engine" 
-            android:textColor="@color/accent_blue" 
-            android:textSize="28sp" 
-            android:textStyle="bold" />
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center">
+            
+            <TextView
+                android:id="@+id/status_text"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="OFF"
+                android:textColor="#33FFFFFF"
+                android:textSize="40sp"
+                android:textStyle="bold" />
+        </RelativeLayout>
+    </androidx.cardview.widget.CardView>
 
-        <com.google.android.material.card.MaterialCardView
-            android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp"
-            app:cardBackgroundColor="@color/card_dark" app:cardCornerRadius="12dp" app:strokeColor="#30363D" app:strokeWidth="1dp">
-            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="16dp">
-                <TextView android:id="@+id/tv_cpu_fps" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="System Info Loading..." android:textColor="#7D8590" />
-                <TextView android:id="@+id/tv_battery_ram" android:layout_width="wrap_content" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:text="Hardware Info Loading..." android:textColor="#7D8590" />
-            </LinearLayout>
-        </com.google.android.material.card.MaterialCardView>
+    <TextView
+        android:layout_alignParentBottom="true"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="30dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="BYPASS ALL LIMITS"
+        android:textColor="#22FFFFFF"
+        android:textSize="10sp" />
 
-        <GridLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="20dp" android:columnCount="2">
-            <com.google.android.material.card.MaterialCardView android:id="@+id/card_gms" android:layout_width="0dp" android:layout_height="110dp" android:layout_columnWeight="1" android:layout_margin="8dp" app:cardBackgroundColor="@color/btn_dongker" app:cardCornerRadius="16dp" android:clickable="true">
-                <TextView android:id="@+id/txt_gms" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="⚡\nGMS" android:textColor="#FFF" android:textStyle="bold" android:textAlignment="center"/>
-            </com.google.android.material.card.MaterialCardView>
-            <com.google.android.material.card.MaterialCardView android:id="@+id/card_extreme" android:layout_width="0dp" android:layout_height="110dp" android:layout_columnWeight="1" android:layout_margin="8dp" app:cardBackgroundColor="@color/btn_dongker" app:cardCornerRadius="16dp" android:clickable="true">
-                <TextView android:id="@+id/txt_ext" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="🔥\nEXTREME" android:textColor="#FFF" android:textStyle="bold" android:textAlignment="center"/>
-            </com.google.android.material.card.MaterialCardView>
-            <com.google.android.material.card.MaterialCardView android:id="@+id/card_perf" android:layout_width="0dp" android:layout_height="110dp" android:layout_columnWeight="1" android:layout_margin="8dp" app:cardBackgroundColor="@color/btn_dongker" app:cardCornerRadius="16dp" android:clickable="true">
-                <TextView android:id="@+id/txt_perf" android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="🚀\nPERF" android:textColor="#FFF" android:textStyle="bold" android:textAlignment="center"/>
-            </com.google.android.material.card.MaterialCardView>
-            <com.google.android.material.card.MaterialCardView android:id="@+id/card_monitor" android:layout_width="0dp" android:layout_height="110dp" android:layout_columnWeight="1" android:layout_margin="8dp" app:cardBackgroundColor="@color/btn_dongker" app:cardCornerRadius="16dp" android:clickable="true">
-                <TextView android:layout_width="match_parent" android:layout_height="match_parent" android:gravity="center" android:text="📊\nMONITOR" android:textColor="#FFF" android:textStyle="bold" android:textAlignment="center"/>
-            </com.google.android.material.card.MaterialCardView>
-        </GridLayout>
-    </LinearLayout>
-</ScrollView>
+</RelativeLayout>
