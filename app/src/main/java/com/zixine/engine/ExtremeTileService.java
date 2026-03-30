@@ -12,6 +12,19 @@ public class ExtremeTileService extends TileService {
     private final String GAMES = "com.dts.freefireth com.dts.freefiremax com.mobile.legends com.tencent.ig com.pubg.imobile com.miHoYo.GenshinImpact com.hoYoverse.hkrpg";
     private final String WHITELIST = "com.zcqptx.dcwihze com.termux android com.android.systemui com.miui.home com.zixine.engine com.android.settings com.miui.securitycenter";
 
+    // Melacak apakah pengguna sudah menambahkan toggle ke panel atas
+    @Override
+    public void onTileAdded() {
+        super.onTileAdded();
+        getSharedPreferences("ZixinePrefs", Context.MODE_PRIVATE).edit().putBoolean("extreme_added", true).apply();
+    }
+
+    @Override
+    public void onTileRemoved() {
+        super.onTileRemoved();
+        getSharedPreferences("ZixinePrefs", Context.MODE_PRIVATE).edit().putBoolean("extreme_added", false).apply();
+    }
+
     @Override
     public void onClick() {
         SharedPreferences p = getSharedPreferences("ZixinePrefs", Context.MODE_PRIVATE);
