@@ -2,11 +2,11 @@ package com.zixine.engine;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.view.View;
+import android.widget.Button;
 import android.widget.EditText;
-import android.widget.TextView;
+import android.widget.LinearLayout;
 import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.card.MaterialCardView;
@@ -15,13 +15,13 @@ import java.io.InputStreamReader;
 
 public class MainActivity extends AppCompatActivity {
 
-    private boolean isPerf = false, isGms = false, isExtreme = false;
     private SharedPreferences prefs;
     private final String SECRET_CODE = "445456"; 
-    
-    // DATA VITAL DARI KOMANDAN
-    private final String BLACKLIST = "com.facebook.katana com.facebook.orca com.instagram.android com.ss.android.ugc.trill com.zhiliaoapp.musically com.whatsapp com.whatsapp.w4b com.twitter.android com.shopee.id com.tokopedia.tkpd com.lazada.android com.google.android.youtube com.google.android.apps.docs com.google.android.apps.photos com.google.android.gm com.netflix.mediaclient com.spotify.music";
-    private final String GMS_PACKS = "com.google.android.gms com.android.vending com.google.android.gsf";
+
+    private LinearLayout layoutVerified;
+    private MaterialCardView layoutLocked;
+    private EditText inputCode;
+    private Button btnUnlock;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -29,100 +29,53 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         
         prefs = getSharedPreferences("ZixinePrefs", Context.MODE_PRIVATE);
-        verifyKernelAndAccess();
         
-        findViewById(R.id.btn_trigger).setOnClickListener(v -> {
-            TextView tv = findViewById(R.id.tutorial_view);
-            TextView arrow = findViewById(R.id.arrow_text);
-            if (tv.getVisibility() == View.GONE) {
-                tv.setVisibility(View.VISIBLE); arrow.setText("▼");
+        layoutVerified = findViewById(R.id.layout_verified);
+        layoutLocked = findViewById(R.id.layout_locked);
+        inputCode = findViewById(R.id.input_code);
+        btnUnlock = findViewById(R.id.btn_unlock);
+
+        verifyKernelAndAccess();
+
+        btnUnlock.setOnClickListener(v -> {
+            if (inputCode.getText().toString().equals(SECRET_CODE)) {
+                prefs.edit().putBoolean("isBypassed", true).apply();
+                Toast.makeText(this, "BYPASS SUCCESSFUL", Toast.LENGTH_SHORT).show();
+                verifyKernelAndAccess();
             } else {
-                tv.setVisibility(View.GONE); arrow.setText("▲");
+                Toast.makeText(this, "ACCESS DENIED: WRONG PASSKEY", Toast.LENGTH_SHORT).show();
+                inputCode.setText("");
             }
         });
     }
 
     private void verifyKernelAndAccess() {
-        String kernelInfo = getKernelVersion();
-        boolean isZixine = kernelInfo.toLowerCase().contains("zixine"); 
+        String kernelInfo = getKernelVersion().toLowerCase();
+        boolean isZixine = kernelInfo.contains("zixine"); 
         boolean isBypassed = prefs.getBoolean("isBypassed", false); 
 
         if (isZixine || isBypassed) {
-            findViewById(R.id.lock_overlay).setVisibility(View.GONE);
-            findViewById(R.id.main_ui).setAlpha(1.0f);
-            setupButtons();
+            // Jika berhasil terverifikasi, sembunyikan gembok, tampilkan instruksi
+            layoutLocked.setVisibility(View.GONE);
+            layoutVerified.setVisibility(View.VISIBLE);
         } else {
-            findViewById(R.id.lock_overlay).setVisibility(View.VISIBLE);
-            findViewById(R.id.main_ui).setAlpha(0.1f);
-            setupUnlock();
+            // Jika gagal, tampilkan input gembok
+            layoutLocked.setVisibility(View.VISIBLE);
+            layoutVerified.setVisibility(View.GONE);
         }
     }
 
     private String getKernelVersion() {
         try {
+            // Membaca versi kernel langsung dari sistem Linux/Android
             Process p = Runtime.getRuntime().exec("uname -a");
             BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            return r.readLine();
-        } catch (Exception e) { return System.getProperty("os.version"); }
-    }
-
-    private void setupUnlock() {
-        EditText input = findViewById(R.id.input_code);
-        findViewById(R.id.btn_unlock).setOnClickListener(v -> {
-            if (input.getText().toString().equals(SECRET_CODE)) {
-                prefs.edit().putBoolean("isBypassed", true).apply();
-                verifyKernelAndAccess();
-            } else {
-                Toast.makeText(this, "WRONG CODE!", Toast.LENGTH_SHORT).show();
-            }
-        });
-    }
-
-    private void setupButtons() {
-        // PERF: 120Hz & Responsivitas Sentuhan Penuh
-        findViewById(R.id.btn_perf).setOnClickListener(v -> {
-            isPerf = !isPerf;
-            String cmd = isPerf ? 
-                "settings put system min_refresh_rate 120.0; settings put system peak_refresh_rate 120.0; " +
-                "settings put global window_animation_scale 0; settings put global transition_animation_scale 0; " +
-                "settings put global animator_duration_scale 0; setprop touch.pressure.scale 0.001; " +
-                "setprop debug.touch.filter 0; resetprop ro.min.fling_velocity 8000; killall -STOP thermald;" : 
-                "settings put system min_refresh_rate 60.0; settings put global window_animation_scale 1; " +
-                "setprop touch.pressure.scale 1; setprop debug.touch.filter 1; resetprop ro.min.fling_velocity 50; killall -CONT thermald;";
-            execute(cmd);
-            updateUI(isPerf, findViewById(R.id.btn_perf), findViewById(R.id.status_perf));
-        });
-
-        // GMS KILL: pm disable
-        findViewById(R.id.btn_gms).setOnClickListener(v -> {
-            isGms = !isGms;
-            String cmd = isGms ? 
-                "for p in " + GMS_PACKS + "; do pm disable-user --user 0 $p; done;" : 
-                "for p in " + GMS_PACKS + "; do pm enable $p; done;";
-            execute(cmd);
-            updateUI(isGms, findViewById(R.id.btn_gms), findViewById(R.id.status_gms));
-        });
-
-        // EXTREME: pm suspend BLACKLIST & ZRAM OFF
-        findViewById(R.id.btn_extreme).setOnClickListener(v -> {
-            isExtreme = !isExtreme;
-            String cmd = isExtreme ? 
-                "for app in " + BLACKLIST + " " + GMS_PACKS + "; do pm suspend $app; done; swapoff -a; settings put system min_refresh_rate 120.0;" : 
-                "for app in " + BLACKLIST + " " + GMS_PACKS + "; do pm unsuspend $app; done; swapon -a; settings put system min_refresh_rate 60.0;";
-            execute(cmd);
-            updateUI(isExtreme, findViewById(R.id.btn_extreme), findViewById(R.id.status_extreme));
-        });
-    }
-
-    private void execute(String c) {
-        new Thread(() -> {
-            try { Runtime.getRuntime().exec(new String[]{"su", "-c", c}).waitFor(); } catch (Exception ignored) {}
-        }).start();
-    }
-
-    private void updateUI(boolean active, View card, TextView status) {
-        ((MaterialCardView)card).setCardBackgroundColor(Color.parseColor(active ? "#FF1744" : "#12161F"));
-        status.setText(active ? "ON" : "OFF");
-        status.setTextColor(active ? Color.WHITE : Color.parseColor("#44FFFFFF"));
+            String output = r.readLine();
+            if (output != null) return output;
+        } catch (Exception e) { 
+            e.printStackTrace(); 
+        }
+        // Fallback jika uname gagal
+        return System.getProperty("os.version"); 
     }
 }
