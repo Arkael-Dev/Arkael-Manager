@@ -52,7 +52,7 @@
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="SECURITY CHECK FAILED"
+                android:text="DEVICE NOT SUPPORTED"
                 android:textColor="#FF1744"
                 android:textStyle="bold" />
             <EditText
@@ -60,7 +60,7 @@
                 android:layout_width="180dp"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="10dp"
-                android:hint="Pass: 445456"
+                android:hint="Input: 445456"
                 android:textColor="#FFFFFF"
                 android:textColorHint="#44FFFFFF"
                 android:inputType="number"
@@ -156,7 +156,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="15dp"
-                android:text="TUTORIAL:\n1. Gunakan QS Tiles untuk aktivasi cepat.\n2. PERF: Optimize Hz/Touch.\n3. GMS KILL: Bekukan Google Services.\n4. EXTREME: PERF+GMS+ZRAM OFF."
+                android:text="TUTORIAL:\n1. Gunakan QS Tiles untuk aktivasi cepat.\n2. PERF: Optimize Hz/Touch.\n3. GMS KILL: Bekukan Google Services (pm disable).\n4. EXTREME: PERF+Suspend GMS+ZRAM OFF."
                 android:textColor="#66FFFFFF"
                 android:textSize="12sp"
                 android:visibility="gone" />
