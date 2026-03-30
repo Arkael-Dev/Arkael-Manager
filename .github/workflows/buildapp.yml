@@ -1,10 +1,9 @@
-name: Build Android APK Signed
+name: Build Android APK Signed (Manual Only)
 
 on:
-  push:
-    branches: [ "main", "master" ]
-  pull_request:
-    branches: [ "main", "master" ]
+  # Menghapus push dan pull_request agar tidak otomatis
+  # Mengaktifkan tombol manual di tab Actions GitHub
+  workflow_dispatch:
 
 jobs:
   build:
@@ -15,7 +14,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v4
+        uses: android-actions/setup-java@v4 # Menggunakan provider yang lebih spesifik untuk Android
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -28,9 +27,8 @@ jobs:
         env:
           SIGNING_KEY_BASE64: ${{ secrets.SIGNING_KEY }}
         run: |
-          # Buat file jks di root dan di folder app (jaga-jaga buat semua struktur project)
+          # Membuat file jks untuk proses signing
           echo "$SIGNING_KEY_BASE64" | base64 --decode > release.jks
-          # Cek apakah folder app ada, kalau ada copy ke sana juga
           if [ -d "app" ]; then
             echo "$SIGNING_KEY_BASE64" | base64 --decode > app/release.jks
           fi
@@ -41,22 +39,25 @@ jobs:
           SIGNING_KEY_ALIAS: ${{ secrets.ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          # Cari lokasi gradlew secara presisi
+          # Mencari lokasi gradlew untuk eksekusi build
           GRADLEW_PATH=$(find . -name "gradlew" -not -path "*/.*" | head -n 1)
           
           if [ -z "$GRADLEW_PATH" ]; then
-            echo "KONTOL! File gradlew gak ketemu di folder mana pun. Cek lagi project lu!"
+            echo "ERROR: File gradlew tidak ditemukan!"
             exit 1
           fi
           
-          echo "Ketemu gradlew di: $GRADLEW_PATH"
+          echo "Building ZIXINE 445 from: $GRADLEW_PATH"
           chmod +x "$GRADLEW_PATH"
           
-          # Jalankan build pake path lengkap yang udah ketemu
+          # Build APK Release
           $GRADLEW_PATH assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Production-APK
-          path: "**/build/outputs/apk/release/*.apk"
+          name: Zixine-445-Release
+          path: |
+            app/build/outputs/apk/release/*.apk
+            build/outputs/apk/release/*.apk
+          
