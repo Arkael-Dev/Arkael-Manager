@@ -2,76 +2,89 @@ package com.zixine.engine;
 
 import android.graphics.Color;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.TextView;
-import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.cardview.widget.CardView;
+import com.google.android.material.card.MaterialCardView;
 import java.io.DataOutputStream;
 
 public class MainActivity extends AppCompatActivity {
 
-    private boolean isActivated = false;
-    private CardView btnIgnite;
-    private TextView statusText;
+    private boolean isPerf = false, isGms = false, isExtreme = false;
+    private TextView tutorial, arrow;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        btnIgnite = findViewById(R.id.btn_ignite);
-        statusText = findViewById(R.id.status_text);
+        tutorial = findViewById(R.id.tutorial_text);
+        arrow = findViewById(R.id.trigger_arrow);
 
-        btnIgnite.setOnClickListener(v -> toggleEngine());
-    }
+        // Tombol Klik
+        findViewById(R.id.btn_perf).setOnClickListener(v -> toggle("perf"));
+        findViewById(R.id.btn_gms).setOnClickListener(v -> toggle("gms"));
+        findViewById(R.id.btn_extreme).setOnClickListener(v -> toggle("extreme"));
 
-    private void toggleEngine() {
-        isActivated = !isActivated;
-        
-        // UI Response instan (Tidak nunggu shell selesai)
-        if (isActivated) {
-            btnIgnite.setCardBackgroundColor(Color.parseColor("#FF1744"));
-            statusText.setText("ON");
-            statusText.setTextColor(Color.WHITE);
-            runPerformanceMode(true);
-        } else {
-            btnIgnite.setCardBackgroundColor(Color.parseColor("#131521"));
-            statusText.setText("OFF");
-            statusText.setTextColor(Color.parseColor("#33FFFFFF"));
-            runPerformanceMode(false);
-        }
-    }
-
-    private void runPerformanceMode(boolean active) {
-        // Jalankan di background thread agar UI tidak lag!
-        new Thread(() -> {
-            String cmd;
-            if (active) {
-                // Urutan: UI & Touch dulu (biar instan), baru ZRAM & FSTRIM (berat)
-                cmd = "settings put global window_animation_scale 0; settings put global transition_animation_scale 0; settings put global animator_duration_scale 0; " +
-                      "settings put system min_refresh_rate 120.0; settings put system peak_refresh_rate 120.0; " +
-                      "setprop touch.pressure.scale 0.001; setprop debug.touch.filter 0; " +
-                      "resetprop ro.min.fling_velocity 8000; resetprop ro.max.fling_velocity 12000; " +
-                      "settings put global zen_mode 1; " +
-                      "killall -STOP thermald; killall -STOP thermal-engine; " +
-                      "swapoff -a; fstrim -v /data;"; 
+        // Panel Tutorial
+        findViewById(R.id.trigger_panel).setOnClickListener(v -> {
+            if (tutorial.getVisibility() == View.GONE) {
+                tutorial.setVisibility(View.VISIBLE);
+                arrow.setText("▼");
             } else {
-                cmd = "settings put global window_animation_scale 1; settings put global transition_animation_scale 1; settings put global animator_duration_scale 1; " +
-                      "settings put system min_refresh_rate 60.0; swapon -a; " +
-                      "setprop touch.pressure.scale 1; resetprop ro.min.fling_velocity 50; " +
-                      "settings put global zen_mode 0; killall -CONT thermald; killall -CONT thermal-engine;";
+                tutorial.setVisibility(View.GONE);
+                arrow.setText("▲");
             }
-            execRoot(cmd);
+        });
+    }
+
+    private void toggle(String type) {
+        MaterialCardView card;
+        TextView status;
+        String cmd;
+
+        if (type.equals("perf")) {
+            isPerf = !isPerf;
+            card = findViewById(R.id.btn_perf);
+            status = findViewById(R.id.status_perf);
+            cmd = isPerf ? "settings put system min_refresh_rate 120.0;" : "settings put system min_refresh_rate 60.0;";
+            updateUI(isPerf, card, status);
+        } else if (type.equals("gms")) {
+            isGms = !isGms;
+            card = findViewById(R.id.btn_gms);
+            status = findViewById(R.id.status_gms);
+            cmd = isGms ? "killall -STOP com.google.android.gms;" : "killall -CONT com.google.android.gms;";
+            updateUI(isGms, card, status);
+        } else {
+            isExtreme = !isExtreme;
+            card = findViewById(R.id.btn_extreme);
+            status = findViewById(R.id.status_extreme);
+            cmd = isExtreme ? "swapoff -a; killall -STOP thermald;" : "swapon -a; killall -CONT thermald;";
+            updateUI(isExtreme, card, status);
+        }
+
+        final String finalCmd = cmd;
+        new Thread(() -> {
+            try {
+                Process p = Runtime.getRuntime().exec("su");
+                DataOutputStream os = new DataOutputStream(p.getOutputStream());
+                os.writeBytes(finalCmd + "\nexit\n");
+                os.flush();
+            } catch (Exception ignored) {}
         }).start();
     }
 
-    private void execRoot(String command) {
-        try {
-            Process p = Runtime.getRuntime().exec("su");
-            DataOutputStream os = new DataOutputStream(p.getOutputStream());
-            os.writeBytes(command + "\nexit\n");
-            os.flush();
-            p.waitFor();
-        } catch (Exception ignored) {}
+    private void updateUI(boolean active, MaterialCardView card, TextView status) {
+        if (active) {
+            card.setCardBackgroundColor(Color.parseColor("#FF1744"));
+            card.setStrokeColor(Color.parseColor("#FF5252"));
+            status.setText("ON");
+            status.setTextColor(Color.WHITE);
+        } else {
+            card.setCardBackgroundColor(Color.parseColor("#12161F"));
+            card.setStrokeColor(Color.parseColor("#1E2433"));
+            status.setText("OFF");
+            status.setTextColor(Color.parseColor("#44FFFFFF"));
+        }
     }
 }
