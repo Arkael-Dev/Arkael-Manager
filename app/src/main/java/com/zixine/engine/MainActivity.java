@@ -59,7 +59,7 @@ public class MainActivity extends AppCompatActivity {
 
         if (!isVerified) {
             // 2. Jika Belum Verifikasi
-            msg.append("⚠️ CARA VERIFIKASI:\nAplikasi ini otomatis mendeteksi Kernel Zixine. Jika Anda menggunakan kernel lain, masukkan Passkey (445456) pada layar utama untuk membuka kunci.\n\n");
+            msg.append("⚠️ CARA VERIFIKASI:\nAplikasi ini otomatis mendeteksi Kernel Zixine. Jika Anda menggunakan kernel lain, masukkan Passkey (minta pada developer/donate untuk mendapatkan pasword) pada layar utama untuk membuka kunci.\n\n");
             msg.append("💡 CARA MENGGUNAKAN:\nSetelah berhasil masuk, tarik panel notifikasi Anda ke bawah, lalu tambahkan 3 Toggle Zixine ke menu Quick Settings.");
         } else {
             // 3. Jika Sudah Verifikasi
