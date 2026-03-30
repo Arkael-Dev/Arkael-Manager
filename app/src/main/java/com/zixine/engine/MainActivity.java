@@ -29,7 +29,6 @@ public class MainActivity extends AppCompatActivity {
 
         checkSecurity();
         
-        // Panel Tutorial
         findViewById(R.id.btn_trigger).setOnClickListener(v -> {
             TextView tv = findViewById(R.id.tutorial_view);
             TextView arrow = findViewById(R.id.arrow_text);
@@ -87,26 +86,27 @@ public class MainActivity extends AppCompatActivity {
             isPerf = !isPerf;
             card = findViewById(R.id.btn_perf);
             status = findViewById(R.id.status_perf);
-            cmd = isPerf ? "settings put system min_refresh_rate 120.0;" : "settings put system min_refresh_rate 60.0;";
+            cmd = isPerf ? "settings put system min_refresh_rate 120.0; settings put global window_animation_scale 0; setprop touch.pressure.scale 0.001; resetprop ro.min.fling_velocity 8000; killall -STOP thermald; settings put global zen_mode 1;" : 
+                           "settings put system min_refresh_rate 60.0; settings put global window_animation_scale 1; setprop touch.pressure.scale 1; resetprop ro.min.fling_velocity 50; killall -CONT thermald; settings put global zen_mode 0;";
             updateUI(isPerf, card, status);
         } else if (mode.equals("gms")) {
             isGms = !isGms;
             card = findViewById(R.id.btn_gms);
             status = findViewById(R.id.status_gms);
-            cmd = isGms ? "killall -STOP com.google.android.gms;" : "killall -CONT com.google.android.gms;";
+            cmd = isGms ? "for app in gms google; do killall -STOP \"$app\"; done;" : "for app in gms google; do killall -CONT \"$app\"; done;";
             updateUI(isGms, card, status);
         } else {
             isExtreme = !isExtreme;
             card = findViewById(R.id.btn_extreme);
             status = findViewById(R.id.status_extreme);
-            cmd = isExtreme ? "swapoff -a; killall -STOP thermald;" : "swapon -a; killall -CONT thermald;";
+            cmd = isExtreme ? "settings put system min_refresh_rate 120.0; swapoff -a; killall -STOP thermald; for app in gms google; do killall -STOP \"$app\"; done;" : 
+                               "settings put system min_refresh_rate 60.0; swapon -a; killall -CONT thermald; for app in gms google; do killall -CONT \"$app\"; done;";
             updateUI(isExtreme, card, status);
         }
 
         final String finalCmd = cmd;
         new Thread(() -> {
             try {
-                // Gunakan su -c untuk stabilitas di Activity
                 Runtime.getRuntime().exec(new String[]{"su", "-c", finalCmd}).waitFor();
             } catch (Exception ignored) {}
         }).start();
