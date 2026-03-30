@@ -20,19 +20,29 @@ public class PerfTileService extends TileService {
         
         String cmd;
         if (active) {
-            // ON: Paksa 120Hz dan matikan thermal
+            // ON: Mode "BRUTAL" Responsivitas Mentok Kanan
             cmd = "settings put system min_refresh_rate 120.0; settings put system peak_refresh_rate 120.0; " +
-                  "settings put global window_animation_scale 0; setprop touch.pressure.scale 0.001; " +
-                  "setprop debug.touch.filter 0; resetprop ro.min.fling_velocity 8000; killall -STOP thermald;";
+                  "settings put system pointer_speed 7; settings put secure long_press_timeout 150; " +
+                  "settings put global window_animation_scale 0; settings put global transition_animation_scale 0; " +
+                  "settings put global animator_duration_scale 0; " +
+                  "setprop windowsmgr.max_events_per_sec 300; setprop view.touch_slop 2; " +
+                  "setprop touch.pressure.scale 0.001; setprop debug.touch.filter 0; " +
+                  "resetprop ro.min.fling_velocity 8000; killall -STOP thermald;";
         } else {
-            // OFF: HAPUS setelan kustom agar kembali ke DEFAULT ponsel (Bawaan)
+            // OFF: Kembali ke setelan DEFAULT Bawaan Pabrik
             cmd = "settings delete system min_refresh_rate; settings delete system peak_refresh_rate; " +
-                  "settings put global window_animation_scale 1; setprop touch.pressure.scale 1; " +
-                  "setprop debug.touch.filter 1; resetprop ro.min.fling_velocity 50; killall -CONT thermald;";
+                  "settings delete system pointer_speed; settings delete secure long_press_timeout; " +
+                  "settings put global window_animation_scale 1; settings put global transition_animation_scale 1; " +
+                  "settings put global animator_duration_scale 1; " +
+                  "setprop windowsmgr.max_events_per_sec 90; setprop view.touch_slop 8; " +
+                  "setprop touch.pressure.scale 1; setprop debug.touch.filter 1; " +
+                  "resetprop ro.min.fling_velocity 50; killall -CONT thermald;";
         }
         
         new Thread(() -> {
-            try { Runtime.getRuntime().exec(new String[]{"su", "-c", cmd}).waitFor(); } catch (Exception ignored) {}
+            try { 
+                Runtime.getRuntime().exec(new String[]{"su", "-c", cmd}).waitFor(); 
+            } catch (Exception ignored) {}
         }).start();
 
         t.setState(active ? Tile.STATE_ACTIVE : Tile.STATE_INACTIVE);
