@@ -5,7 +5,9 @@ import android.content.SharedPreferences;
 import android.service.quicksettings.Tile;
 import android.service.quicksettings.TileService;
 
-public class PerfTileService extends TileService {
+public class GmsTileService extends TileService {
+    private final String GMS_PACKS = "com.google.android.gms com.android.vending com.google.android.gsf";
+
     @Override
     public void onClick() {
         SharedPreferences p = getSharedPreferences("ZixinePrefs", Context.MODE_PRIVATE);
@@ -17,11 +19,8 @@ public class PerfTileService extends TileService {
         Tile t = getQsTile();
         boolean active = (t.getState() == Tile.STATE_INACTIVE);
         String cmd = active ? 
-            "settings put system min_refresh_rate 120.0; settings put system peak_refresh_rate 120.0; " +
-            "settings put global window_animation_scale 0; setprop touch.pressure.scale 0.001; " +
-            "setprop debug.touch.filter 0; resetprop ro.min.fling_velocity 8000; killall -STOP thermald;" : 
-            "settings put system min_refresh_rate 120.0; settings put global window_animation_scale 1; " +
-            "setprop touch.pressure.scale 1; setprop debug.touch.filter 1; resetprop ro.min.fling_velocity 50; killall -CONT thermald;";
+            "for p in " + GMS_PACKS + "; do pm disable-user --user 0 $p; done;" : 
+            "for p in " + GMS_PACKS + "; do pm enable $p; done;";
         
         new Thread(() -> {
             try { Runtime.getRuntime().exec(new String[]{"su", "-c", cmd}).waitFor(); } catch (Exception ignored) {}
