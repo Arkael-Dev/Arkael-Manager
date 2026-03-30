@@ -18,7 +18,10 @@ public class MainActivity extends AppCompatActivity {
     private boolean isPerf = false, isGms = false, isExtreme = false;
     private SharedPreferences prefs;
     private final String SECRET_CODE = "445456"; 
-    private MaterialCardView lockOverlay, mainUI;
+    
+    // DATA VITAL DARI KOMANDAN
+    private final String BLACKLIST = "com.facebook.katana com.facebook.orca com.instagram.android com.ss.android.ugc.trill com.zhiliaoapp.musically com.whatsapp com.whatsapp.w4b com.twitter.android com.shopee.id com.tokopedia.tkpd com.lazada.android com.google.android.youtube com.google.android.apps.docs com.google.android.apps.photos com.google.android.gm com.netflix.mediaclient com.spotify.music";
+    private final String GMS_PACKS = "com.google.android.gms com.android.vending com.google.android.gsf";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -26,14 +29,16 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         
         prefs = getSharedPreferences("ZixinePrefs", Context.MODE_PRIVATE);
-        lockOverlay = findViewById(R.id.lock_overlay);
-        mainUI = findViewById(R.id.main_ui);
-
         verifyKernelAndAccess();
         
         findViewById(R.id.btn_trigger).setOnClickListener(v -> {
             TextView tv = findViewById(R.id.tutorial_view);
-            tv.setVisibility(tv.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
+            TextView arrow = findViewById(R.id.arrow_text);
+            if (tv.getVisibility() == View.GONE) {
+                tv.setVisibility(View.VISIBLE); arrow.setText("▼");
+            } else {
+                tv.setVisibility(View.GONE); arrow.setText("▲");
+            }
         });
     }
 
@@ -43,12 +48,12 @@ public class MainActivity extends AppCompatActivity {
         boolean isBypassed = prefs.getBoolean("isBypassed", false); 
 
         if (isZixine || isBypassed) {
-            lockOverlay.setVisibility(View.GONE);
-            mainUI.setAlpha(1.0f);
+            findViewById(R.id.lock_overlay).setVisibility(View.GONE);
+            findViewById(R.id.main_ui).setAlpha(1.0f);
             setupButtons();
         } else {
-            lockOverlay.setVisibility(View.VISIBLE);
-            mainUI.setAlpha(0.1f);
+            findViewById(R.id.lock_overlay).setVisibility(View.VISIBLE);
+            findViewById(R.id.main_ui).setAlpha(0.1f);
             setupUnlock();
         }
     }
@@ -74,12 +79,13 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupButtons() {
-        // PERF: Responsivitas & 120Hz
+        // PERF: 120Hz & Responsivitas Sentuhan Penuh
         findViewById(R.id.btn_perf).setOnClickListener(v -> {
             isPerf = !isPerf;
             String cmd = isPerf ? 
                 "settings put system min_refresh_rate 120.0; settings put system peak_refresh_rate 120.0; " +
-                "settings put global window_animation_scale 0; setprop touch.pressure.scale 0.001; " +
+                "settings put global window_animation_scale 0; settings put global transition_animation_scale 0; " +
+                "settings put global animator_duration_scale 0; setprop touch.pressure.scale 0.001; " +
                 "setprop debug.touch.filter 0; resetprop ro.min.fling_velocity 8000; killall -STOP thermald;" : 
                 "settings put system min_refresh_rate 60.0; settings put global window_animation_scale 1; " +
                 "setprop touch.pressure.scale 1; setprop debug.touch.filter 1; resetprop ro.min.fling_velocity 50; killall -CONT thermald;";
@@ -87,24 +93,22 @@ public class MainActivity extends AppCompatActivity {
             updateUI(isPerf, findViewById(R.id.btn_perf), findViewById(R.id.status_perf));
         });
 
-        // GMS KILL: List Disable
+        // GMS KILL: pm disable
         findViewById(R.id.btn_gms).setOnClickListener(v -> {
             isGms = !isGms;
             String cmd = isGms ? 
-                "pm disable-user --user 0 com.google.android.gms; pm disable-user --user 0 com.android.vending; pm disable-user --user 0 com.google.android.gsf;" : 
-                "pm enable com.google.android.gms; pm enable com.android.vending; pm enable com.google.android.gsf;";
+                "for p in " + GMS_PACKS + "; do pm disable-user --user 0 $p; done;" : 
+                "for p in " + GMS_PACKS + "; do pm enable $p; done;";
             execute(cmd);
             updateUI(isGms, findViewById(R.id.btn_gms), findViewById(R.id.status_gms));
         });
 
-        // EXTREME: Manual Suspend List & ZRAM
+        // EXTREME: pm suspend BLACKLIST & ZRAM OFF
         findViewById(R.id.btn_extreme).setOnClickListener(v -> {
             isExtreme = !isExtreme;
-            // List Manual: GMS, Vending, GSF, YouTube, Chrome
-            String apps = "com.google.android.gms com.android.vending com.google.android.gsf com.google.android.youtube com.android.chrome";
             String cmd = isExtreme ? 
-                "for app in " + apps + "; do pm suspend $app; done; swapoff -a; settings put system min_refresh_rate 120.0;" : 
-                "for app in " + apps + "; do pm unsuspend $app; done; swapon -a; settings put system min_refresh_rate 60.0;";
+                "for app in " + BLACKLIST + " " + GMS_PACKS + "; do pm suspend $app; done; swapoff -a; settings put system min_refresh_rate 120.0;" : 
+                "for app in " + BLACKLIST + " " + GMS_PACKS + "; do pm unsuspend $app; done; swapon -a; settings put system min_refresh_rate 60.0;";
             execute(cmd);
             updateUI(isExtreme, findViewById(R.id.btn_extreme), findViewById(R.id.status_extreme));
         });
