@@ -5,7 +5,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     
     <application 
-        android:label="zixine" 
+        android:label="Zixine 445" 
         android:icon="@mipmap/ic_launcher" 
         android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
         
@@ -16,39 +16,16 @@
             </intent-filter>
         </activity>
 
-        <service android:name=".MonitorService" android:foregroundServiceType="specialUse" />
-        
-        <service
-            android:name=".PerfTileService"
-            android:label="Zixine PERF"
-            android:icon="@drawable/ic_perf"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.service.quicksettings.action.QS_TILE" />
-            </intent-filter>
+        <service android:name=".PerfTileService" android:label="Zixine PERF" android:icon="@drawable/ic_perf" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
         </service>
 
-        <service
-            android:name=".GmsTileService"
-            android:label="Zixine GMS"
-            android:icon="@drawable/ic_gms"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.service.quicksettings.action.QS_TILE" />
-            </intent-filter>
+        <service android:name=".GmsTileService" android:label="Zixine GMS" android:icon="@drawable/ic_gms" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
         </service>
 
-        <service
-            android:name=".ExtremeTileService"
-            android:label="Zixine EXTREME"
-            android:icon="@drawable/ic_extreme"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.service.quicksettings.action.QS_TILE" />
-            </intent-filter>
+        <service android:name=".ExtremeTileService" android:label="Zixine EXTREME" android:icon="@drawable/ic_extreme" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
         </service>
 
     </application>
