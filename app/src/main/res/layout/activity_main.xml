@@ -12,6 +12,8 @@
         android:layout_height="40dp"
         android:layout_alignParentTop="true"
         android:layout_alignParentEnd="true"
+        android:layout_marginTop="30dp"
+        android:layout_marginEnd="10dp"
         android:clickable="true"
         android:focusable="true"
         app:cardBackgroundColor="#12161F"
@@ -33,7 +35,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
-        android:layout_marginTop="60dp"
+        android:layout_marginTop="70dp"
         android:gravity="center"
         android:orientation="vertical">
         <TextView
