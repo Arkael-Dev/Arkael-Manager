@@ -7,7 +7,7 @@ import android.service.quicksettings.TileService;
 import android.widget.Toast;
 import java.io.DataOutputStream;
 
-public class GmsTileService extends TileService {
+public class ExtremeTileService extends TileService {
     @Override
     public void onClick() {
         SharedPreferences prefs = getSharedPreferences("ZixinePrefs", Context.MODE_PRIVATE);
@@ -23,7 +23,9 @@ public class GmsTileService extends TileService {
         boolean active = (t.getState() == Tile.STATE_INACTIVE);
         
         new Thread(() -> {
-            String cmd = active ? "killall -STOP com.google.android.gms;" : "killall -CONT com.google.android.gms;";
+            String cmd = active ? 
+                "settings put system min_refresh_rate 120.0; swapoff -a; killall -STOP thermald; killall -STOP com.google.android.gms;" : 
+                "settings put system min_refresh_rate 60.0; swapon -a; killall -CONT thermald; killall -CONT com.google.android.gms;";
             exec(cmd);
         }).start();
 
