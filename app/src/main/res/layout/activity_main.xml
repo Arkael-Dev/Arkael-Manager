@@ -6,6 +6,28 @@
     android:background="#07090D"
     android:padding="24dp">
 
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/btn_info"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:clickable="true"
+        android:focusable="true"
+        app:cardBackgroundColor="#12161F"
+        app:cardCornerRadius="20dp"
+        app:strokeColor="#FF1744"
+        app:strokeWidth="1dp">
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:text="i"
+            android:textColor="#FFFFFF"
+            android:textSize="20sp"
+            android:textStyle="bold|italic"
+            android:gravity="center"/>
+    </com.google.android.material.card.MaterialCardView>
+
     <LinearLayout
         android:id="@+id/header"
         android:layout_width="wrap_content"
