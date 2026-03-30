@@ -18,70 +18,71 @@ public class MainActivity extends AppCompatActivity {
     private boolean isPerf = false, isGms = false, isExtreme = false;
     private SharedPreferences prefs;
     private final String SECRET_CODE = "445456"; 
+    private MaterialCardView lockOverlay, mainUI;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        
         prefs = getSharedPreferences("ZixinePrefs", Context.MODE_PRIVATE);
+        lockOverlay = findViewById(R.id.lock_overlay);
+        mainUI = findViewById(R.id.main_ui);
 
-        // JALANKAN VERIFIKASI KERNEL SECARA KETAT
-        verifyKernelAndAccess(); 
+        verifyKernelAndAccess();
         
         findViewById(R.id.btn_trigger).setOnClickListener(v -> {
             TextView tv = findViewById(R.id.tutorial_view);
-            tv.setVisibility(tv.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
+            TextView arrow = findViewById(R.id.arrow_text);
+            if (tv.getVisibility() == View.GONE) {
+                tv.setVisibility(View.VISIBLE);
+                arrow.setText("▼");
+            } else {
+                tv.setVisibility(View.GONE);
+                arrow.setText("▲");
+            }
         });
     }
 
     private void verifyKernelAndAccess() {
         String kernelInfo = getKernelVersion();
-        boolean isZixine = kernelInfo.toLowerCase().contains("zixine"); //
-        boolean isBypassed = prefs.getBoolean("isBypassed", false); //
+        boolean isZixine = kernelInfo.toLowerCase().contains("zixine"); 
+        boolean isBypassed = prefs.getBoolean("isBypassed", false); 
 
-        if (isZixine) {
-            // PENGGUNA ASLI ZIXINE: AKSES OTOMATIS
-            findViewById(R.id.lock_overlay).setVisibility(View.GONE);
-            Toast.makeText(this, "WELCOME MASTER: ZIXINE KERNEL DETECTED", Toast.LENGTH_LONG).show();
+        if (isZixine || isBypassed) {
+            lockOverlay.setVisibility(View.GONE);
+            mainUI.setAlpha(1.0f);
             setupButtons();
-        } else if (isBypassed) {
-            // PENGGUNA KERNEL LAIN YANG SUDAH MASUKKAN KODE
-            findViewById(R.id.lock_overlay).setVisibility(View.GONE);
-            setupButtons();
+            if(isZixine) Toast.makeText(this, "MASTER DETECTED", Toast.LENGTH_SHORT).show();
         } else {
-            // PENGGUNA ILEGAL/LAIN: TAMPILKAN PANEL SANDI
-            findViewById(R.id.lock_overlay).setVisibility(View.VISIBLE);
-            findViewById(R.id.main_ui).setAlpha(0.1f);
-            setupUnlockLogic();
+            lockOverlay.setVisibility(View.VISIBLE);
+            mainUI.setAlpha(0.1f);
+            setupUnlock();
         }
     }
 
     private String getKernelVersion() {
         try {
-            Process p = Runtime.getRuntime().exec("uname -a"); // Lebih akurat cek string zixine
-            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            return reader.readLine();
-        } catch (Exception e) {
-            return System.getProperty("os.version"); // Fallback jika uname gagal
-        }
+            Process p = Runtime.getRuntime().exec("uname -a");
+            BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            return r.readLine();
+        } catch (Exception e) { return System.getProperty("os.version"); }
     }
 
-    private void setupUnlockLogic() {
+    private void setupUnlock() {
         EditText input = findViewById(R.id.input_code);
         findViewById(R.id.btn_unlock).setOnClickListener(v -> {
             if (input.getText().toString().equals(SECRET_CODE)) {
-                prefs.edit().putBoolean("isBypassed", true).apply(); // Simpan status
-                verifyKernelAndAccess(); // Refresh tampilan
+                prefs.edit().putBoolean("isBypassed", true).apply();
+                verifyKernelAndAccess();
             } else {
-                Toast.makeText(this, "KODE RAHASIA SALAH!", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "WRONG CODE!", Toast.LENGTH_SHORT).show();
             }
         });
     }
 
     private void setupButtons() {
-        findViewById(R.id.main_ui).setAlpha(1.0f);
-        
-        // PERF: Hz & Touch
+        // PERF MODE: 120Hz & Touch
         findViewById(R.id.btn_perf).setOnClickListener(v -> {
             isPerf = !isPerf;
             String cmd = isPerf ? 
@@ -91,7 +92,7 @@ public class MainActivity extends AppCompatActivity {
             updateUI(isPerf, findViewById(R.id.btn_perf), findViewById(R.id.status_perf));
         });
 
-        // GMS KILL: Disable App
+        // GMS KILL: pm disable
         findViewById(R.id.btn_gms).setOnClickListener(v -> {
             isGms = !isGms;
             String cmd = isGms ? 
@@ -101,12 +102,12 @@ public class MainActivity extends AppCompatActivity {
             updateUI(isGms, findViewById(R.id.btn_gms), findViewById(R.id.status_gms));
         });
 
-        // EXTREME: Suspend & ZRAM OFF
+        // EXTREME MODE: pm suspend & ZRAM OFF
         findViewById(R.id.btn_extreme).setOnClickListener(v -> {
             isExtreme = !isExtreme;
             String cmd = isExtreme ? 
-                "pm suspend com.google.android.gms; pm suspend com.android.vending; swapoff -a;" : 
-                "pm unsuspend com.google.android.gms; pm unsuspend com.android.vending; swapon -a;";
+                "pm suspend com.google.android.gms; pm suspend com.android.vending; swapoff -a; settings put system min_refresh_rate 120.0;" : 
+                "pm unsuspend com.google.android.gms; pm unsuspend com.android.vending; swapon -a; settings put system min_refresh_rate 60.0;";
             execute(cmd);
             updateUI(isExtreme, findViewById(R.id.btn_extreme), findViewById(R.id.status_extreme));
         });
@@ -114,7 +115,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void execute(String c) {
         new Thread(() -> {
-            try { Runtime.getRuntime().exec(new String[]{"su", "-c", c}).waitFor(); } catch (Exception ignored) {} //
+            try { Runtime.getRuntime().exec(new String[]{"su", "-c", c}).waitFor(); } catch (Exception ignored) {}
         }).start();
     }
 
