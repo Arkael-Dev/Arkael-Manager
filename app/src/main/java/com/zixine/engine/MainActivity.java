@@ -33,14 +33,7 @@ public class MainActivity extends AppCompatActivity {
         
         findViewById(R.id.btn_trigger).setOnClickListener(v -> {
             TextView tv = findViewById(R.id.tutorial_view);
-            TextView arrow = findViewById(R.id.arrow_text);
-            if (tv.getVisibility() == View.GONE) {
-                tv.setVisibility(View.VISIBLE);
-                arrow.setText("▼");
-            } else {
-                tv.setVisibility(View.GONE);
-                arrow.setText("▲");
-            }
+            tv.setVisibility(tv.getVisibility() == View.GONE ? View.VISIBLE : View.GONE);
         });
     }
 
@@ -53,7 +46,6 @@ public class MainActivity extends AppCompatActivity {
             lockOverlay.setVisibility(View.GONE);
             mainUI.setAlpha(1.0f);
             setupButtons();
-            if(isZixine) Toast.makeText(this, "MASTER DETECTED", Toast.LENGTH_SHORT).show();
         } else {
             lockOverlay.setVisibility(View.VISIBLE);
             mainUI.setAlpha(0.1f);
@@ -82,32 +74,37 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupButtons() {
-        // PERF MODE: 120Hz & Touch
+        // PERF: Responsivitas & 120Hz
         findViewById(R.id.btn_perf).setOnClickListener(v -> {
             isPerf = !isPerf;
             String cmd = isPerf ? 
-                "settings put system min_refresh_rate 120.0; setprop touch.pressure.scale 0.001; killall -STOP thermald;" : 
-                "settings put system min_refresh_rate 60.0; setprop touch.pressure.scale 1; killall -CONT thermald;";
+                "settings put system min_refresh_rate 120.0; settings put system peak_refresh_rate 120.0; " +
+                "settings put global window_animation_scale 0; setprop touch.pressure.scale 0.001; " +
+                "setprop debug.touch.filter 0; resetprop ro.min.fling_velocity 8000; killall -STOP thermald;" : 
+                "settings put system min_refresh_rate 60.0; settings put global window_animation_scale 1; " +
+                "setprop touch.pressure.scale 1; setprop debug.touch.filter 1; resetprop ro.min.fling_velocity 50; killall -CONT thermald;";
             execute(cmd);
             updateUI(isPerf, findViewById(R.id.btn_perf), findViewById(R.id.status_perf));
         });
 
-        // GMS KILL: pm disable
+        // GMS KILL: List Disable
         findViewById(R.id.btn_gms).setOnClickListener(v -> {
             isGms = !isGms;
             String cmd = isGms ? 
-                "pm disable-user --user 0 com.google.android.gms; pm disable-user --user 0 com.android.vending;" : 
-                "pm enable com.google.android.gms; pm enable com.android.vending;";
+                "pm disable-user --user 0 com.google.android.gms; pm disable-user --user 0 com.android.vending; pm disable-user --user 0 com.google.android.gsf;" : 
+                "pm enable com.google.android.gms; pm enable com.android.vending; pm enable com.google.android.gsf;";
             execute(cmd);
             updateUI(isGms, findViewById(R.id.btn_gms), findViewById(R.id.status_gms));
         });
 
-        // EXTREME MODE: pm suspend & ZRAM OFF
+        // EXTREME: Manual Suspend List & ZRAM
         findViewById(R.id.btn_extreme).setOnClickListener(v -> {
             isExtreme = !isExtreme;
+            // List Manual: GMS, Vending, GSF, YouTube, Chrome
+            String apps = "com.google.android.gms com.android.vending com.google.android.gsf com.google.android.youtube com.android.chrome";
             String cmd = isExtreme ? 
-                "pm suspend com.google.android.gms; pm suspend com.android.vending; swapoff -a; settings put system min_refresh_rate 120.0;" : 
-                "pm unsuspend com.google.android.gms; pm unsuspend com.android.vending; swapon -a; settings put system min_refresh_rate 60.0;";
+                "for app in " + apps + "; do pm suspend $app; done; swapoff -a; settings put system min_refresh_rate 120.0;" : 
+                "for app in " + apps + "; do pm unsuspend $app; done; swapon -a; settings put system min_refresh_rate 60.0;";
             execute(cmd);
             updateUI(isExtreme, findViewById(R.id.btn_extreme), findViewById(R.id.status_extreme));
         });
@@ -119,8 +116,8 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    private void updateUI(boolean active, MaterialCardView card, TextView status) {
-        card.setCardBackgroundColor(Color.parseColor(active ? "#FF1744" : "#12161F"));
+    private void updateUI(boolean active, View card, TextView status) {
+        ((MaterialCardView)card).setCardBackgroundColor(Color.parseColor(active ? "#FF1744" : "#12161F"));
         status.setText(active ? "ON" : "OFF");
         status.setTextColor(active ? Color.WHITE : Color.parseColor("#44FFFFFF"));
     }
