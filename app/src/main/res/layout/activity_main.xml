@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="#0B0E14"
+    android:background="#07090D"
     android:padding="24dp">
 
     <LinearLayout
@@ -11,7 +11,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_centerHorizontal="true"
-        android:layout_marginTop="50dp"
+        android:layout_marginTop="60dp"
         android:gravity="center"
         android:orientation="vertical">
         <TextView
@@ -19,22 +19,117 @@
             android:layout_height="wrap_content"
             android:text="ZIXINE"
             android:textColor="#FF1744"
-            android:textSize="45sp"
+            android:textSize="50sp"
             android:fontFamily="sans-serif-black"
-            android:letterSpacing="0.2"
-            android:textStyle="bold" />
+            android:letterSpacing="0.2" />
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="zixine elysium"
+            android:text="E N G I N E   C O R E"
             android:textColor="#00E5FF"
+            android:textSize="12sp"
+            android:letterSpacing="0.5"
+            android:fontFamily="sans-serif-condensed" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/layout_verified"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone">
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="SYSTEM VERIFIED"
+            android:textColor="#00E5FF"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.1"/>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:text="Close this app and use Quick Settings (Status Bar) to control Zixine Engine."
+            android:textColor="#88FFFFFF"
             android:textSize="14sp"
-            android:fontFamily="sans-serif-condensed-light" />
+            android:gravity="center"
+            android:paddingHorizontal="30dp"/>
     </LinearLayout>
 
     <com.google.android.material.card.MaterialCardView
-        android:id="@+id/lock_overlay"
+        android:id="@+id/layout_locked"
         android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_centerInParent="true"
+        app:cardBackgroundColor="#0D111A"
+        app:cardCornerRadius="16dp"
+        app:strokeColor="#FF1744"
+        app:strokeWidth="1dp"
+        android:elevation="10dp">
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="24dp"
+            android:gravity="center">
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="UNSUPPORTED KERNEL"
+                android:textColor="#FF1744"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:letterSpacing="0.1"/>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="5dp"
+                android:text="Zixine Kernel not detected."
+                android:textColor="#66FFFFFF"
+                android:textSize="12sp" />
+            
+            <EditText
+                android:id="@+id/input_code"
+                android:layout_width="match_parent"
+                android:layout_height="50dp"
+                android:layout_marginTop="20dp"
+                android:hint="Enter Passkey"
+                android:textColorHint="#44FFFFFF"
+                android:textColor="#FFFFFF"
+                android:inputType="numberPassword"
+                android:gravity="center"
+                android:backgroundTint="#FF1744"
+                android:textSize="18sp"
+                android:letterSpacing="0.3"/>
+                
+            <Button
+                android:id="@+id/btn_unlock"
+                android:layout_width="match_parent"
+                android:layout_height="55dp"
+                android:layout_marginTop="20dp"
+                android:text="BYPASS SECURITY"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:backgroundTint="#FF1744"
+                app:cornerRadius="8dp"/>
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_alignParentBottom="true"
+        android:layout_marginBottom="20dp"
+        android:text="STRICTLY FOR ZIXINE USERS"
+        android:textColor="#33FFFFFF"
+        android:textSize="10sp"
+        android:gravity="center"
+        android:letterSpacing="0.2"/>
+
+</RelativeLayout>        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_centerInParent="true"
         app:cardBackgroundColor="#12161F"
