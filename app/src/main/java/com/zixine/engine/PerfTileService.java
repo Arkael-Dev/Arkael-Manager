@@ -8,7 +8,6 @@ import android.widget.Toast;
 
 public class PerfTileService extends TileService {
 
-    // Melacak apakah pengguna sudah menambahkan toggle ke panel atas
     @Override
     public void onTileAdded() {
         super.onTileAdded();
@@ -28,25 +27,24 @@ public class PerfTileService extends TileService {
         boolean isZixine = kernelInfo.contains("zixine");
         boolean isBypassed = p.getBoolean("isBypassed", false);
 
-        // Jika belum verifikasi (bukan kernel zixine & belum masukin kode)
         if (!isZixine && !isBypassed) {
             Toast.makeText(getApplicationContext(), "PERF: Akses Ditolak! Belum Verifikasi.", Toast.LENGTH_SHORT).show();
-            return; // Berhenti di sini, kode di bawahnya tidak akan dieksekusi
+            return; 
         }
 
         Tile t = getQsTile();
         boolean active = (t.getState() == Tile.STATE_INACTIVE);
         
-        // Memunculkan Toast pemberitahuan status ON/OFF
         Toast.makeText(getApplicationContext(), active ? "ZIXINE PERF: ON (BRUTAL MODE)" : "ZIXINE PERF: OFF (DEFAULT)", Toast.LENGTH_SHORT).show();
 
         String cmd;
         if (active) {
+            // PERBAIKAN: Animasi di-set ke 0.5 (aman untuk tombol power) dan long_press di-set ke 250
             cmd = "settings put system min_refresh_rate 120.0; settings put system peak_refresh_rate 120.0; " +
-                  "settings put system pointer_speed 7; settings put secure long_press_timeout 150; " +
-                  "settings put global window_animation_scale 0; settings put global transition_animation_scale 0; " +
-                  "settings put global animator_duration_scale 0; " +
-                  "setprop windowsmgr.max_events_per_sec 300; setprop view.touch_slop 2; " +
+                  "settings put system pointer_speed 7; settings put secure long_press_timeout 250; " +
+                  "settings put global window_animation_scale 0.5; settings put global transition_animation_scale 0.5; " +
+                  "settings put global animator_duration_scale 0.5; " +
+                  "setprop windowsmgr.max_events_per_sec 150; setprop view.touch_slop 2; " +
                   "setprop touch.pressure.scale 0.001; setprop debug.touch.filter 0; " +
                   "resetprop ro.min.fling_velocity 8000; killall -STOP thermald;";
         } else {
