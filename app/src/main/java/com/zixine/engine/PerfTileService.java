@@ -7,6 +7,20 @@ import android.service.quicksettings.TileService;
 import android.widget.Toast;
 
 public class PerfTileService extends TileService {
+
+    // Melacak apakah pengguna sudah menambahkan toggle ke panel atas
+    @Override
+    public void onTileAdded() {
+        super.onTileAdded();
+        getSharedPreferences("ZixinePrefs", Context.MODE_PRIVATE).edit().putBoolean("perf_added", true).apply();
+    }
+
+    @Override
+    public void onTileRemoved() {
+        super.onTileRemoved();
+        getSharedPreferences("ZixinePrefs", Context.MODE_PRIVATE).edit().putBoolean("perf_added", false).apply();
+    }
+
     @Override
     public void onClick() {
         SharedPreferences p = getSharedPreferences("ZixinePrefs", Context.MODE_PRIVATE);
