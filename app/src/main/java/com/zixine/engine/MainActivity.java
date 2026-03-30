@@ -16,41 +16,45 @@ public class MainActivity extends AppCompatActivity {
     private boolean isPerf = false, isGms = false, isExtreme = false;
     private SharedPreferences prefs;
     private final String SECRET_CODE = "445456";
-    private TextView tutorialView, arrow;
-    private MaterialCardView lockOverlay;
+    private MaterialCardView lockOverlay, mainUI;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        prefs = getSharedPreferences("ZixinePrefs", Context.MODE_PRIVATE);
         
-        tutorialView = findViewById(R.id.tutorial_view);
-        arrow = findViewById(R.id.arrow_text);
+        prefs = getSharedPreferences("ZixinePrefs", Context.MODE_PRIVATE);
         lockOverlay = findViewById(R.id.lock_overlay);
+        mainUI = findViewById(R.id.main_ui);
 
         checkSecurity();
         
+        // Panel Tutorial
         findViewById(R.id.btn_trigger).setOnClickListener(v -> {
-            if (tutorialView.getVisibility() == View.GONE) {
-                tutorialView.setVisibility(View.VISIBLE);
+            TextView tv = findViewById(R.id.tutorial_view);
+            TextView arrow = findViewById(R.id.arrow_text);
+            if (tv.getVisibility() == View.GONE) {
+                tv.setVisibility(View.VISIBLE);
                 arrow.setText("▼");
             } else {
-                tutorialView.setVisibility(View.GONE);
+                tv.setVisibility(View.GONE);
                 arrow.setText("▲");
             }
         });
     }
 
     private void checkSecurity() {
-        boolean isZixine = System.getProperty("os.version").toLowerCase().contains("zixine");
+        String version = System.getProperty("os.version");
+        boolean isZixine = version != null && version.toLowerCase().contains("zixine");
         boolean isBypassed = prefs.getBoolean("isBypassed", false);
 
         if (isZixine || isBypassed) {
             lockOverlay.setVisibility(View.GONE);
+            mainUI.setAlpha(1.0f);
             setupButtons();
         } else {
             lockOverlay.setVisibility(View.VISIBLE);
+            mainUI.setAlpha(0.1f);
             setupUnlockLogic();
         }
     }
@@ -60,6 +64,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_unlock).setOnClickListener(v -> {
             if (input.getText().toString().equals(SECRET_CODE)) {
                 prefs.edit().putBoolean("isBypassed", true).apply();
+                Toast.makeText(this, "AKSES DIBUKA!", Toast.LENGTH_SHORT).show();
                 checkSecurity();
             } else {
                 Toast.makeText(this, "KODE SALAH!", Toast.LENGTH_SHORT).show();
@@ -68,12 +73,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupButtons() {
-        findViewById(R.id.btn_perf).setOnClickListener(v -> toggle("perf"));
-        findViewById(R.id.btn_gms).setOnClickListener(v -> toggle("gms"));
-        findViewById(R.id.btn_extreme).setOnClickListener(v -> toggle("extreme"));
+        findViewById(R.id.btn_perf).setOnClickListener(v -> toggleMode("perf"));
+        findViewById(R.id.btn_gms).setOnClickListener(v -> toggleMode("gms"));
+        findViewById(R.id.btn_extreme).setOnClickListener(v -> toggleMode("extreme"));
     }
 
-    private void toggle(String mode) {
+    private void toggleMode(String mode) {
         MaterialCardView card;
         TextView status;
         String cmd;
@@ -101,6 +106,7 @@ public class MainActivity extends AppCompatActivity {
         final String finalCmd = cmd;
         new Thread(() -> {
             try {
+                // Gunakan su -c untuk stabilitas di Activity
                 Runtime.getRuntime().exec(new String[]{"su", "-c", finalCmd}).waitFor();
             } catch (Exception ignored) {}
         }).start();
