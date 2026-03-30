@@ -4,6 +4,7 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.service.quicksettings.Tile;
 import android.service.quicksettings.TileService;
+import android.widget.Toast;
 
 public class GmsTileService extends TileService {
     private final String GMS_PACKS = "com.google.android.gms com.android.vending com.google.android.gsf";
@@ -11,13 +12,21 @@ public class GmsTileService extends TileService {
     @Override
     public void onClick() {
         SharedPreferences p = getSharedPreferences("ZixinePrefs", Context.MODE_PRIVATE);
-        boolean isZixine = System.getProperty("os.version").toLowerCase().contains("zixine");
+        String kernelInfo = System.getProperty("os.version").toLowerCase();
+        boolean isZixine = kernelInfo.contains("zixine");
         boolean isBypassed = p.getBoolean("isBypassed", false);
 
-        if (!isZixine && !isBypassed) return;
+        // Jika belum verifikasi
+        if (!isZixine && !isBypassed) {
+            Toast.makeText(getApplicationContext(), "GMS: Akses Ditolak! Belum Verifikasi.", Toast.LENGTH_SHORT).show();
+            return;
+        }
 
         Tile t = getQsTile();
         boolean active = (t.getState() == Tile.STATE_INACTIVE);
+        
+        Toast.makeText(getApplicationContext(), active ? "ZIXINE GMS: SUSPENDED" : "ZIXINE GMS: NORMAL", Toast.LENGTH_SHORT).show();
+
         String cmd = active ? 
             "for p in " + GMS_PACKS + "; do pm disable-user --user 0 $p; done;" : 
             "for p in " + GMS_PACKS + "; do pm enable $p; done;";
