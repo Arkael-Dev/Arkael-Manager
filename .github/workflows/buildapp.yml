@@ -1,8 +1,7 @@
 name: Build Android APK Signed (Manual Only)
 
 on:
-  # Menghapus push dan pull_request agar tidak otomatis
-  # Mengaktifkan tombol manual di tab Actions GitHub
+  # Tetap manual sesuai permintaan sebelumnya
   workflow_dispatch:
 
 jobs:
@@ -14,7 +13,8 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up JDK 17
-        uses: android-actions/setup-java@v4 # Menggunakan provider yang lebih spesifik untuk Android
+        # KOREKSI: Kembali ke repository resmi agar tidak error 'repository not found'
+        uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
@@ -60,4 +60,3 @@ jobs:
           path: |
             app/build/outputs/apk/release/*.apk
             build/outputs/apk/release/*.apk
-          
