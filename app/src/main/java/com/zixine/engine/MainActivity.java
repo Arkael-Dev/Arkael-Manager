@@ -14,7 +14,7 @@ import java.io.InputStreamReader;
 public class MainActivity extends AppCompatActivity {
 
     private SharedPreferences prefs;
-    private final String SECRET_CODE = "445456"; 
+    private final String SECRET_CODE = "Jembud Mambu"; 
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
