@@ -9,8 +9,8 @@ import android.widget.Toast;
 public class ExtremeTileService extends TileService {
 
     private final String GMS_PACKS = "com.google.android.gms com.android.vending com.google.android.gsf";
-    private final String GAMES = "com.dts.freefireth com.dts.freefiremax com.mobile.legends com.tencent.ig com.pubg.imobile com.miHoYo.GenshinImpact com.hoYoverse.hkrpg";
-    private final String WHITELIST = "com.zcqptx.dcwihze com.termux android com.android.systemui com.miui.home com.zixine.engine com.android.settings com.miui.securitycenter";
+    // Whitelist penting agar sistem dan aplikasi ini tidak mati
+    private final String WHITELIST = "com.zcqptx.dcwihze|com.termux|android|com.android.systemui|com.miui.home|com.zixine.engine|com.android.settings|com.miui.securitycenter";
 
     @Override
     public void onTileAdded() {
@@ -30,26 +30,35 @@ public class ExtremeTileService extends TileService {
         boolean isVerified = System.getProperty("os.version").toLowerCase().contains("zixine") || p.getBoolean("isBypassed", false);
 
         if (!isVerified) {
-            Toast.makeText(getApplicationContext(), "EXTREME: Belum Verifikasi!", Toast.LENGTH_SHORT).show(); 
+            Toast.makeText(getApplicationContext(), "EXTREME: Akses Ditolak! Belum Verifikasi.", Toast.LENGTH_SHORT).show(); 
             return;
         }
 
         Tile t = getQsTile();
         boolean active = (t.getState() == Tile.STATE_INACTIVE);
-        Toast.makeText(getApplicationContext(), active ? "EXTREME: AKTIF (ZRAM OFF)" : "EXTREME: NORMAL (ZRAM ON)", Toast.LENGTH_SHORT).show();
+        Toast.makeText(getApplicationContext(), active ? "ZIXINE EXTREME: ON (APPS SUSPENDED)" : "ZIXINE EXTREME: OFF (NORMAL)", Toast.LENGTH_SHORT).show();
         
-        String ignoreRegex = (WHITELIST + " " + GAMES).trim().replace(" ", "|");
-
         String cmd;
         if (active) {
-            cmd = "pm list packages -3 | cut -f 2 -d ':' | grep -vE '" + ignoreRegex + "' | xargs -n 1 pm suspend; " +
+            // MODE ON: Suspend aplikasi pihak ke-3 yang BUKAN game dan BUKAN di whitelist
+            // Cara kerjanya:
+            // 1. Ambil semua aplikasi pihak ke-3
+            // 2. Cek apakah itu 'game'. Jika BUKAN, lanjutkan.
+            // 3. Cek whitelist. Jika BUKAN whitelist, suspend!
+            cmd = "for pkg in $(pm list packages -3 | cut -f 2 -d ':'); do " +
+                  "  if ! dumpsys package $pkg | grep -q 'appCategory=game'; then " +
+                  "    if ! echo $pkg | grep -qE '(" + WHITELIST + ")'; then " +
+                  "      pm suspend $pkg; " +
+                  "    fi; " +
+                  "  fi; " +
+                  "done; " +
                   "for p in " + GMS_PACKS + "; do pm suspend $p; done; " +
-                  "swapoff -a; settings put system min_refresh_rate 120.0;";
+                  "settings put system min_refresh_rate 120.0; settings put system peak_refresh_rate 120.0;";
         } else {
-            // KEMBALIKAN: Unsuspend semua, nyalakan SWAP, dan kembalikan Hz ke 60 via 'put'
-            cmd = "pm list packages -3 | cut -f 2 -d ':' | grep -vE '" + ignoreRegex + "' | xargs -n 1 pm unsuspend; " +
+            // MODE OFF: Unsuspend SEMUA aplikasi yang tersuspend
+            cmd = "for pkg in $(pm list packages -3 | cut -f 2 -d ':'); do pm unsuspend $pkg; done; " +
                   "for p in " + GMS_PACKS + "; do pm unsuspend $p; done; " +
-                  "swapon -a; settings put system min_refresh_rate 60.0;";
+                  "settings put system min_refresh_rate 60.0; settings put system peak_refresh_rate 60.0;";
         }
         
         new Thread(() -> {
