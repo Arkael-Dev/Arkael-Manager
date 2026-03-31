@@ -23,35 +23,37 @@ public class PerfTileService extends TileService {
     @Override
     public void onClick() {
         SharedPreferences p = getSharedPreferences("ZixinePrefs", Context.MODE_PRIVATE);
-        String kernelInfo = System.getProperty("os.version").toLowerCase();
-        boolean isZixine = kernelInfo.contains("zixine");
-        boolean isBypassed = p.getBoolean("isBypassed", false);
+        boolean isVerified = System.getProperty("os.version").toLowerCase().contains("zixine") || p.getBoolean("isBypassed", false);
 
-        if (!isZixine && !isBypassed) {
-            Toast.makeText(getApplicationContext(), "PERF: Belum Verifikasi!", Toast.LENGTH_SHORT).show();
+        if (!isVerified) {
+            Toast.makeText(getApplicationContext(), "PERF: Akses Ditolak! Belum Verifikasi.", Toast.LENGTH_SHORT).show();
             return; 
         }
 
         Tile t = getQsTile();
         boolean active = (t.getState() == Tile.STATE_INACTIVE);
-        Toast.makeText(getApplicationContext(), active ? "PERF: AKTIF (BRUTAL)" : "PERF: NORMAL", Toast.LENGTH_SHORT).show();
+        Toast.makeText(getApplicationContext(), active ? "ZIXINE PERF: ULTIMATE ON" : "ZIXINE PERF: NORMAL MODE", Toast.LENGTH_SHORT).show();
 
         String cmd;
         if (active) {
-            // MODE ON: Agresif tapi tetap memberikan ruang bagi SystemUI
+            // MODE ON: Latensi Nol & Responsivitas Brutal
             cmd = "settings put system min_refresh_rate 120.0; settings put system peak_refresh_rate 120.0; " +
-                  "settings put system pointer_speed 7; settings put secure long_press_timeout 350; " +
-                  "settings put global window_animation_scale 0.5; settings put global transition_animation_scale 0.5; " +
-                  "settings put global animator_duration_scale 0.8; " +
+                  "settings put system pointer_speed 7; settings put secure long_press_timeout 250; " +
+                  "settings put global window_animation_scale 0.0; settings put global transition_animation_scale 0.0; " +
+                  "settings put global animator_duration_scale 0.2; " + 
                   "setprop touch.pressure.scale 0.001; setprop debug.touch.filter 0; " +
-                  "resetprop ro.min.fling_velocity 8000; killall -STOP thermald;";
+                  "setprop view.touch_slop 1; setprop view.scroll_friction 0; setprop view.fading_edge_length 0; " +
+                  "setprop debug.sf.latch_unsignaled 1; setprop windowsmgr.max_events_per_sec 1000; " +
+                  "resetprop ro.min.fling_velocity 20000; killall -STOP thermald;";
         } else {
-            // MODE OFF: Kembalikan semua ke nilai standar Android (BUKAN DELETE)
-            cmd = "settings put system min_refresh_rate 120.0; settings put system peak_refresh_rate 120.0; " +
+            // MODE OFF: Pembersihan total ke nilai standar pabrik
+            cmd = "settings put system min_refresh_rate 60.0; settings put system peak_refresh_rate 60.0; " +
                   "settings put system pointer_speed 0; settings put secure long_press_timeout 500; " +
                   "settings put global window_animation_scale 1.0; settings put global transition_animation_scale 1.0; " +
                   "settings put global animator_duration_scale 1.0; " +
                   "setprop touch.pressure.scale 1.0; setprop debug.touch.filter 1; " +
+                  "setprop view.touch_slop 8; setprop view.scroll_friction 0.015; setprop view.fading_edge_length 10; " +
+                  "setprop debug.sf.latch_unsignaled 0; setprop windowsmgr.max_events_per_sec 90; " +
                   "resetprop ro.min.fling_velocity 50; killall -CONT thermald;";
         }
         
