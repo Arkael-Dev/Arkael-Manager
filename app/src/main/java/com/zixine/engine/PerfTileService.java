@@ -37,8 +37,7 @@ public class PerfTileService extends TileService {
         String cmd;
         if (active) {
             // MODE ON: Latensi Nol & Responsivitas Brutal
-            cmd = "settings put system min_refresh_rate 120.0; settings put system peak_refresh_rate 120.0; " +
-                  "settings put system pointer_speed 7; settings put secure long_press_timeout 250; " +
+            cmd = "settings put system pointer_speed 7; settings put secure long_press_timeout 250; " +
                   "settings put global window_animation_scale 0.0; settings put global transition_animation_scale 0.0; " +
                   "settings put global animator_duration_scale 0.2; " + 
                   "setprop touch.pressure.scale 0.001; setprop debug.touch.filter 0; " +
@@ -47,8 +46,7 @@ public class PerfTileService extends TileService {
                   "resetprop ro.min.fling_velocity 20000; killall -STOP thermald;";
         } else {
             // MODE OFF: Pembersihan total ke nilai standar pabrik
-            cmd = "settings put system min_refresh_rate 60.0; settings put system peak_refresh_rate 60.0; " +
-                  "settings put system pointer_speed 0; settings put secure long_press_timeout 500; " +
+            cmd = "settings put system pointer_speed 0; settings put secure long_press_timeout 500; " +
                   "settings put global window_animation_scale 1.0; settings put global transition_animation_scale 1.0; " +
                   "settings put global animator_duration_scale 1.0; " +
                   "setprop touch.pressure.scale 1.0; setprop debug.touch.filter 1; " +
