@@ -1,12 +1,20 @@
 package com.zixine.engine;
 
+import android.app.Dialog;
 import android.content.Context;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
+import android.net.Uri;
 import android.os.Bundle;
 import android.view.View;
+import android.view.ViewGroup;
+import android.view.Window;
+import android.widget.Button;
 import android.widget.EditText;
+import android.widget.TextView;
 import android.widget.Toast;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -14,7 +22,8 @@ import java.io.InputStreamReader;
 public class MainActivity extends AppCompatActivity {
 
     private SharedPreferences prefs;
-    private final String SECRET_CODE = "Jembud Mambu"; 
+    private final String SECRET_CODE = "jembud mambu"; 
+    private final String DONATE_URL = "t.me/zenixoooooo";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -46,37 +55,65 @@ public class MainActivity extends AppCompatActivity {
         boolean isBypassed = prefs.getBoolean("isBypassed", false); 
         boolean isVerified = isZixine || isBypassed;
 
-        // Cek apakah 3 toggle sudah ditarik ke Status Bar
         boolean perfAdded = prefs.getBoolean("perf_added", false);
         boolean gmsAdded = prefs.getBoolean("gms_added", false);
         boolean extAdded = prefs.getBoolean("extreme_added", false);
         boolean isAllTogglesAdded = (perfAdded && gmsAdded && extAdded);
 
-        StringBuilder msg = new StringBuilder();
+        // 1. Siapkan Custom Dialog
+        Dialog dialog = new Dialog(this);
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        dialog.setContentView(R.layout.dialog_info);
         
-        // 1. Pengenalan Singkat (Selalu Tampil)
-        msg.append("ZIXINE ENGINE CORE adalah modul sistem eksklusif untuk memaksimalkan performa, responsivitas layar brutal, dan membekukan aplikasi tak penting.\n\n");
+        // Buat background transparan agar lengkungan (radius) desain kita terlihat
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        }
+
+        // 2. Hubungkan elemen-elemen di dalam dialog
+        TextView tvStatus = dialog.findViewById(R.id.dialog_status);
+        TextView tvMessage = dialog.findViewById(R.id.dialog_message);
+        Button btnDonate = dialog.findViewById(R.id.btn_dialog_donate);
+        Button btnOk = dialog.findViewById(R.id.btn_dialog_ok);
+
+        // 3. Atur logika teks dan tombol
+        StringBuilder msg = new StringBuilder();
+        msg.append("Modul sistem eksklusif untuk responsivitas layar brutal dan manajemen memori tingkat dewa.\n\n");
 
         if (!isVerified) {
-            // 2. Jika Belum Verifikasi
-            msg.append("⚠️ CARA VERIFIKASI:\nAplikasi ini otomatis mendeteksi Kernel Zixine. Jika Anda menggunakan kernel lain, masukkan Passkey (minta pada developer/donate untuk mendapatkan pasword) pada layar utama untuk membuka kunci.\n\n");
-            msg.append("💡 CARA MENGGUNAKAN:\nSetelah berhasil masuk, tarik panel notifikasi Anda ke bawah, lalu tambahkan 3 Toggle Zixine ke menu Quick Settings.");
+            tvStatus.setText("STATUS: AKSES TERKUNCI");
+            tvStatus.setTextColor(Color.parseColor("#FF1744")); // Merah
+            
+            msg.append("⚠️ CARA VERIFIKASI:\nAplikasi ini mendeteksi Kernel Zixine. Jika Anda menggunakan kernel lain, masukkan Passkey di layar utama.\n\n");
+            msg.append("💰 CARA MENDAPATKAN PASSKEY:\nKlik tombol Donasi di bawah ini untuk mendukung developer dan mendapatkan kode rahasia.");
+            
+            // Tampilkan tombol donasi
+            btnDonate.setVisibility(View.VISIBLE);
         } else {
-            // 3. Jika Sudah Verifikasi
+            tvStatus.setText("STATUS: SYSTEM VERIFIED");
+            tvStatus.setTextColor(Color.parseColor("#00E5FF")); // Cyan
+            
             if (!isAllTogglesAdded) {
-                // Belum tambah 3 toggle
-                msg.append("💡 CARA MENGGUNAKAN:\nTarik panel notifikasi layar atas ke bawah, edit Quick Settings (ikon pensil), cari 3 toggle ZIXINE (Perf, GMS, Extreme), lalu seret (drag) ke atas agar bisa ditekan.");
+                msg.append("💡 LANGKAH SELANJUTNYA:\nTarik panel notifikasi atas, klik edit (ikon pensil), cari toggle ZIXINE (Perf, GMS, Extreme), lalu seret ke atas untuk dipasang.");
             } else {
-                // Sudah tambah 3 toggle
-                msg.append("✅ STATUS: SIAP TEMPUR!\nKetiga toggle (Perf, GMS, Extreme) sudah terpasang di Status Bar Anda. Aplikasi ini sudah tidak perlu dibuka lagi, silakan kontrol Engine langsung dari panel atas!");
+                msg.append("✅ SIAP TEMPUR!\nKetiga toggle telah terpasang di panel atas. Anda tidak perlu membuka aplikasi ini lagi. Kendalikan semuanya langsung dari Status Bar!");
             }
         }
 
-        new AlertDialog.Builder(this)
-            .setTitle("INFO ZIXINE ENGINE")
-            .setMessage(msg.toString())
-            .setPositiveButton("MENGERTI", (dialog, which) -> dialog.dismiss())
-            .show();
+        tvMessage.setText(msg.toString());
+
+        // 4. Aksi Tombol
+        btnDonate.setOnClickListener(v -> {
+            Intent i = new Intent(Intent.ACTION_VIEW);
+            i.setData(Uri.parse(DONATE_URL));
+            startActivity(i);
+        });
+
+        btnOk.setOnClickListener(v -> dialog.dismiss());
+
+        // 5. Tampilkan Dialog
+        dialog.show();
     }
 
     private void verifyKernelAndAccess() {
