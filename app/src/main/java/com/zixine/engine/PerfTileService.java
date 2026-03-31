@@ -32,12 +32,14 @@ public class PerfTileService extends TileService {
 
         Tile t = getQsTile();
         boolean active = (t.getState() == Tile.STATE_INACTIVE);
-        Toast.makeText(getApplicationContext(), active ? "ZIXINE PERF: ULTIMATE ON" : "ZIXINE PERF: NORMAL MODE", Toast.LENGTH_SHORT).show();
+        Toast.makeText(getApplicationContext(), active ? "ZIXINE PERF: ULTIMATE ON (ZRAM OFF)" : "ZIXINE PERF: NORMAL MODE (ZRAM ON)", Toast.LENGTH_SHORT).show();
 
         String cmd;
         if (active) {
-            // MODE ON: Latensi Nol & Responsivitas Brutal
-            cmd = "settings put system pointer_speed 7; settings put secure long_press_timeout 250; " +
+            // MODE ON: Latensi Nol & Memori Penuh (swapoff)
+            cmd = "swapoff -a; " +
+                  "settings put system min_refresh_rate 120.0; settings put system peak_refresh_rate 120.0; " +
+                  "settings put system pointer_speed 7; settings put secure long_press_timeout 250; " +
                   "settings put global window_animation_scale 0.0; settings put global transition_animation_scale 0.0; " +
                   "settings put global animator_duration_scale 0.2; " + 
                   "setprop touch.pressure.scale 0.001; setprop debug.touch.filter 0; " +
@@ -45,8 +47,10 @@ public class PerfTileService extends TileService {
                   "setprop debug.sf.latch_unsignaled 1; setprop windowsmgr.max_events_per_sec 1000; " +
                   "resetprop ro.min.fling_velocity 20000; killall -STOP thermald;";
         } else {
-            // MODE OFF: Pembersihan total ke nilai standar pabrik
-            cmd = "settings put system pointer_speed 0; settings put secure long_press_timeout 500; " +
+            // MODE OFF: Pembersihan ke standar pabrik & Kembalikan ZRAM (swapon)
+            cmd = "swapon -a; " +
+                  "settings put system min_refresh_rate 60.0; settings put system peak_refresh_rate 60.0; " +
+                  "settings put system pointer_speed 0; settings put secure long_press_timeout 500; " +
                   "settings put global window_animation_scale 1.0; settings put global transition_animation_scale 1.0; " +
                   "settings put global animator_duration_scale 1.0; " +
                   "setprop touch.pressure.scale 1.0; setprop debug.touch.filter 1; " +
