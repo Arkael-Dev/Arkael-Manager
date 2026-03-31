@@ -22,8 +22,8 @@ import java.io.InputStreamReader;
 public class MainActivity extends AppCompatActivity {
 
     private SharedPreferences prefs;
-    private final String SECRET_CODE = "jembud mambu"; 
-    private final String DONATE_URL = "t.me/zenixoooooo";
+    private final String SECRET_CODE = "778789"; 
+    private final String DONATE_URL = "https://t.me/zenixoooooo";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
