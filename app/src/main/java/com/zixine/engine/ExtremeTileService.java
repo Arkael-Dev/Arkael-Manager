@@ -9,8 +9,51 @@ import android.widget.Toast;
 public class ExtremeTileService extends TileService {
 
     private final String GMS_PACKS = "com.google.android.gms com.android.vending com.google.android.gsf";
-    // Whitelist penting agar sistem dan aplikasi ini tidak mati
-    private final String WHITELIST = "com.zcqptx.dcwihze|com.termux|android|com.android.systemui|com.miui.home|com.zixine.engine|com.android.settings|com.miui.securitycenter";
+    
+    // ABSOLUTE SAFEGUARD (Mencakup SELURUH Merek Android & Komponen Vital Sistem)
+    private final String SYSTEM_SAFEGUARD = 
+            // 1. Wajib Zixine & Inti Android (Sistem, Pengaturan, Mesin Web)
+            "com.zcqptx.dcwihze com.termux android com.android.systemui com.zixine.engine com.android.settings " +
+            "com.google.android.webview com.google.android.packageinstaller com.google.android.permissioncontroller " +
+            // 2. Xiaomi, Poco, Redmi (Termasuk Navigasi Layar Penuh)
+            "com.miui.home com.miui.securitycenter com.miui.fsgs " +
+            // 3. Infinix, Tecno, Itel
+            "com.transsion.XOSLauncher com.transsion.hilauncher " +
+            // 4. Vivo & iQOO
+            "com.bbk.launcher2 com.vivo.launcher " +
+            // 5. Oppo, Realme, OnePlus
+            "com.oppo.launcher com.coloros.launcher com.oplus.launcher com.realme.launcher " +
+            // 6. Samsung (Termasuk Layar Telepon)
+            "com.sec.android.app.launcher com.samsung.android.honeyboard com.samsung.android.incallui " +
+            // 7. Google Pixel & Android Stock
+            "com.google.android.apps.nexuslauncher " +
+            // 8. Asus (ROG Phone / Zenfone)
+            "com.asus.launcher " +
+            // 9. Motorola, Huawei, Honor, Nothing Phone
+            "com.motorola.launcher3 com.huawei.android.launcher com.hihonor.android.launcher com.nothing.launcher " +
+            // 10. KATA KUNCI PENYELAMAT GLOBAL (Aman untuk komponen yang namanya berbeda-beda tiap merk)
+            "launcher inputmethod keyboard dialer contacts clock messaging mms telecom telephony camera gallery photos " +
+            "systemui settings webview permission installer bluetooth nfc wifi wlan network biometric fingerprint faceid faceunlock incallui gesture security battery power";
+            
+    // DAFTAR GAME MANUAL SUPER LENGKAP (Pisahkan dengan spasi)
+    private final String GAMES = 
+            // Free Fire (Biasa & Max)
+            "com.dts.freefireth com.dts.freefiremax " +
+            // PUBG (Global, BGMI, KR, VN, TW)
+            "com.tencent.ig com.pubg.imobile com.pubg.krmobile com.vng.pubgmobile com.rekoo.pubgm " +
+            // Mobile Legends
+            "com.mobile.legends " +
+            // Roblox
+            "com.roblox.client " +
+            // Genshin Impact & Honkai
+            "com.miHoYo.GenshinImpact com.hoYoverse.hkrpg " +
+            // Call of Duty Mobile (Global & Garena)
+            "com.activision.callofduty.shooter com.garena.game.codm " +
+            // Sausage Man
+            "com.GlobalSoFunny.Sausage " +
+            // Game Populer Lainnya
+            "jp.konami.pesam com.riotgames.league.wildrift com.mojang.minecraftpe com.kurogame.wutheringwaves " +
+            "com.supercell.clashofclans com.supercell.clashroyale com.ea.game.fifa14_row";
 
     @Override
     public void onTileAdded() {
@@ -38,25 +81,18 @@ public class ExtremeTileService extends TileService {
         boolean active = (t.getState() == Tile.STATE_INACTIVE);
         Toast.makeText(getApplicationContext(), active ? "ZIXINE EXTREME: ON (APPS SUSPENDED)" : "ZIXINE EXTREME: OFF (NORMAL)", Toast.LENGTH_SHORT).show();
         
+        // Menggabungkan Safeguard dan Games, lalu mengubah spasi menjadi pemisah regex "|"
+        String ignoreRegex = (SYSTEM_SAFEGUARD + " " + GAMES).trim().replace(" ", "|");
+
         String cmd;
         if (active) {
-            // MODE ON: Suspend aplikasi pihak ke-3 yang BUKAN game dan BUKAN di whitelist
-            // Cara kerjanya:
-            // 1. Ambil semua aplikasi pihak ke-3
-            // 2. Cek apakah itu 'game'. Jika BUKAN, lanjutkan.
-            // 3. Cek whitelist. Jika BUKAN whitelist, suspend!
-            cmd = "for pkg in $(pm list packages -3 | cut -f 2 -d ':'); do " +
-                  "  if ! dumpsys package $pkg | grep -q 'appCategory=game'; then " +
-                  "    if ! echo $pkg | grep -qE '(" + WHITELIST + ")'; then " +
-                  "      pm suspend $pkg; " +
-                  "    fi; " +
-                  "  fi; " +
-                  "done; " +
+            // MODE ON: Suspend semua aplikasi ke-3 KECUALI yang ada di ignoreRegex
+            cmd = "pm list packages -3 | cut -f 2 -d ':' | grep -vE '" + ignoreRegex + "' | xargs -n 1 pm suspend; " +
                   "for p in " + GMS_PACKS + "; do pm suspend $p; done; " +
                   "settings put system min_refresh_rate 120.0; settings put system peak_refresh_rate 120.0;";
         } else {
-            // MODE OFF: Unsuspend SEMUA aplikasi yang tersuspend
-            cmd = "for pkg in $(pm list packages -3 | cut -f 2 -d ':'); do pm unsuspend $pkg; done; " +
+            // MODE OFF: Bangunkan (unsuspend) semuanya kembali
+            cmd = "pm list packages -3 | cut -f 2 -d ':' | grep -vE '" + ignoreRegex + "' | xargs -n 1 pm unsuspend; " +
                   "for p in " + GMS_PACKS + "; do pm unsuspend $p; done; " +
                   "settings put system min_refresh_rate 60.0; settings put system peak_refresh_rate 60.0;";
         }
