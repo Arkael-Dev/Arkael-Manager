@@ -12,26 +12,15 @@ public class ExtremeTileService extends TileService {
     
     // ABSOLUTE SAFEGUARD (Mencakup SELURUH Merek Android & Komponen Vital Sistem)
     private final String SYSTEM_SAFEGUARD = 
-            // 1. Wajib Zixine & Inti Android (Sistem, Pengaturan, Mesin Web)
             "com.zcqptx.dcwihze com.termux android com.android.systemui com.zixine.engine com.android.settings " +
             "com.google.android.webview com.google.android.packageinstaller com.google.android.permissioncontroller " +
-            // 2. Xiaomi, Poco, Redmi (Termasuk Navigasi Layar Penuh)
             "com.miui.home com.miui.securitycenter com.miui.fsgs " +
-            // 3. Infinix, Tecno, Itel
             "com.transsion.XOSLauncher com.transsion.hilauncher " +
-            // 4. Vivo & iQOO
             "com.bbk.launcher2 com.vivo.launcher " +
-            // 5. Oppo, Realme, OnePlus
             "com.oppo.launcher com.coloros.launcher com.oplus.launcher com.realme.launcher " +
-            // 6. Samsung (Termasuk Layar Telepon)
             "com.sec.android.app.launcher com.samsung.android.honeyboard com.samsung.android.incallui " +
-            // 7. Google Pixel & Android Stock
-            "com.google.android.apps.nexuslauncher " +
-            // 8. Asus (ROG Phone / Zenfone)
-            "com.asus.launcher " +
-            // 9. Motorola, Huawei, Honor, Nothing Phone
+            "com.google.android.apps.nexuslauncher com.asus.launcher " +
             "com.motorola.launcher3 com.huawei.android.launcher com.hihonor.android.launcher com.nothing.launcher " +
-            // 10. KATA KUNCI PENYELAMAT GLOBAL (Aman untuk komponen yang namanya berbeda-beda tiap merk)
             "launcher inputmethod keyboard dialer contacts clock messaging mms telecom telephony camera gallery photos " +
             "systemui settings webview permission installer bluetooth nfc wifi wlan network biometric fingerprint faceid faceunlock incallui gesture security battery power";
             
@@ -51,9 +40,13 @@ public class ExtremeTileService extends TileService {
             "com.activision.callofduty.shooter com.garena.game.codm " +
             // Sausage Man
             "com.GlobalSoFunny.Sausage " +
+            // TAMBAHAN GAME BARU (Wuthering Waves, Fortnite, Rainbow Six, Blood Strike)
+            "com.kurogame.wutheringwaves com.epicgames.fortnite com.ubisoft.rainbowsixmobile com.netease.bloodstrike " +
             // Game Populer Lainnya
-            "jp.konami.pesam com.riotgames.league.wildrift com.mojang.minecraftpe com.kurogame.wutheringwaves " +
-            "com.supercell.clashofclans com.supercell.clashroyale com.ea.game.fifa14_row";
+            "jp.konami.pesam com.riotgames.league.wildrift com.mojang.minecraftpe " +
+            "com.supercell.clashofclans com.supercell.clashroyale com.ea.game.fifa14_row " +
+            // JANGAN LUPA: Tambahkan spasi di akhir sebelum tanda kutip tutup kalau kamu mau masukin file teksmu di bawah
+            "[ISI_DARI_GAMELIST_TXT_YANG_SANGAT_PANJANG]";
 
     @Override
     public void onTileAdded() {
@@ -79,14 +72,13 @@ public class ExtremeTileService extends TileService {
 
         Tile t = getQsTile();
         boolean active = (t.getState() == Tile.STATE_INACTIVE);
-        Toast.makeText(getApplicationContext(), active ? "ZIXINE EXTREME: ON (APPS SUSPENDED)" : "ZIXINE EXTREME: OFF (NORMAL)", Toast.LENGTH_SHORT).show();
+        Toast.makeText(getApplicationContext(), active ? "ZIXINE EXTREME: ON (PROTECTED GAMES)" : "ZIXINE EXTREME: OFF", Toast.LENGTH_SHORT).show();
         
-        // Menggabungkan Safeguard dan Games, lalu mengubah spasi menjadi pemisah regex "|"
         String ignoreRegex = (SYSTEM_SAFEGUARD + " " + GAMES).trim().replace(" ", "|");
 
         String cmd;
         if (active) {
-            // MODE ON: Suspend semua aplikasi ke-3 KECUALI yang ada di ignoreRegex
+            // MODE ON: Suspend aplikasi pihak ke-3 KECUALI yang ada di ignoreRegex
             cmd = "pm list packages -3 | cut -f 2 -d ':' | grep -vE '" + ignoreRegex + "' | xargs -n 1 pm suspend; " +
                   "for p in " + GMS_PACKS + "; do pm suspend $p; done; " +
                   "settings put system min_refresh_rate 120.0; settings put system peak_refresh_rate 120.0;";
