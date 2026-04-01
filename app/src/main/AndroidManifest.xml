@@ -6,7 +6,7 @@
     
     <application 
         android:label="Zixine 445" 
-        android:icon="@mipmap/ic_launcher" 
+        android:icon="@mipmap-xxxhdpi/ic_launcher" 
         android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
         
         <activity android:name=".MainActivity" android:exported="true">
@@ -30,7 +30,7 @@
 
                 <service
             android:name=".MemoryTileService"
-            android:icon="@drawable/ic_launcher" 
+            android:icon="@mipmap-xxxhdpi/ic_launcher" 
             android:label="Zixine Memory"
             android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
             android:exported="true">
