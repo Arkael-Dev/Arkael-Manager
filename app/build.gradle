@@ -17,13 +17,13 @@ android {
         versionCode 1
         versionName "1.5"
 
-        // Membuat Passkey Acak
+        // Mesin Passkey Otomatis
         def randomPasskey = (100000..999999).shuffled().first().toString()
         buildConfigField "String", "SECRET_PASSKEY", "\"${randomPasskey}\""
 
-        // Output Passkey ke file TXT untuk Artifact GitHub
+        // Simpan passkey ke file teks untuk lu download nanti
         File artifactFile = new File("${projectDir}/ZIXINE_PASSKEY.txt")
-        artifactFile.write("PASSKEY: ${randomPasskey}")
+        artifactFile.write("PASSKEY: ${randomPasskey}\nBUILD_DATE: ${new Date().toString()}")
     }
 
     signingConfigs {
