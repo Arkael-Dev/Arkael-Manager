@@ -1,15 +1,35 @@
-plugins { id 'com.android.application' version '8.7.0' }
+plugins {
+    id 'com.android.application' version '8.7.0'
+}
 
 android {
     namespace 'com.zixine.engine'
     compileSdk 35
     
+    // WAJIB AKTIFKAN INI AGAR PASSKEY BISA DIBACA JAVA
+    buildFeatures {
+        buildConfig true
+    }
+
     defaultConfig {
         applicationId "com.zixine.engine"
         minSdk 26
         targetSdk 35
         versionCode 1
-        versionName "1.0-V29"
+        versionName "1.5"
+
+        // === LOGIKA PASSKEY HARUS ADA DI DALAM defaultConfig ===
+        
+        // Mesin pembuat Passkey 6 digit acak
+        def randomPasskey = (100000..999999).shuffled().first().toString()
+        buildConfigField "String", "SECRET_PASSKEY", "\"${randomPasskey}\""
+
+        // Otomatis buat file Artifact Passkey
+        def artifactFile = new File(projectDir, "ZIXINE_PASSKEY.txt")
+        artifactFile.text = "=== ZIXINE ENGINE BUILD INFO ===\n" +
+                            "Waktu Build : " + new Date().format("yyyy-MM-dd HH:mm:ss") + "\n" +
+                            "Passkey Baru: " + randomPasskey + "\n" +
+                            "================================\n"
     }
 
     // 1. Konfigurasi untuk membaca Keystore dari GitHub Actions
@@ -30,21 +50,6 @@ android {
             signingConfig signingConfigs.release
         }
     }
-}
-
-        // Mesin pembuat Passkey 6 digit acak
-        def randomPasskey = (100000..999999).shuffled().first().toString()
-        buildConfigField "String", "SECRET_PASSKEY", "\"${randomPasskey}\""
-
-        // Otomatis buat file Artifact Passkey
-        def artifactFile = new File(projectDir, "ZIXINE_PASSKEY.txt")
-        artifactFile.text = "=== ZIXINE ENGINE BUILD INFO ===\n" +
-                            "Waktu Build : " + new Date().format("yyyy-MM-dd HH:mm:ss") + "\n" +
-                            "Passkey Baru: " + randomPasskey + "\n" +
-                            "================================\n"
-}
-}
-}
 }
 
 dependencies {
