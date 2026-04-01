@@ -7,8 +7,10 @@ import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -23,67 +25,71 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvRam, tvZram, tvCpu, tvBattery;
     private Handler handler = new Handler(Looper.getMainLooper());
     private Runnable updater;
+    private static final String TAG = "ZIXINE_CORE";
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         try {
-            // Pasang layout dulu
             setContentView(R.layout.activity_main);
-            
-            // Inisialisasi ID dengan hati-hati
+            Log.d(TAG, "Layout set successfully");
+
+            prefs = getSharedPreferences("ZixineSecurePrefs", Context.MODE_PRIVATE);
+
+            // Inisialisasi View
             tvRam = findViewById(R.id.tv_ram);
             tvZram = findViewById(R.id.tv_zram);
             tvCpu = findViewById(R.id.tv_cpu);
             tvBattery = findViewById(R.id.tv_battery);
-            
-            prefs = getSharedPreferences("ZixineSecurePrefs", Context.MODE_PRIVATE);
 
-            // Cek status login
             updateUIState();
 
             // Tombol Unlock
-            View btnUnlock = findViewById(R.id.btn_unlock);
+            Button btnUnlock = findViewById(R.id.btn_unlock);
             if (btnUnlock != null) {
                 btnUnlock.setOnClickListener(v -> {
                     EditText input = findViewById(R.id.input_code);
-                    if (input != null && input.getText().toString().trim().equals(BuildConfig.SECRET_PASSKEY)) {
+                    String code = input.getText().toString().trim();
+                    if (code.equals(BuildConfig.SECRET_PASSKEY)) {
                         prefs.edit().putString("secured_pass_hash", SecurityUtils.generateHash(BuildConfig.SECRET_PASSKEY)).apply();
                         updateUIState();
+                        Toast.makeText(this, "ACCESS GRANTED", Toast.LENGTH_SHORT).show();
                     } else {
-                        Toast.makeText(this, "PASSKEY SALAH!", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(this, "INVALID PASSKEY", Toast.LENGTH_SHORT).show();
                     }
                 });
             }
 
-            // Tombol Dashboad
-            View btnGov = findViewById(R.id.btn_cpu_gov);
-            if (btnGov != null) btnGov.setOnClickListener(v -> showGovPicker());
-
-            View btnClean = findViewById(R.id.btn_clean_ram);
-            if (btnClean != null) btnClean.setOnClickListener(v -> executeClean());
+            // Tombol Dashboard
+            findViewById(R.id.btn_cpu_gov).setOnClickListener(v -> showGovPicker());
+            findViewById(R.id.btn_clean_ram).setOnClickListener(v -> {
+                Toast.makeText(this, "CLEANING RAM...", Toast.LENGTH_SHORT).show();
+                new Thread(() -> {
+                    runCmdSu("sync; echo 3 > /proc/sys/vm/drop_caches; am kill-all");
+                    runOnUiThread(() -> { finishAffinity(); System.exit(0); });
+                }).start();
+            });
 
         } catch (Exception e) {
-            // Jika tetap error, munculkan pesan agar tidak blank putih
-            Toast.makeText(this, "UI Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            Log.e(TAG, "FATAL ONCREATE: " + e.getMessage());
         }
     }
 
     private void updateUIState() {
-        boolean verified = SecurityUtils.isSystemVerified(this);
-        View locked = findViewById(R.id.layout_locked);
-        View verifiedLayout = findViewById(R.id.layout_verified);
+        boolean isVerified = SecurityUtils.isSystemVerified(this);
+        Log.d(TAG, "Verification Status: " + isVerified);
         
-        if (locked != null) locked.setVisibility(verified ? View.GONE : View.VISIBLE);
-        if (verifiedLayout != null) verifiedLayout.setVisibility(verified ? View.VISIBLE : View.GONE);
+        findViewById(R.id.layout_locked).setVisibility(isVerified ? View.GONE : View.VISIBLE);
+        findViewById(R.id.layout_verified).setVisibility(isVerified ? View.VISIBLE : View.GONE);
         
-        if (verified) startDash();
+        if (isVerified) startDashboard();
     }
 
-    private void startDash() {
+    private void startDashboard() {
         if (updater != null) return;
         updater = new Runnable() {
-            @Override public void run() {
+            @Override
+            public void run() {
                 refreshStats();
                 handler.postDelayed(this, 2000);
             }
@@ -94,68 +100,52 @@ public class MainActivity extends AppCompatActivity {
     private void refreshStats() {
         try {
             ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
-            ActivityManager am = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
-            if (am != null) {
-                am.getMemoryInfo(mi);
-                if (tvRam != null) tvRam.setText((mi.availMem / 1048576) + " MB Free");
-            }
+            ((ActivityManager) getSystemService(ACTIVITY_SERVICE)).getMemoryInfo(mi);
+            if (tvRam != null) tvRam.setText((mi.availMem / 1048576) + " MB Free");
 
             BatteryManager bm = (BatteryManager) getSystemService(BATTERY_SERVICE);
-            if (bm != null && tvBattery != null) {
-                tvBattery.setText(bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) + "%");
-            }
+            if (tvBattery != null) tvBattery.setText(bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) + "%");
 
             String gov = runCmd("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor");
-            if (tvCpu != null) tvCpu.setText(gov.isEmpty() ? "UNKNOWN" : gov.toUpperCase());
+            if (tvCpu != null) tvCpu.setText(gov.toUpperCase());
 
-            String zsize = runCmd("cat /sys/block/zram0/disksize");
+            String zramSize = runCmd("cat /sys/block/zram0/disksize");
             if (tvZram != null) {
-                if (zsize.isEmpty() || zsize.equals("0")) tvZram.setText("OFF / 0 MB");
-                else tvZram.setText((Long.parseLong(zsize) / 1048576) + " MB");
+                if (zramSize.isEmpty() || zramSize.equals("0")) tvZram.setText("OFF");
+                else tvZram.setText((Long.parseLong(zramSize) / 1048576) + " MB");
             }
         } catch (Exception e) {
-            android.util.Log.e("ZIXINE", "Stats Error: " + e.getMessage());
+            Log.e(TAG, "Stats Error: " + e.getMessage());
         }
     }
 
-    private void executeClean() {
-        Toast.makeText(this, "BRUTAL CLEANING...", Toast.LENGTH_SHORT).show();
-        new Thread(() -> {
-            try {
-                Runtime.getRuntime().exec(new String[]{"su", "-c", "sync; echo 3 > /proc/sys/vm/drop_caches; am kill-all"}).waitFor();
-            } catch (Exception e) {}
-            runOnUiThread(() -> { finishAffinity(); System.exit(0); });
-        }).start();
-    }
-
     private void showGovPicker() {
-        try {
-            String rawGovs = runCmd("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors");
-            if (rawGovs.isEmpty()) {
-                Toast.makeText(this, "Root needed or Not Supported", Toast.LENGTH_SHORT).show();
-                return;
-            }
-            String[] govs = rawGovs.split(" ");
-            new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-                .setTitle("Select Governor")
+        String raw = runCmd("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors");
+        if (raw.isEmpty()) return;
+        String[] govs = raw.split(" ");
+        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                .setTitle("Select CPU Governor")
                 .setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, govs), (d, w) -> {
-                    new Thread(() -> {
-                        try { Runtime.getRuntime().exec(new String[]{"su", "-c", "for c in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo " + govs[w] + " > $c; done"}).waitFor(); } catch (Exception e) {}
-                    }).start();
+                    new Thread(() -> runCmdSu("for c in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo " + govs[w] + " > $c; done")).start();
+                    Toast.makeText(this, "Set to: " + govs[w], Toast.LENGTH_SHORT).show();
                 }).show();
-        } catch (Exception e) {}
     }
 
-    private String runCmd(String c) {
+    private String runCmd(String cmd) {
         try {
-            Process p = Runtime.getRuntime().exec(c);
+            Process p = Runtime.getRuntime().exec(cmd);
             BufferedReader br = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            String line = br.readLine();
-            return (line != null) ? line.trim() : "";
+            String res = br.readLine();
+            return (res != null) ? res.trim() : "";
         } catch (Exception e) { return ""; }
     }
 
-    @Override protected void onDestroy() {
+    private void runCmdSu(String cmd) {
+        try { Runtime.getRuntime().exec(new String[]{"su", "-c", cmd}).waitFor(); } catch (Exception e) {}
+    }
+
+    @Override
+    protected void onDestroy() {
         super.onDestroy();
         if (updater != null) handler.removeCallbacks(updater);
     }
