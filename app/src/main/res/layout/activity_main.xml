@@ -95,7 +95,7 @@
                 android:textSize="18sp"
                 android:letterSpacing="0.3"/>
                 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_unlock"
                 android:layout_width="match_parent"
                 android:layout_height="55dp"
@@ -103,7 +103,7 @@
                 android:text="BYPASS SECURITY"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
-                android:backgroundTint="#FF1744"
+                app:backgroundTint="#FF1744"
                 app:cornerRadius="8dp"/>
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
@@ -127,114 +127,125 @@
             android:letterSpacing="0.1"
             android:layout_marginBottom="16dp"/>
 
-        <GridLayout
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:columnCount="2"
-            android:rowCount="2"
+            android:orientation="vertical"
             android:layout_marginBottom="24dp">
 
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="0dp"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_margin="6dp"
-                app:cardBackgroundColor="#0D111A"
-                app:cardCornerRadius="12dp"
-                app:strokeColor="#33FFFFFF"
-                app:strokeWidth="1dp">
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="12dp">
-                    <TextView android:text="RAM USAGE" android:textColor="#88FFFFFF" android:textSize="10sp" android:textStyle="bold"/>
-                    <TextView android:id="@+id/tv_ram" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="14sp" android:layout_marginTop="4dp" android:textStyle="bold"/>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                android:orientation="horizontal">
 
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_margin="6dp"
-                app:cardBackgroundColor="#0D111A"
-                app:cardCornerRadius="12dp"
-                app:strokeColor="#33FFFFFF"
-                app:strokeWidth="1dp">
-                <LinearLayout
-                    android:layout_width="match_parent"
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="12dp">
-                    <TextView android:text="ZRAM (SWAP)" android:textColor="#88FFFFFF" android:textSize="10sp" android:textStyle="bold"/>
-                    <TextView android:id="@+id/tv_zram" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="14sp" android:layout_marginTop="4dp" android:textStyle="bold"/>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                    android:layout_weight="1"
+                    android:layout_margin="6dp"
+                    app:cardBackgroundColor="#0D111A"
+                    app:cardCornerRadius="12dp"
+                    app:strokeColor="#33FFFFFF"
+                    app:strokeWidth="1dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+                        <TextView android:text="RAM USAGE" android:textColor="#88FFFFFF" android:textSize="10sp" android:textStyle="bold"/>
+                        <TextView android:id="@+id/tv_ram" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="14sp" android:layout_marginTop="4dp" android:textStyle="bold"/>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
 
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_margin="6dp"
-                app:cardBackgroundColor="#0D111A"
-                app:cardCornerRadius="12dp"
-                app:strokeColor="#33FFFFFF"
-                app:strokeWidth="1dp">
-                <LinearLayout
-                    android:layout_width="match_parent"
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="12dp">
-                    <TextView android:text="CPU GOVERNOR" android:textColor="#88FFFFFF" android:textSize="10sp" android:textStyle="bold"/>
-                    <TextView android:id="@+id/tv_cpu" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="14sp" android:layout_marginTop="4dp" android:textStyle="bold"/>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                    android:layout_weight="1"
+                    android:layout_margin="6dp"
+                    app:cardBackgroundColor="#0D111A"
+                    app:cardCornerRadius="12dp"
+                    app:strokeColor="#33FFFFFF"
+                    app:strokeWidth="1dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+                        <TextView android:text="ZRAM (SWAP)" android:textColor="#88FFFFFF" android:textSize="10sp" android:textStyle="bold"/>
+                        <TextView android:id="@+id/tv_zram" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="14sp" android:layout_marginTop="4dp" android:textStyle="bold"/>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
 
-            <com.google.android.material.card.MaterialCardView
-                android:layout_width="0dp"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_columnWeight="1"
-                android:layout_margin="6dp"
-                app:cardBackgroundColor="#0D111A"
-                app:cardCornerRadius="12dp"
-                app:strokeColor="#33FFFFFF"
-                app:strokeWidth="1dp">
-                <LinearLayout
-                    android:layout_width="match_parent"
+                android:orientation="horizontal">
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="12dp">
-                    <TextView android:text="BATERAI" android:textColor="#88FFFFFF" android:textSize="10sp" android:textStyle="bold"/>
-                    <TextView android:id="@+id/tv_battery" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="14sp" android:layout_marginTop="4dp" android:textStyle="bold"/>
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-        </GridLayout>
+                    android:layout_weight="1"
+                    android:layout_margin="6dp"
+                    app:cardBackgroundColor="#0D111A"
+                    app:cardCornerRadius="12dp"
+                    app:strokeColor="#33FFFFFF"
+                    app:strokeWidth="1dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+                        <TextView android:text="CPU GOVERNOR" android:textColor="#88FFFFFF" android:textSize="10sp" android:textStyle="bold"/>
+                        <TextView android:id="@+id/tv_cpu" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="14sp" android:layout_marginTop="4dp" android:textStyle="bold"/>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <com.google.android.material.card.MaterialCardView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:layout_margin="6dp"
+                    app:cardBackgroundColor="#0D111A"
+                    app:cardCornerRadius="12dp"
+                    app:strokeColor="#33FFFFFF"
+                    app:strokeWidth="1dp">
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="12dp">
+                        <TextView android:text="BATERAI" android:textColor="#88FFFFFF" android:textSize="10sp" android:textStyle="bold"/>
+                        <TextView android:id="@+id/tv_battery" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="14sp" android:layout_marginTop="4dp" android:textStyle="bold"/>
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+            </LinearLayout>
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_cpu_gov"
                 android:layout_width="match_parent"
                 android:layout_height="55dp"
                 android:text="SET CPU GOVERNOR"
                 android:textColor="#090C15"
                 android:textStyle="bold"
-                android:backgroundTint="#00E5FF"
+                app:backgroundTint="#00E5FF"
                 app:cornerRadius="8dp"
                 android:layout_marginBottom="12dp"/>
 
-            <Button
+            <com.google.android.material.button.MaterialButton
                 android:id="@+id/btn_clean_ram"
                 android:layout_width="match_parent"
                 android:layout_height="55dp"
                 android:text="BRUTAL RAM CLEANER"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
-                android:backgroundTint="#FF1744"
+                app:backgroundTint="#FF1744"
                 app:cornerRadius="8dp" />
         </LinearLayout>
     </LinearLayout>
