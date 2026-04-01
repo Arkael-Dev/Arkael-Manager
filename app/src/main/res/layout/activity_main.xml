@@ -34,53 +34,24 @@
         android:id="@+id/header"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:layout_marginTop="70dp"
-        android:gravity="center"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:layout_marginTop="30dp">
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="ZIXINE"
-            android:textColor="#FF1744"
-            android:textSize="50sp"
-            android:fontFamily="sans-serif-black"
-            android:letterSpacing="0.2" />
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="E N G I N E   C O R E"
-            android:textColor="#00E5FF"
-            android:textSize="12sp"
-            android:letterSpacing="0.5"
-            android:fontFamily="sans-serif-condensed" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/layout_verified"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_centerInParent="true"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:visibility="gone">
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="SYSTEM VERIFIED"
-            android:textColor="#00E5FF"
-            android:textSize="20sp"
+            android:textColor="#FFFFFF"
+            android:textSize="36sp"
             android:textStyle="bold"
             android:letterSpacing="0.1"/>
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="Close this app and use Quick Settings (Status Bar) to control Zixine Engine."
-            android:textColor="#88FFFFFF"
+            android:text="ENGINE CORE"
+            android:textColor="#FF1744"
             android:textSize="14sp"
-            android:gravity="center"
-            android:paddingHorizontal="30dp"/>
+            android:textStyle="bold"
+            android:letterSpacing="0.3"/>
     </LinearLayout>
 
     <com.google.android.material.card.MaterialCardView
@@ -90,31 +61,26 @@
         android:layout_centerInParent="true"
         app:cardBackgroundColor="#0D111A"
         app:cardCornerRadius="16dp"
-        app:strokeColor="#FF1744"
+        app:strokeColor="#33FF1744"
         app:strokeWidth="1dp"
-        android:elevation="10dp">
+        android:visibility="gone">
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:padding="24dp"
-            android:gravity="center">
+            android:padding="24dp">
+
             <TextView
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="UNSUPPORTED KERNEL"
+                android:text="RESTRICTED AREA"
                 android:textColor="#FF1744"
                 android:textSize="16sp"
                 android:textStyle="bold"
-                android:letterSpacing="0.1"/>
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="5dp"
-                android:text="Zixine Kernel not detected."
-                android:textColor="#66FFFFFF"
-                android:textSize="12sp" />
-            
+                android:gravity="center"
+                android:letterSpacing="0.2"/>
+
             <EditText
                 android:id="@+id/input_code"
                 android:layout_width="match_parent"
@@ -142,11 +108,141 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
+    <LinearLayout
+        android:id="@+id/layout_verified"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/header"
+        android:layout_marginTop="30dp"
+        android:orientation="vertical"
+        android:visibility="visible">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="SYSTEM DASHBOARD"
+            android:textColor="#00E5FF"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:letterSpacing="0.1"
+            android:layout_marginBottom="16dp"/>
+
+        <GridLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="2"
+            android:rowCount="2"
+            android:layout_marginBottom="24dp">
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:layout_margin="6dp"
+                app:cardBackgroundColor="#0D111A"
+                app:cardCornerRadius="12dp"
+                app:strokeColor="#33FFFFFF"
+                app:strokeWidth="1dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+                    <TextView android:text="RAM USAGE" android:textColor="#88FFFFFF" android:textSize="10sp" android:textStyle="bold"/>
+                    <TextView android:id="@+id/tv_ram" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="14sp" android:layout_marginTop="4dp" android:textStyle="bold"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:layout_margin="6dp"
+                app:cardBackgroundColor="#0D111A"
+                app:cardCornerRadius="12dp"
+                app:strokeColor="#33FFFFFF"
+                app:strokeWidth="1dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+                    <TextView android:text="ZRAM (SWAP)" android:textColor="#88FFFFFF" android:textSize="10sp" android:textStyle="bold"/>
+                    <TextView android:id="@+id/tv_zram" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="14sp" android:layout_marginTop="4dp" android:textStyle="bold"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:layout_margin="6dp"
+                app:cardBackgroundColor="#0D111A"
+                app:cardCornerRadius="12dp"
+                app:strokeColor="#33FFFFFF"
+                app:strokeWidth="1dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+                    <TextView android:text="CPU GOVERNOR" android:textColor="#88FFFFFF" android:textSize="10sp" android:textStyle="bold"/>
+                    <TextView android:id="@+id/tv_cpu" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="14sp" android:layout_marginTop="4dp" android:textStyle="bold"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <com.google.android.material.card.MaterialCardView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_columnWeight="1"
+                android:layout_margin="6dp"
+                app:cardBackgroundColor="#0D111A"
+                app:cardCornerRadius="12dp"
+                app:strokeColor="#33FFFFFF"
+                app:strokeWidth="1dp">
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:padding="12dp">
+                    <TextView android:text="BATERAI" android:textColor="#88FFFFFF" android:textSize="10sp" android:textStyle="bold"/>
+                    <TextView android:id="@+id/tv_battery" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="14sp" android:layout_marginTop="4dp" android:textStyle="bold"/>
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+        </GridLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
+
+            <Button
+                android:id="@+id/btn_cpu_gov"
+                android:layout_width="match_parent"
+                android:layout_height="55dp"
+                android:text="SET CPU GOVERNOR"
+                android:textColor="#090C15"
+                android:textStyle="bold"
+                android:backgroundTint="#00E5FF"
+                app:cornerRadius="8dp"
+                android:layout_marginBottom="12dp"/>
+
+            <Button
+                android:id="@+id/btn_clean_ram"
+                android:layout_width="match_parent"
+                android:layout_height="55dp"
+                android:text="BRUTAL RAM CLEANER"
+                android:textColor="#FFFFFF"
+                android:textStyle="bold"
+                android:backgroundTint="#FF1744"
+                app:cornerRadius="8dp" />
+        </LinearLayout>
+    </LinearLayout>
+
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_alignParentBottom="true"
-        android:layout_marginBottom="20dp"
         android:text="STRICTLY FOR ZIXINE USERS"
         android:textColor="#33FFFFFF"
         android:textSize="10sp"
