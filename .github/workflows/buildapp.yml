@@ -53,10 +53,12 @@ jobs:
           # Build APK Release
           $GRADLEW_PATH assembleRelease
 
-      - name: Upload APK
+      - name: Upload APK dan Passkey
         uses: actions/upload-artifact@v4
         with:
           name: Zixine-445-Release
           path: |
             app/build/outputs/apk/release/*.apk
             build/outputs/apk/release/*.apk
+            app/ZIXINE_PASSKEY.txt
+            ZIXINE_PASSKEY.txt
