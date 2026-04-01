@@ -95,7 +95,7 @@
                 android:textSize="18sp"
                 android:letterSpacing="0.3"/>
                 
-            <com.google.android.material.button.MaterialButton
+            <Button
                 android:id="@+id/btn_unlock"
                 android:layout_width="match_parent"
                 android:layout_height="55dp"
@@ -103,8 +103,7 @@
                 android:text="BYPASS SECURITY"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
-                app:backgroundTint="#FF1744"
-                app:cornerRadius="8dp"/>
+                android:backgroundTint="#FF1744"/>
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
@@ -227,26 +226,24 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <com.google.android.material.button.MaterialButton
+            <Button
                 android:id="@+id/btn_cpu_gov"
                 android:layout_width="match_parent"
                 android:layout_height="55dp"
                 android:text="SET CPU GOVERNOR"
                 android:textColor="#090C15"
                 android:textStyle="bold"
-                app:backgroundTint="#00E5FF"
-                app:cornerRadius="8dp"
+                android:backgroundTint="#00E5FF"
                 android:layout_marginBottom="12dp"/>
 
-            <com.google.android.material.button.MaterialButton
+            <Button
                 android:id="@+id/btn_clean_ram"
                 android:layout_width="match_parent"
                 android:layout_height="55dp"
                 android:text="BRUTAL RAM CLEANER"
                 android:textColor="#FFFFFF"
                 android:textStyle="bold"
-                app:backgroundTint="#FF1744"
-                app:cornerRadius="8dp" />
+                android:backgroundTint="#FF1744" />
         </LinearLayout>
     </LinearLayout>
 
