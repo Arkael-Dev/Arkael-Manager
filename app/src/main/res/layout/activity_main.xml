@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@color/black_bg" android:fillViewport="true">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+        android:orientation="vertical" android:padding="24dp">
+        
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content"
+            android:text="ZIXINE CORE" android:textColor="@color/white" android:textSize="30sp" android:textStyle="bold"/>
+        
+        <LinearLayout android:id="@+id/layout_locked" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical" android:layout_marginTop="40dp">
+            <EditText android:id="@+id/input_code" android:layout_width="match_parent" android:layout_height="60dp"
+                android:hint="PASSKEY" android:textColor="@color/white" android:background="@color/card_bg"
+                android:inputType="numberPassword" android:gravity="center" android:layout_marginBottom="20dp"/>
+            <Button android:id="@+id/btn_unlock" android:layout_width="match_parent" android:layout_height="60dp"
+                android:text="UNLOCK" android:backgroundTint="@color/zixine_red" android:textColor="@color/white"/>
+        </LinearLayout>
+
+        <LinearLayout android:id="@+id/layout_dashboard" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:orientation="vertical" android:visibility="gone">
+            <TextView android:id="@+id/tv_ram" android:text="RAM: ..." android:textColor="@color/zixine_cyan" android:textSize="20sp" android:layout_marginTop="20dp"/>
+            <TextView android:id="@+id/tv_zram" android:text="ZRAM: ..." android:textColor="@color/white" android:textSize="20sp"/>
+            <TextView android:id="@+id/tv_cpu" android:text="CPU: ..." android:textColor="@color/white" android:textSize="20sp"/>
+            <TextView android:id="@+id/tv_battery" android:text="BAT: ..." android:textColor="@color/white" android:textSize="20sp" android:layout_marginBottom="30dp"/>
+
+            <Button android:id="@+id/btn_cpu_gov" android:layout_width="match_parent" android:layout_height="60dp"
+                android:text="GOVERNOR" android:backgroundTint="@color/zixine_cyan" android:textColor="@color/black_bg" android:layout_marginBottom="10dp"/>
+            <Button android:id="@+id/btn_clean_ram" android:layout_width="match_parent" android:layout_height="60dp"
+                android:text="CLEAN" android:backgroundTint="@color/zixine_red" android:textColor="@color/white"/>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>
