@@ -18,21 +18,25 @@ public class SecurityUtils {
             }
             return hexString.toString();
         } catch (Exception e) {
-            return String.valueOf(input.hashCode());
+            return input != null ? String.valueOf(input.hashCode()) : "0";
         }
     }
 
     public static boolean isSystemVerified(Context context) {
-        // PERBAIKAN FATAL ERROR: Cek apakah kernel null sebelum di-lowercase
-        String osVer = System.getProperty("os.version");
-        boolean isZixine = (osVer != null) && osVer.toLowerCase().contains("zixine");
-        
-        if (isZixine) return true;
+        try {
+            String osVer = System.getProperty("os.version");
+            if (osVer != null && osVer.toLowerCase().contains("zixine")) {
+                return true;
+            }
+        } catch (Exception e) { /* Abaikan jika akses diblokir sistem */ }
 
-        SharedPreferences prefs = context.getSharedPreferences("ZixineSecurePrefs", Context.MODE_PRIVATE);
-        String savedHash = prefs.getString("secured_pass_hash", "");
-        String realHash = generateHash(BuildConfig.SECRET_PASSKEY);
-
-        return savedHash.equals(realHash) && !savedHash.isEmpty();
+        try {
+            SharedPreferences prefs = context.getSharedPreferences("ZixineSecurePrefs", Context.MODE_PRIVATE);
+            String savedHash = prefs.getString("secured_pass_hash", "");
+            String realHash = generateHash(BuildConfig.SECRET_PASSKEY);
+            return savedHash != null && savedHash.equals(realHash) && !savedHash.isEmpty();
+        } catch (Exception e) {
+            return false;
+        }
     }
 }
