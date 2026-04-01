@@ -23,7 +23,10 @@ public class SecurityUtils {
     }
 
     public static boolean isSystemVerified(Context context) {
-        boolean isZixine = System.getProperty("os.version").toLowerCase().contains("zixine");
+        // PERBAIKAN FATAL ERROR: Cek apakah kernel null sebelum di-lowercase
+        String osVer = System.getProperty("os.version");
+        boolean isZixine = (osVer != null) && osVer.toLowerCase().contains("zixine");
+        
         if (isZixine) return true;
 
         SharedPreferences prefs = context.getSharedPreferences("ZixineSecurePrefs", Context.MODE_PRIVATE);
