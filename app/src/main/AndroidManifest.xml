@@ -6,7 +6,7 @@
     
     <application 
         android:label="Zixine 445" 
-        android:icon="@mipmap-xxxhdpi/ic_launcher" 
+        android:icon="@mipmap/ic_launcher" 
         android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
         
         <activity android:name=".MainActivity" android:exported="true">
