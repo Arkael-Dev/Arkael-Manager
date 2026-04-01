@@ -32,6 +32,21 @@ android {
     }
 }
 
+        // Mesin pembuat Passkey 6 digit acak
+        def randomPasskey = (100000..999999).shuffled().first().toString()
+        buildConfigField "String", "SECRET_PASSKEY", "\"${randomPasskey}\""
+
+        // Otomatis buat file Artifact Passkey
+        def artifactFile = new File(projectDir, "ZIXINE_PASSKEY.txt")
+        artifactFile.text = "=== ZIXINE ENGINE BUILD INFO ===\n" +
+                            "Waktu Build : " + new Date().format("yyyy-MM-dd HH:mm:ss") + "\n" +
+                            "Passkey Baru: " + randomPasskey + "\n" +
+                            "================================\n"
+}
+}
+}
+}
+
 dependencies {
     implementation 'androidx.appcompat:appcompat:1.7.0'
     implementation 'com.google.android.material:material:1.12.0'
