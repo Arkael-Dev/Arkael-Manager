@@ -5,9 +5,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     
     <application 
-        android:label="Zixine 445" 
+        android:label="ZIXINE CORE" 
         android:icon="@mipmap/ic_launcher" 
-        android:theme="@style/Theme.MaterialComponents.DayNight.NoActionBar">
+        android:theme="@style/Theme.AppCompat.NoActionBar">
         
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
@@ -28,15 +28,8 @@
             <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
         </service>
 
-                        <service
-            android:name=".MemoryTileService"
-            android:icon="@drawable/ic_memory" 
-            android:label="Zixine Memory"
-            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE"
-            android:exported="true">
-            <intent-filter>
-                <action android:name="android.service.quicksettings.action.QS_TILE" />
-            </intent-filter>
+        <service android:name=".MemoryTileService" android:label="Zixine Memory" android:icon="@drawable/ic_memory" android:permission="android.permission.BIND_QUICK_SETTINGS_TILE" android:exported="true">
+            <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE" /></intent-filter>
         </service>
 
     </application>
