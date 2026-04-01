@@ -1,40 +1,29 @@
 package com.zixine.engine;
 
 import android.content.Context;
-import android.content.SharedPreferences;
-import java.security.MessageDigest;
 
 public class SecurityUtils {
 
     public static String generateHash(String input) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] hash = digest.digest(input.getBytes());
-            StringBuilder hexString = new StringBuilder();
-            for (byte b : hash) {
-                String hex = Integer.toHexString(0xff & b);
-                if (hex.length() == 1) hexString.append('0');
-                hexString.append(hex);
-            }
-            return hexString.toString();
-        } catch (Exception e) {
-            return input != null ? String.valueOf(input.hashCode()) : "0";
-        }
+        if (input == null) return "";
+        return String.valueOf(input.hashCode());
     }
 
     public static boolean isSystemVerified(Context context) {
+        // Cek Kernel Zixine
         try {
-            String osVer = System.getProperty("os.version");
-            if (osVer != null && osVer.toLowerCase().contains("zixine")) {
+            String version = System.getProperty("os.version");
+            if (version != null && version.toLowerCase().contains("zixine")) {
                 return true;
             }
-        } catch (Exception e) { /* Abaikan jika akses diblokir sistem */ }
+        } catch (Exception e) { /* Abaikan jika akses kernel dilarang */ }
 
+        // Cek Bypass Passkey
         try {
-            SharedPreferences prefs = context.getSharedPreferences("ZixineSecurePrefs", Context.MODE_PRIVATE);
-            String savedHash = prefs.getString("secured_pass_hash", "");
+            String savedHash = context.getSharedPreferences("ZixineSecurePrefs", Context.MODE_PRIVATE)
+                    .getString("secured_pass_hash", "");
             String realHash = generateHash(BuildConfig.SECRET_PASSKEY);
-            return savedHash != null && savedHash.equals(realHash) && !savedHash.isEmpty();
+            return !savedHash.isEmpty() && savedHash.equals(realHash);
         } catch (Exception e) {
             return false;
         }
