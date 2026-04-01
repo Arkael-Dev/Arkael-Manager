@@ -9,14 +9,14 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:padding="25dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="ZIXINE"
             android:textColor="#FFFFFF"
-            android:textSize="32sp"
+            android:textSize="35sp"
             android:textStyle="bold" />
 
         <TextView
@@ -24,9 +24,9 @@
             android:layout_height="wrap_content"
             android:text="ENGINE CORE"
             android:textColor="#FF1744"
-            android:textSize="12sp"
+            android:textSize="13sp"
             android:letterSpacing="0.3"
-            android:layout_marginBottom="30dp" />
+            android:layout_marginBottom="40dp" />
 
         <LinearLayout
             android:id="@+id/layout_locked"
@@ -34,28 +34,26 @@
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:visibility="visible">
-            
+
             <EditText
                 android:id="@+id/input_code"
                 android:layout_width="match_parent"
-                android:layout_height="55dp"
+                android:layout_height="60dp"
                 android:hint="ENTER PASSKEY"
                 android:textColor="#FFFFFF"
-                android:textColorHint="#44FFFFFF"
-                android:backgroundTint="#FF1744"
+                android:textColorHint="#55FFFFFF"
                 android:inputType="numberPassword"
                 android:gravity="center"
-                android:textSize="18sp" />
+                android:background="#12161F"
+                android:layout_marginBottom="15dp" />
 
-            <androidx.appcompat.widget.AppCompatButton
+            <Button
                 android:id="@+id/btn_unlock"
                 android:layout_width="match_parent"
                 android:layout_height="60dp"
-                android:layout_marginTop="20dp"
                 android:text="UNLOCK SYSTEM"
-                android:background="#FF1744"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold" />
+                android:backgroundTint="#FF1744"
+                android:textColor="#FFFFFF" />
         </LinearLayout>
 
         <LinearLayout
@@ -66,46 +64,34 @@
             android:visibility="gone">
 
             <TextView android:text="RAM STATUS" android:textColor="#88FFFFFF" android:textSize="11sp" />
-            <TextView android:id="@+id/tv_ram" android:text="..." android:textColor="#FFFFFF" android:textSize="20sp" android:textStyle="bold" android:layout_marginBottom="15dp" />
+            <TextView android:id="@+id/tv_ram" android:text="..." android:textColor="#00E5FF" android:textSize="22sp" android:textStyle="bold" android:layout_marginBottom="15dp" />
 
             <TextView android:text="ZRAM SIZE" android:textColor="#88FFFFFF" android:textSize="11sp" />
-            <TextView android:id="@+id/tv_zram" android:text="..." android:textColor="#FFFFFF" android:textSize="20sp" android:textStyle="bold" android:layout_marginBottom="15dp" />
+            <TextView android:id="@+id/tv_zram" android:text="..." android:textColor="#FFFFFF" android:textSize="22sp" android:textStyle="bold" android:layout_marginBottom="15dp" />
 
-            <TextView android:text="ACTIVE GOVERNOR" android:textColor="#88FFFFFF" android:textSize="11sp" />
-            <TextView android:id="@+id/tv_cpu" android:text="..." android:textColor="#FFFFFF" android:textSize="20sp" android:textStyle="bold" android:layout_marginBottom="15dp" />
+            <TextView android:text="CPU GOVERNOR" android:textColor="#88FFFFFF" android:textSize="11sp" />
+            <TextView android:id="@+id/tv_cpu" android:text="..." android:textColor="#FFFFFF" android:textSize="22sp" android:textStyle="bold" android:layout_marginBottom="15dp" />
 
-            <TextView android:text="BATTERY LEVEL" android:textColor="#88FFFFFF" android:textSize="11sp" />
-            <TextView android:id="@+id/tv_battery" android:text="..." android:textColor="#FFFFFF" android:textSize="20sp" android:textStyle="bold" android:layout_marginBottom="30dp" />
+            <TextView android:text="BATTERY" android:textColor="#88FFFFFF" android:textSize="11sp" />
+            <TextView android:id="@+id/tv_battery" android:text="..." android:textColor="#FFFFFF" android:textSize="22sp" android:textStyle="bold" android:layout_marginBottom="35dp" />
 
-            <androidx.appcompat.widget.AppCompatButton
+            <Button
                 android:id="@+id/btn_cpu_gov"
                 android:layout_width="match_parent"
                 android:layout_height="60dp"
-                android:text="CHANGE GOVERNOR"
-                android:background="#00E5FF"
+                android:text="SET GOVERNOR"
+                android:backgroundTint="#00E5FF"
                 android:textColor="#000000"
-                android:textStyle="bold"
-                android:layout_marginBottom="15dp" />
+                android:layout_marginBottom="12dp" />
 
-            <androidx.appcompat.widget.AppCompatButton
+            <Button
                 android:id="@+id/btn_clean_ram"
                 android:layout_width="match_parent"
                 android:layout_height="60dp"
-                android:text="BRUTAL RAM CLEAN"
-                android:background="#FF1744"
-                android:textColor="#FFFFFF"
-                android:textStyle="bold" />
+                android:text="BRUTAL RAM CLEANER"
+                android:backgroundTint="#FF1744"
+                android:textColor="#FFFFFF" />
         </LinearLayout>
-        
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="40dp"
-            android:text="AUTHORIZED DEVICES ONLY"
-            android:textColor="#22FFFFFF"
-            android:textSize="9sp"
-            android:gravity="center"
-            android:letterSpacing="0.2" />
 
     </LinearLayout>
 </ScrollView>
