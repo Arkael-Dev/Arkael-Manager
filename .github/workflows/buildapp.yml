@@ -58,7 +58,6 @@ jobs:
         with:
           name: Zixine-445-Release
           path: |
-            app/build/outputs/apk/release/*.apk
-            build/outputs/apk/release/*.apk
-            app/ZIXINE_PASSKEY.txt
-            ZIXINE_PASSKEY.txt
+            **/*.apk
+            **/ZIXINE_PASSKEY.txt
+
