@@ -52,7 +52,7 @@
             android:textStyle="bold"/>
     </LinearLayout>
 
-    <!-- DASHBOARD (AKAN DITAMPILKAN SETELAH UNLOCK) -->
+    <!-- DASHBOARD -->
     <LinearLayout
         android:id="@+id/layout_dashboard"
         android:layout_width="match_parent"
@@ -119,7 +119,7 @@
             android:id="@+id/btn_clean_ram"
             android:layout_width="match_parent"
             android:layout_height="60dp"
-            android:text="CLEAN RAM & EXIT"
+            android:text="CLEAN RAM &amp; EXIT"
             android:backgroundTint="@color/zixine_red"
             android:textColor="@color/white"
             android:textSize="16sp"/>
