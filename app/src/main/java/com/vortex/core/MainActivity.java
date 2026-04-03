@@ -19,7 +19,9 @@ import java.io.InputStreamReader;
 
 public class MainActivity extends AppCompatActivity {
     private TextView tvRam, tvZram, tvCpu, tvBattery;
-    private TextView tvKernel, tvUptime, tvLoad, tvBattHealth, tvBattTemp, tvBattStatus;
+    // Hapus Battery Card Variables
+    private TextView tvKernel, tvUptime, tvLoad; 
+    
     private SharedPreferences prefs;
     private Handler handler = new Handler(Looper.getMainLooper());
 
@@ -36,13 +38,10 @@ public class MainActivity extends AppCompatActivity {
         tvCpu = findViewById(R.id.tv_cpu);
         tvBattery = findViewById(R.id.tv_battery);
 
-        // Card System & Battery (Baru)
+        // System Card Only
         tvKernel = findViewById(R.id.tv_kernel);
         tvUptime = findViewById(R.id.tv_uptime);
         tvLoad = findViewById(R.id.tv_load);
-        tvBattHealth = findViewById(R.id.tv_batt_health);
-        tvBattTemp = findViewById(R.id.tv_batt_temp);
-        tvBattStatus = findViewById(R.id.tv_batt_status);
 
         refreshUI();
 
@@ -72,7 +71,7 @@ public class MainActivity extends AppCompatActivity {
         handler.post(new Runnable() {
             @Override public void run() {
                 updateStats();
-                updateSystemAndBatteryInfo(); // Panggil fungsi baru
+                updateSystemInfo(); // Panggil fungsi system info saja
                 handler.postDelayed(this, 2000);
             }
         });
@@ -84,26 +83,24 @@ public class MainActivity extends AppCompatActivity {
             ((ActivityManager)getSystemService(ACTIVITY_SERVICE)).getMemoryInfo(mi);
             if(tvRam != null) tvRam.setText("RAM: " + (mi.availMem / 1048576) + " MB Free");
 
-            // Battery Capacity tetap pakai API aman ini
             BatteryManager bm = (BatteryManager) getSystemService(BATTERY_SERVICE);
             if(tvBattery != null) tvBattery.setText("BAT: " + bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY) + "%");
 
             String gov = runCmd("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor");
             if(tvCpu != null) tvCpu.setText("GOV: " + gov.toUpperCase());
 
-            // ZRAM Fix (Root Read)
             String z = runSuReturn("cat /sys/block/zram0/disksize");
             if(tvZram != null) tvZram.setText("ZRAM: " + (z.isEmpty() ? "0" : (Long.parseLong(z)/1048576)) + " MB");
 
         } catch (Exception ignored) {}
     }
 
-    // FUNGSI BARU: Baca Info System & Battery pakai ROOT FILE (Anti Error SDK)
-    private void updateSystemAndBatteryInfo() {
+    // Hanya Update System Info (Kernel, Uptime, Load)
+    private void updateSystemInfo() {
         try {
-            // System Info via Root
             String kernelFull = runSuReturn("cat /proc/version");
-            if(tvKernel != null) tvKernel.setText("Kernel: " + (kernelFull.length() > 50 ? kernelFull.substring(0, 50) + "..." : kernelFull));
+            if(kernelFull.isEmpty()) kernelFull = "Unknown Kernel";
+            if(tvKernel != null) tvKernel.setText("Kernel: " + (kernelFull.length() > 45 ? kernelFull.substring(0, 45) + "..." : kernelFull));
 
             String uptimeRaw = runCmd("cat /proc/uptime").split(" ")[0];
             long seconds = (long) Double.parseDouble(uptimeRaw);
@@ -114,29 +111,6 @@ public class MainActivity extends AppCompatActivity {
 
             String load = runCmd("cat /proc/loadavg").split(" ")[0];
             if(tvLoad != null) tvLoad.setText("Load Avg: " + load);
-
-            // Battery Info via ROOT FILE (PENGganti API yang Error tadi)
-            // Coba baca file health langsung dari sysfs
-            String healthRaw = runSuReturn("cat /sys/class/power_supply/battery/health");
-            if(tvBattHealth != null) tvBattHealth.setText("Health: " + healthRaw);
-
-            // Coba baca suhu (Biasanya di /sys/class/thermal/... atau /sys/class/power_supply/battery/temp)
-            // Kita coba yang umum dulu
-            String tempRaw = runSuReturn("cat /sys/class/power_supply/battery/temp");
-            if (tempRaw != null && !tempRaw.isEmpty()) {
-                try {
-                    int tempInt = Integer.parseInt(tempRaw);
-                    // Suhu biasanya dalam desicelsius (x10), dibagi 10
-                    if(tvBattTemp != null) tvBattTemp.setText("Temp: " + (tempInt / 10) + "°C");
-                } catch (Exception e) {
-                    if(tvBattTemp != null) tvBattTemp.setText("Temp: N/A");
-                }
-            } else {
-                if(tvBattTemp != null) tvBattTemp.setText("Temp: N/A");
-            }
-
-            String statusRaw = runSuReturn("cat /sys/class/power_supply/battery/status");
-            if(tvBattStatus != null) tvBattStatus.setText("Status: " + statusRaw);
 
         } catch (Exception ignored) {}
     }
@@ -157,7 +131,6 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    // --- ZRAM FUNCTIONS (AMAN TIDAK DIUBAH) ---
     public void applyZram(int sizeGB) {
         new Thread(() -> {
             long sizeInBytes = sizeGB * 1073741824L;

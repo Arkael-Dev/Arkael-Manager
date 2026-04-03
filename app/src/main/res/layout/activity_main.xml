@@ -135,14 +135,14 @@
             android:textSize="16sp"
             android:layout_marginBottom="20dp"/>
 
-        <!-- SYSTEM CARD -->
+        <!-- SYSTEM CARD ONLY -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
             android:background="#2C2C2C"
             android:padding="15dp"
-            android:layout_marginBottom="10dp">
+            android:layout_marginBottom="20dp">
 
             <TextView
                 android:layout_width="wrap_content"
@@ -181,50 +181,25 @@
                 android:fontFamily="monospace"/>
         </LinearLayout>
 
-        <!-- BATTERY CARD -->
-        <LinearLayout
-            android:layout_width="match_parent"
+        <!-- FOOTER INFO -->
+        <TextView
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:background="#2C2C2C"
-            android:padding="15dp">
+            android:text="Powered by: @VorteXSU_Dev"
+            android:textColor="#808080"
+            android:textSize="10sp"
+            android:layout_gravity="center"
+            android:layout_marginTop="10dp"/>
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="BATTERY"
-                android:textColor="#00BFFF"
-                android:textSize="14sp"
-                android:textStyle="bold"
-                android:layout_marginBottom="5dp"/>
-
-            <TextView
-                android:id="@+id/tv_batt_health"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Health: ..."
-                android:textColor="#FFFFFF"
-                android:textSize="13sp"
-                android:fontFamily="monospace"/>
-
-            <TextView
-                android:id="@+id/tv_batt_temp"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Temp: ..."
-                android:textColor="#CCCCCC"
-                android:textSize="13sp"
-                android:fontFamily="monospace"/>
-                
-            <TextView
-                android:id="@+id/tv_batt_status"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Status: ..."
-                android:textColor="#CCCCCC"
-                android:textSize="13sp"
-                android:fontFamily="monospace"/>
-        </LinearLayout>
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Join Channel: https://t.me/vortexgki"
+            android:autoLink="web"
+            android:textColor="#808080"
+            android:textSize="10sp"
+            android:layout_gravity="center"
+            android:layout_marginTop="2dp"/>
 
     </LinearLayout>
 </LinearLayout>
