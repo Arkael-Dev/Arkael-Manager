@@ -1,4 +1,4 @@
-package com.vortex.engine;
+package com.vortex.core;
 import android.content.Context;
 
 public class SecurityUtils {
