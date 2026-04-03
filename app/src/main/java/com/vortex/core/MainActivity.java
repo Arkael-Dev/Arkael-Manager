@@ -99,15 +99,23 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
+    // --- ZRAM FUNCTIONS (FIXED - THREAD SAFE) ---
     public void applyZram(int sizeGB) {
-        long sizeInBytes = sizeGB * 1073741824L;
-        runSu("swapoff /dev/block/zram0 2>/dev/null");
-        runSu("echo 1 > /sys/block/zram0/reset 2>/dev/null");
-        runSu("echo " + sizeInBytes + " > /sys/block/zram0/disksize 2>/dev/null");
-        runSu("echo zstd > /sys/block/zram0/comp_algorithm 2>/dev/null");
-        runSu("mkswap /dev/block/zram0 2>/dev/null");
-        runSu("swapon /dev/block/zram0 2>/dev/null");
-        updateStats();
+        new Thread(() -> {
+            long sizeInBytes = sizeGB * 1073741824L;
+            runSu("swapoff /dev/block/zram0 2>/dev/null");
+            runSu("echo 1 > /sys/block/zram0/reset 2>/dev/null");
+            runSu("echo " + sizeInBytes + " > /sys/block/zram0/disksize 2>/dev/null");
+            runSu("echo zstd > /sys/block/zram0/comp_algorithm 2>/dev/null");
+            runSu("mkswap /dev/block/zram0 2>/dev/null");
+            runSu("swapon /dev/block/zram0 2>/dev/null");
+            
+            // Beri jeda sedikit agar sistem stabil sebelum membaca data
+            try { Thread.sleep(500); } catch (Exception e){}
+            
+            // Update UI harus di Main Thread
+            runOnUiThread(() -> updateStats());
+        }).start();
     }
 
     public void showZramMenu() {
