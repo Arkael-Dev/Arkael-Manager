@@ -7,7 +7,7 @@
     android:gravity="center"
     android:padding="20dp">
 
-    <!-- LAYAR TERKUNCI (LOCKED) -->
+    <!-- LOCKED LAYOUT -->
     <LinearLayout
         android:id="@+id/layout_locked"
         android:layout_width="match_parent"
@@ -19,7 +19,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="VORTEX CORE"
-            android:textColor="@color/zixine_red"
+            android:textColor="@color/vortex_red"
             android:textSize="40sp"
             android:textStyle="bold"
             android:layout_marginBottom="30dp"/>
@@ -47,7 +47,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="UNLOCK SYSTEM"
-            android:backgroundTint="@color/zixine_cyan"
+            android:backgroundTint="@color/vortex_cyan"
             android:textColor="@color/black_bg"
             android:textStyle="bold"/>
     </LinearLayout>
@@ -64,7 +64,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="SYSTEM MONITOR"
-            android:textColor="@color/zixine_cyan"
+            android:textColor="@color/vortex_cyan"
             android:textSize="25sp"
             android:layout_marginBottom="20dp"
             android:textStyle="bold"/>
@@ -110,7 +110,7 @@
             android:layout_width="match_parent"
             android:layout_height="60dp"
             android:text="CHANGE GOVERNOR"
-            android:backgroundTint="@color/zixine_cyan"
+            android:backgroundTint="@color/vortex_cyan"
             android:textColor="@color/black_bg"
             android:textSize="16sp"
             android:layout_marginBottom="10dp"/>
@@ -120,7 +120,7 @@
             android:layout_width="match_parent"
             android:layout_height="60dp"
             android:text="CLEAN RAM &amp; EXIT"
-            android:backgroundTint="@color/zixine_red"
+            android:backgroundTint="@color/vortex_red"
             android:textColor="@color/white"
             android:textSize="16sp"/>
 
