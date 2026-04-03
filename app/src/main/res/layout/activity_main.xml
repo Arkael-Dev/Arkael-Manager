@@ -116,6 +116,16 @@
             android:layout_marginBottom="10dp"/>
 
         <Button
+            android:id="@+id/btn_set_zram"
+            android:layout_width="match_parent"
+            android:layout_height="60dp"
+            android:text="SET ZRAM SIZE"
+            android:backgroundTint="#FF5722"
+            android:textColor="@color/white"
+            android:textSize="16sp"
+            android:layout_marginBottom="10dp"/>
+
+        <Button
             android:id="@+id/btn_clean_ram"
             android:layout_width="match_parent"
             android:layout_height="60dp"
