@@ -19,7 +19,7 @@ import java.io.InputStreamReader;
 
 public class MainActivity extends AppCompatActivity {
     private TextView tvRam, tvZram, tvCpu, tvBattery;
-    private TextView tvKernel; // Hanya Kernel
+    private TextView tvKernel;
     
     private SharedPreferences prefs;
     private Handler handler = new Handler(Looper.getMainLooper());
@@ -55,6 +55,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_clean_ram).setOnClickListener(v -> cleanRam());
         findViewById(R.id.btn_cpu_gov).setOnClickListener(v -> pickGov());
         findViewById(R.id.btn_set_zram).setOnClickListener(v -> showZramMenu());
+        findViewById(R.id.btn_thermal).setOnClickListener(v -> showThermalMenu());
     }
 
     private void refreshUI() {
@@ -92,12 +93,10 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception ignored) {}
     }
 
-    // Hanya Update Kernel Info (Singkat Padat)
     private void updateSystemInfo() {
         try {
             String kernelFull = runSuReturn("cat /proc/version");
             if(kernelFull.isEmpty()) kernelFull = "Unknown Kernel";
-            // Ambil 45 karakter pertama biar muat layar
             if(tvKernel != null) tvKernel.setText("Kernel: " + (kernelFull.length() > 45 ? kernelFull.substring(0, 45) + "..." : kernelFull));
         } catch (Exception ignored) {}
     }
@@ -109,13 +108,6 @@ public class MainActivity extends AppCompatActivity {
             .setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, govs), (d, w) -> {
                 new Thread(() -> runSu("for c in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo " + govs[w] + " > $c; done")).start();
             }).show();
-    }
-
-    private void cleanRam() {
-        new Thread(() -> {
-            runSu("sync; echo 3 > /proc/sys/vm/drop_caches; am kill-all");
-            runOnUiThread(() -> { finishAffinity(); System.exit(0); });
-        }).start();
     }
 
     public void applyZram(int sizeGB) {
@@ -151,6 +143,42 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "ZRAM " + options[which] + " Applied", Toast.LENGTH_SHORT).show();
         });
         builder.show();
+    }
+
+    // --- THERMAL CONTROL FUNCTIONS ---
+    public void showThermalMenu() {
+        final String[] options = {"DISABLE THERMAL (Gaming)", "ENABLE THERMAL (Normal)"};
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Thermal Control");
+        builder.setItems(options, (dialog, which) -> {
+            if (which == 0) {
+                // Disable Thermal
+                new Thread(() -> {
+                    // Stop common thermal daemons (Universal commands)
+                    runSu("stop thermald 2>/dev/null");
+                    runSu("stop thermal-engine 2>/dev/null");
+                    runSu("setprop vendor.thermal.config 0 2>/dev/null");
+                    runOnUiThread(() -> Toast.makeText(this, "Thermal DISABLED (Gaming Mode)", Toast.LENGTH_SHORT).show());
+                }).start();
+            } else {
+                // Enable Thermal
+                new Thread(() -> {
+                    // Start thermal daemons
+                    runSu("start thermald 2>/dev/null");
+                    runSu("start thermal-engine 2>/dev/null");
+                    runSu("setprop vendor.thermal.config 1 2>/dev/null");
+                    runOnUiThread(() -> Toast.makeText(this, "Thermal ENABLED (Normal Mode)", Toast.LENGTH_SHORT).show());
+                }).start();
+            }
+        });
+        builder.show();
+    }
+
+    private void cleanRam() {
+        new Thread(() -> {
+            runSu("sync; echo 3 > /proc/sys/vm/drop_caches; am kill-all");
+            runOnUiThread(() -> { finishAffinity(); System.exit(0); });
+        }).start();
     }
 
     private String runCmd(String c) {
