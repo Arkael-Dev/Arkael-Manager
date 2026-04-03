@@ -18,7 +18,7 @@ android {
         versionName "1.0"
 
         // Membaca Password dari Environment Variable BUILD_SECRET
-        buildConfigField "String", "SECRET_PASSKEY", ""${System.getenv('BUILD_SECRET') ?: 'DEFAULT_KEY'}""
+        buildConfigField "String", "SECRET_PASSKEY", "\"${System.getenv('BUILD_SECRET') ?: 'DEFAULT_KEY'}\""
     }
 
     buildTypes {
