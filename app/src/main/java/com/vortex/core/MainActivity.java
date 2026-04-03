@@ -19,6 +19,7 @@ import java.io.InputStreamReader;
 
 public class MainActivity extends AppCompatActivity {
     private TextView tvRam, tvZram, tvCpu, tvBattery;
+    private TextView tvKernel, tvUptime, tvLoad, tvBattHealth, tvBattTemp, tvBattStatus;
     private SharedPreferences prefs;
     private Handler handler = new Handler(Looper.getMainLooper());
 
@@ -28,10 +29,20 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         prefs = getSharedPreferences("VortexPrefs", 0);
+        
+        // Top Monitor
         tvRam = findViewById(R.id.tv_ram);
         tvZram = findViewById(R.id.tv_zram);
         tvCpu = findViewById(R.id.tv_cpu);
         tvBattery = findViewById(R.id.tv_battery);
+
+        // System & Battery Cards
+        tvKernel = findViewById(R.id.tv_kernel);
+        tvUptime = findViewById(R.id.tv_uptime);
+        tvLoad = findViewById(R.id.tv_load);
+        tvBattHealth = findViewById(R.id.tv_batt_health);
+        tvBattTemp = findViewById(R.id.tv_batt_temp);
+        tvBattStatus = findViewById(R.id.tv_batt_status);
 
         refreshUI();
 
@@ -61,6 +72,7 @@ public class MainActivity extends AppCompatActivity {
         handler.post(new Runnable() {
             @Override public void run() {
                 updateStats();
+                updateSystemAndBatteryInfo();
                 handler.postDelayed(this, 2000);
             }
         });
@@ -78,9 +90,50 @@ public class MainActivity extends AppCompatActivity {
             String gov = runCmd("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor");
             if(tvCpu != null) tvCpu.setText("GOV: " + gov.toUpperCase());
 
-            // --- PERBAIKAN PENTING: PAKSA BACA ZRAM PAKAI ROOT ---
             String z = runSuReturn("cat /sys/block/zram0/disksize");
             if(tvZram != null) tvZram.setText("ZRAM: " + (z.isEmpty() ? "0" : (Long.parseLong(z)/1048576)) + " MB");
+
+        } catch (Exception ignored) {}
+    }
+
+    private void updateSystemAndBatteryInfo() {
+        try {
+            // System Info
+            String kernelFull = runSuReturn("cat /proc/version");
+            // Ambil 50 karakter pertama biar muat di layar
+            if(tvKernel != null) tvKernel.setText("Kernel: " + (kernelFull.length() > 50 ? kernelFull.substring(0, 50) + "..." : kernelFull));
+
+            String uptimeRaw = runCmd("cat /proc/uptime").split(" ")[0];
+            long seconds = (long) Double.parseDouble(uptimeRaw);
+            long days = seconds / 86400;
+            long hours = (seconds % 86400) / 3600;
+            long minutes = (seconds % 3600) / 60;
+            if(tvUptime != null) tvUptime.setText("Uptime: " + days + "d " + hours + "h " + minutes + "m");
+
+            String load = runCmd("cat /proc/loadavg").split(" ")[0];
+            if(tvLoad != null) tvLoad.setText("Load Avg: " + load);
+
+            // Battery Info
+            BatteryManager bm = (BatteryManager) getSystemService(BATTERY_SERVICE);
+            int health = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_HEALTH);
+            String healthStr = "Unknown";
+            switch (health) {
+                case BatteryManager.BATTERY_HEALTH_COLD: healthStr = "Cold"; break;
+                case BatteryManager.BATTERY_HEALTH_DEAD: healthStr = "Dead"; break;
+                case BatteryManager.BATTERY_HEALTH_GOOD: healthStr = "Good"; break;
+                case BatteryManager.BATTERY_HEALTH_OVERHEAT: healthStr = "Overheat"; break;
+                case BatteryManager.BATTERY_HEALTH_OVER_VOLTAGE: healthStr = "Over Voltage"; break;
+                case BatteryManager.BATTERY_HEALTH_UNKNOWN: healthStr = "Unknown"; break;
+                case BatteryManager.BATTERY_HEALTH_UNSPECIFIED_FAILURE: healthStr = "Failure"; break;
+            }
+            if(tvBattHealth != null) tvBattHealth.setText("Health: " + healthStr);
+
+            int temp = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_TEMPERATURE) / 10;
+            if(tvBattTemp != null) tvBattTemp.setText("Temp: " + temp + "°C");
+
+            int status = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS);
+            String statusStr = (status == BatteryManager.BATTERY_STATUS_CHARGING) ? "Charging" : "Discharging";
+            if(tvBattStatus != null) tvBattStatus.setText("Status: " + statusStr);
 
         } catch (Exception ignored) {}
     }
@@ -101,7 +154,6 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    // --- ZRAM FUNCTIONS (FINAL FIX) ---
     public void applyZram(int sizeGB) {
         new Thread(() -> {
             long sizeInBytes = sizeGB * 1073741824L;
@@ -122,7 +174,7 @@ public class MainActivity extends AppCompatActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Select ZRAM Size");
         builder.setItems(options, (dialog, which) -> {
-            if (which == 4) { // Disable
+            if (which == 4) {
                 new Thread(() -> {
                     runSu("swapoff /dev/block/zram0 2>/dev/null");
                     runSu("echo 1 > /sys/block/zram0/reset 2>/dev/null");
@@ -137,17 +189,14 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    // Fungsi baca biasa (Non Root)
     private String runCmd(String c) {
         try { return new BufferedReader(new InputStreamReader(Runtime.getRuntime().exec(c).getInputStream())).readLine().trim(); } catch (Exception e) { return ""; }
     }
 
-    // Fungsi tulis Root (Void)
     private void runSu(String c) {
         try { Runtime.getRuntime().exec(new String[]{"su", "-c", c}).waitFor(); } catch (Exception ignored) {}
     }
 
-    // --- FUNGSI BARU: BACA ROOT (Return String) ---
     private String runSuReturn(String c) {
         try {
             Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", c});

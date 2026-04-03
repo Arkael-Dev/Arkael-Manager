@@ -103,7 +103,7 @@
             android:text="BAT: Checking..."
             android:textColor="@color/white"
             android:textSize="18sp"
-            android:layout_marginBottom="30dp"/>
+            android:layout_marginBottom="20dp"/>
 
         <Button
             android:id="@+id/btn_cpu_gov"
@@ -132,7 +132,99 @@
             android:text="CLEAN RAM &amp; EXIT"
             android:backgroundTint="@color/vortex_red"
             android:textColor="@color/white"
-            android:textSize="16sp"/>
+            android:textSize="16sp"
+            android:layout_marginBottom="20dp"/>
+
+        <!-- SYSTEM CARD -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#2C2C2C"
+            android:padding="15dp"
+            android:layout_marginBottom="10dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="SYSTEM"
+                android:textColor="#00FF00"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="5dp"/>
+
+            <TextView
+                android:id="@+id/tv_kernel"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Kernel: ..."
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:fontFamily="monospace"/>
+
+            <TextView
+                android:id="@+id/tv_uptime"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Uptime: ..."
+                android:textColor="#CCCCCC"
+                android:textSize="13sp"
+                android:fontFamily="monospace"/>
+            
+            <TextView
+                android:id="@+id/tv_load"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Load: ..."
+                android:textColor="#CCCCCC"
+                android:textSize="13sp"
+                android:fontFamily="monospace"/>
+        </LinearLayout>
+
+        <!-- BATTERY CARD -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:background="#2C2C2C"
+            android:padding="15dp">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="BATTERY"
+                android:textColor="#00BFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginBottom="5dp"/>
+
+            <TextView
+                android:id="@+id/tv_batt_health"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Health: ..."
+                android:textColor="#FFFFFF"
+                android:textSize="13sp"
+                android:fontFamily="monospace"/>
+
+            <TextView
+                android:id="@+id/tv_batt_temp"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Temp: ..."
+                android:textColor="#CCCCCC"
+                android:textSize="13sp"
+                android:fontFamily="monospace"/>
+                
+            <TextView
+                android:id="@+id/tv_batt_status"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Status: ..."
+                android:textColor="#CCCCCC"
+                android:textSize="13sp"
+                android:fontFamily="monospace"/>
+        </LinearLayout>
 
     </LinearLayout>
 </LinearLayout>
