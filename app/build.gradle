@@ -6,7 +6,6 @@ android {
     namespace 'com.vortex.core'
     compileSdk 34
 
-    // FIX: Aktifkan fitur BuildConfig (WAJIB untuk Gradle Baru)
     buildFeatures {
         buildConfig true
     }
@@ -18,7 +17,8 @@ android {
         versionCode 1
         versionName "1.0"
 
-        buildConfigField "String", "SECRET_PASSKEY", "\"VORTEX_DEFAULT_KEY\""
+        // Membaca Password dari Environment Variable BUILD_SECRET
+        buildConfigField "String", "SECRET_PASSKEY", "\"${System.getenv('BUILD_SECRET') ?: 'DEFAULT_KEY'}\""
     }
 
     buildTypes {
