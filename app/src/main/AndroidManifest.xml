@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application 
-        android:label="ZIXINE CORE" 
+        android:label="VORTEX CORE" 
         android:icon="@drawable/ic_launcher"
-        android:theme="@style/Theme.Zixine">
+        android:theme="@style/Theme.Vortex">
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

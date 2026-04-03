@@ -1,4 +1,4 @@
-name: ZIXINE FRESH BUILD
+name: VORTEX FRESH BUILD
 
 on:
   workflow_dispatch:
@@ -32,7 +32,7 @@ jobs:
       - name: Upload APK and Passkey
         uses: actions/upload-artifact@v4
         with:
-          name: Zixine-Final-Package
+          name: Vortex-Final-Package
           path: |
             app/build/outputs/apk/release/*.apk
-            app/ZIXINE_PASSKEY.txt
+            app/VORTEX_PASSKEY.txt

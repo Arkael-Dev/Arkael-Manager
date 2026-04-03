@@ -1,4 +1,4 @@
-package com.zixine.engine;
+package com.vortex.engine;
 
 import android.app.ActivityManager;
 import android.content.SharedPreferences;
@@ -27,7 +27,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        prefs = getSharedPreferences("ZixinePrefs", 0);
+        prefs = getSharedPreferences("VortexPrefs", 0);
         tvRam = findViewById(R.id.tv_ram);
         tvZram = findViewById(R.id.tv_zram);
         tvCpu = findViewById(R.id.tv_cpu);

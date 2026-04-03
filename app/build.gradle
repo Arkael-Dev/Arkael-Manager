@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace 'com.zixine.engine'
+    namespace 'com.vortex.engine'
     compileSdk 35
 
     buildFeatures {
@@ -11,7 +11,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.zixine.engine"
+        applicationId "com.vortex.engine"
         minSdk 26
         targetSdk 35
         versionCode 1
@@ -22,7 +22,7 @@ android {
         buildConfigField "String", "SECRET_PASSKEY", "\"${randomPasskey}\""
 
         // Simpan passkey ke file teks untuk lu download nanti
-        File artifactFile = new File("${projectDir}/ZIXINE_PASSKEY.txt")
+        File artifactFile = new File("${projectDir}/VORTEX_PASSKEY.txt")
         artifactFile.write("PASSKEY: ${randomPasskey}\nBUILD_DATE: ${new Date().toString()}")
     }
 
