@@ -135,7 +135,7 @@
             android:textSize="16sp"
             android:layout_marginBottom="20dp"/>
 
-        <!-- SYSTEM CARD ONLY -->
+        <!-- SYSTEM CARD (ONLY KERNEL) -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -159,24 +159,6 @@
                 android:layout_height="wrap_content"
                 android:text="Kernel: ..."
                 android:textColor="#FFFFFF"
-                android:textSize="13sp"
-                android:fontFamily="monospace"/>
-
-            <TextView
-                android:id="@+id/tv_uptime"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Uptime: ..."
-                android:textColor="#CCCCCC"
-                android:textSize="13sp"
-                android:fontFamily="monospace"/>
-            
-            <TextView
-                android:id="@+id/tv_load"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="Load: ..."
-                android:textColor="#CCCCCC"
                 android:textSize="13sp"
                 android:fontFamily="monospace"/>
         </LinearLayout>

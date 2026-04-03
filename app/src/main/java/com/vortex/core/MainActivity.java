@@ -19,8 +19,7 @@ import java.io.InputStreamReader;
 
 public class MainActivity extends AppCompatActivity {
     private TextView tvRam, tvZram, tvCpu, tvBattery;
-    // Hapus Battery Card Variables
-    private TextView tvKernel, tvUptime, tvLoad; 
+    private TextView tvKernel; // Hanya Kernel
     
     private SharedPreferences prefs;
     private Handler handler = new Handler(Looper.getMainLooper());
@@ -38,10 +37,8 @@ public class MainActivity extends AppCompatActivity {
         tvCpu = findViewById(R.id.tv_cpu);
         tvBattery = findViewById(R.id.tv_battery);
 
-        // System Card Only
+        // System Kernel Only
         tvKernel = findViewById(R.id.tv_kernel);
-        tvUptime = findViewById(R.id.tv_uptime);
-        tvLoad = findViewById(R.id.tv_load);
 
         refreshUI();
 
@@ -71,7 +68,7 @@ public class MainActivity extends AppCompatActivity {
         handler.post(new Runnable() {
             @Override public void run() {
                 updateStats();
-                updateSystemInfo(); // Panggil fungsi system info saja
+                updateSystemInfo();
                 handler.postDelayed(this, 2000);
             }
         });
@@ -95,23 +92,13 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception ignored) {}
     }
 
-    // Hanya Update System Info (Kernel, Uptime, Load)
+    // Hanya Update Kernel Info (Singkat Padat)
     private void updateSystemInfo() {
         try {
             String kernelFull = runSuReturn("cat /proc/version");
             if(kernelFull.isEmpty()) kernelFull = "Unknown Kernel";
+            // Ambil 45 karakter pertama biar muat layar
             if(tvKernel != null) tvKernel.setText("Kernel: " + (kernelFull.length() > 45 ? kernelFull.substring(0, 45) + "..." : kernelFull));
-
-            String uptimeRaw = runCmd("cat /proc/uptime").split(" ")[0];
-            long seconds = (long) Double.parseDouble(uptimeRaw);
-            long days = seconds / 86400;
-            long hours = (seconds % 86400) / 3600;
-            long minutes = (seconds % 3600) / 60;
-            if(tvUptime != null) tvUptime.setText("Uptime: " + days + "d " + hours + "h " + minutes + "m");
-
-            String load = runCmd("cat /proc/loadavg").split(" ")[0];
-            if(tvLoad != null) tvLoad.setText("Load Avg: " + load);
-
         } catch (Exception ignored) {}
     }
 
