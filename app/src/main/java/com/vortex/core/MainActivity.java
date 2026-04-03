@@ -33,18 +33,15 @@ public class MainActivity extends AppCompatActivity {
 
         prefs = getSharedPreferences("VortexPrefs", 0);
         
-        // Monitor Atas
         tvRam = findViewById(R.id.tv_ram);
         tvZram = findViewById(R.id.tv_zram);
         tvCpu = findViewById(R.id.tv_cpu);
         tvBattery = findViewById(R.id.tv_battery);
 
-        // System Info
         tvKernel = findViewById(R.id.tv_kernel);
         tvDevice = findViewById(R.id.tv_device);
         tvTerminalLog = findViewById(R.id.tv_terminal_log);
         
-        // Agar Terminal Log bisa di-scroll
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
 
         refreshUI();
@@ -102,12 +99,10 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateSystemInfo() {
         try {
-            // Auto Detect Device
             String brand = Build.BRAND;
             String model = Build.MODEL;
             if(tvDevice != null) tvDevice.setText("Device: " + brand.toUpperCase() + " " + model);
 
-            // Kernel Info
             String kernelFull = runSuReturn("cat /proc/version");
             if(kernelFull.isEmpty()) kernelFull = "Unknown Kernel";
             if(tvKernel != null) tvKernel.setText("Kernel: " + (kernelFull.length() > 40 ? kernelFull.substring(0, 40) + "..." : kernelFull));
@@ -158,14 +153,14 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    // --- THERMAL CONTROL WITH TERMINAL LOG ---
+    // --- THERMAL CONTROL (LOGIC PERBAIKAN FILTER) ---
     public void showThermalMenu() {
         final String[] options = {"DISABLE THERMAL (Gaming)", "ENABLE THERMAL (Normal)"};
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Thermal Control");
         builder.setItems(options, (dialog, which) -> {
             if (which == 0) {
-                // DISABLE
+                // DISABLE THERMAL
                 new Thread(() -> {
                     runOnUiThread(() -> tvTerminalLog.setText("> Disabling Thermal Services..."));
                     
@@ -179,9 +174,10 @@ public class MainActivity extends AppCompatActivity {
                     
                     runSu(thermalLoop);
                     
-                    // Cek Ulang Status
-                    String result = runSuReturn("getprop | grep thermal");
-                    final String logOutput = "> Thermal Disabled.\n> Status Check:\n" + result;
+                    // Filter: Hanya tampilkan init.svc.thermal yang statusnya STOPPED
+                    // Kita grep init.svc. (service status) lalu grep stopped
+                    String result = runSuReturnAll("getprop | grep init.svc. | grep thermal");
+                    final String logOutput = "> Thermal DISABLED.\n> Current Status:\n" + (result.isEmpty() ? "No thermal services found." : result);
                     
                     runOnUiThread(() -> {
                         tvTerminalLog.setText(logOutput);
@@ -189,7 +185,7 @@ public class MainActivity extends AppCompatActivity {
                     });
                 }).start();
             } else {
-                // ENABLE
+                // ENABLE THERMAL
                 new Thread(() -> {
                     runOnUiThread(() -> tvTerminalLog.setText("> Enabling Thermal Services..."));
                     
@@ -199,8 +195,9 @@ public class MainActivity extends AppCompatActivity {
                     runSu("start android.thermal-hal 2>/dev/null");
                     runSu("setprop vendor.thermal.config 1 2>/dev/null");
                     
-                    String result = runSuReturn("getprop | grep thermal");
-                    final String logOutput = "> Thermal Enabled.\n> Status Check:\n" + result;
+                    // Filter: Hanya tampilkan init.svc.thermal yang statusnya RUNNING
+                    String result = runSuReturnAll("getprop | grep init.svc. | grep thermal");
+                    final String logOutput = "> Thermal ENABLED.\n> Current Status:\n" + (result.isEmpty() ? "No thermal services found." : result);
 
                     runOnUiThread(() -> {
                         tvTerminalLog.setText(logOutput);
@@ -234,6 +231,21 @@ public class MainActivity extends AppCompatActivity {
             String line = reader.readLine();
             p.waitFor();
             return (line == null) ? "" : line.trim();
+        } catch (Exception e) { return ""; }
+    }
+    
+    // FUNGSI BARU: Baca SEMUA BARIS OUTPUT (Untuk Log Terminal)
+    private String runSuReturnAll(String c) {
+        try {
+            Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", c});
+            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            StringBuilder output = new StringBuilder();
+            String line;
+            while ((line = reader.readLine()) != null) {
+                output.append(line).append("\n");
+            }
+            p.waitFor();
+            return output.toString().trim();
         } catch (Exception e) { return ""; }
     }
 }
