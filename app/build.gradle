@@ -6,6 +6,11 @@ android {
     namespace 'com.vortex.core'
     compileSdk 34
 
+    // FIX: Aktifkan fitur BuildConfig (WAJIB untuk Gradle Baru)
+    buildFeatures {
+        buildConfig true
+    }
+
     defaultConfig {
         applicationId "com.vortex.core"
         minSdk 24
