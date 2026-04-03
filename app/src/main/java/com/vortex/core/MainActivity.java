@@ -2,10 +2,12 @@ package com.vortex.core;
 
 import android.app.ActivityManager;
 import android.content.SharedPreferences;
+import android.os.Build;
 import android.os.BatteryManager;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.method.ScrollingMovementMethod;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -19,7 +21,7 @@ import java.io.InputStreamReader;
 
 public class MainActivity extends AppCompatActivity {
     private TextView tvRam, tvZram, tvCpu, tvBattery;
-    private TextView tvKernel;
+    private TextView tvKernel, tvDevice, tvTerminalLog;
     
     private SharedPreferences prefs;
     private Handler handler = new Handler(Looper.getMainLooper());
@@ -37,8 +39,13 @@ public class MainActivity extends AppCompatActivity {
         tvCpu = findViewById(R.id.tv_cpu);
         tvBattery = findViewById(R.id.tv_battery);
 
-        // System Kernel Only
+        // System Info
         tvKernel = findViewById(R.id.tv_kernel);
+        tvDevice = findViewById(R.id.tv_device);
+        tvTerminalLog = findViewById(R.id.tv_terminal_log);
+        
+        // Agar Terminal Log bisa di-scroll
+        if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
 
         refreshUI();
 
@@ -95,9 +102,15 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateSystemInfo() {
         try {
+            // Auto Detect Device
+            String brand = Build.BRAND;
+            String model = Build.MODEL;
+            if(tvDevice != null) tvDevice.setText("Device: " + brand.toUpperCase() + " " + model);
+
+            // Kernel Info
             String kernelFull = runSuReturn("cat /proc/version");
             if(kernelFull.isEmpty()) kernelFull = "Unknown Kernel";
-            if(tvKernel != null) tvKernel.setText("Kernel: " + (kernelFull.length() > 45 ? kernelFull.substring(0, 45) + "..." : kernelFull));
+            if(tvKernel != null) tvKernel.setText("Kernel: " + (kernelFull.length() > 40 ? kernelFull.substring(0, 40) + "..." : kernelFull));
         } catch (Exception ignored) {}
     }
 
@@ -145,16 +158,17 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    // --- THERMAL CONTROL FUNCTIONS (FIXED) ---
+    // --- THERMAL CONTROL WITH TERMINAL LOG ---
     public void showThermalMenu() {
         final String[] options = {"DISABLE THERMAL (Gaming)", "ENABLE THERMAL (Normal)"};
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Thermal Control");
         builder.setItems(options, (dialog, which) -> {
             if (which == 0) {
-                // DISABLE THERMAL (Universal Loop Script)
+                // DISABLE
                 new Thread(() -> {
-                    // Script loop yang diminta user: Cari semua properti thermal, cek 'running', lalu stop & resetprop
+                    runOnUiThread(() -> tvTerminalLog.setText("> Disabling Thermal Services..."));
+                    
                     String thermalLoop = 
                         "for thermal in $(getprop | awk -F '[][]' '/thermal/ {print $2}'); do " +
                         "  if [ \"$(getprop $thermal)\" = \"running\" ]; then " +
@@ -164,18 +178,34 @@ public class MainActivity extends AppCompatActivity {
                         "done";
                     
                     runSu(thermalLoop);
-                    runOnUiThread(() -> Toast.makeText(this, "Thermal DISABLED (Universal)", Toast.LENGTH_SHORT).show());
+                    
+                    // Cek Ulang Status
+                    String result = runSuReturn("getprop | grep thermal");
+                    final String logOutput = "> Thermal Disabled.\n> Status Check:\n" + result;
+                    
+                    runOnUiThread(() -> {
+                        tvTerminalLog.setText(logOutput);
+                        Toast.makeText(this, "Thermal DISABLED", Toast.LENGTH_SHORT).show();
+                    });
                 }).start();
             } else {
-                // ENABLE THERMAL
+                // ENABLE
                 new Thread(() -> {
-                    // Coba start service umum
+                    runOnUiThread(() -> tvTerminalLog.setText("> Enabling Thermal Services..."));
+                    
                     runSu("start thermald 2>/dev/null");
                     runSu("start thermal-engine 2>/dev/null");
                     runSu("start mi_thermald 2>/dev/null");
                     runSu("start android.thermal-hal 2>/dev/null");
                     runSu("setprop vendor.thermal.config 1 2>/dev/null");
-                    runOnUiThread(() -> Toast.makeText(this, "Thermal ENABLED (Normal Mode)", Toast.LENGTH_SHORT).show());
+                    
+                    String result = runSuReturn("getprop | grep thermal");
+                    final String logOutput = "> Thermal Enabled.\n> Status Check:\n" + result;
+
+                    runOnUiThread(() -> {
+                        tvTerminalLog.setText(logOutput);
+                        Toast.makeText(this, "Thermal ENABLED", Toast.LENGTH_SHORT).show();
+                    });
                 }).start();
             }
         });

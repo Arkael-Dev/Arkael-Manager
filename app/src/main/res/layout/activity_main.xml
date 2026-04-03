@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/black_bg"
+    android:background="@drawable/bg_rainbow"
     android:gravity="center"
     android:padding="20dp">
 
@@ -22,6 +22,10 @@
             android:textColor="@color/vortex_red"
             android:textSize="40sp"
             android:textStyle="bold"
+            android:shadowColor="#000000"
+            android:shadowDx="2"
+            android:shadowDy="2"
+            android:shadowRadius="4"
             android:layout_marginBottom="30dp"/>
 
         <TextView
@@ -67,131 +71,143 @@
             android:textColor="@color/vortex_cyan"
             android:textSize="25sp"
             android:layout_marginBottom="20dp"
-            android:textStyle="bold"/>
+            android:textStyle="bold"
+            android:shadowColor="#000000"
+            android:shadowDx="2"
+            android:shadowDy="2"
+            android:shadowRadius="4"/>
 
-        <TextView
-            android:id="@+id/tv_ram"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="RAM: Calculating..."
-            android:textColor="@color/white"
-            android:textSize="18sp"
-            android:layout_marginBottom="10dp"/>
+        <!-- Stats Text -->
+        <TextView android:id="@+id/tv_ram" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="RAM: ..." android:textColor="@color/white" android:textSize="18sp" android:layout_marginBottom="5dp"/>
+        <TextView android:id="@+id/tv_zram" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="ZRAM: ..." android:textColor="@color/white" android:textSize="18sp" android:layout_marginBottom="5dp"/>
+        <TextView android:id="@+id/tv_cpu" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="GOV: ..." android:textColor="@color/white" android:textSize="18sp" android:layout_marginBottom="5dp"/>
+        <TextView android:id="@+id/tv_battery" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="BAT: ..." android:textColor="@color/white" android:textSize="18sp" android:layout_marginBottom="20dp"/>
 
-        <TextView
-            android:id="@+id/tv_zram"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="ZRAM: Calculating..."
-            android:textColor="@color/white"
-            android:textSize="18sp"
-            android:layout_marginBottom="10dp"/>
-
-        <TextView
-            android:id="@+id/tv_cpu"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="GOV: Checking..."
-            android:textColor="@color/white"
-            android:textSize="18sp"
-            android:layout_marginBottom="10dp"/>
-
-        <TextView
-            android:id="@+id/tv_battery"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="BAT: Checking..."
-            android:textColor="@color/white"
-            android:textSize="18sp"
-            android:layout_marginBottom="20dp"/>
-
+        <!-- BUTTONS WITH ICONS (Menggunakan Android System Icons Anti-Error) -->
         <Button
             android:id="@+id/btn_cpu_gov"
             android:layout_width="match_parent"
             android:layout_height="60dp"
-            android:text="CHANGE GOVERNOR"
+            android:text="GOVERNOR"
+            android:drawableLeft="@android:drawable/ic_menu_preferences"
+            android:drawablePadding="10dp"
             android:backgroundTint="@color/vortex_cyan"
             android:textColor="@color/black_bg"
             android:textSize="16sp"
-            android:layout_marginBottom="10dp"/>
+            android:gravity="center_vertical|start"
+            android:paddingStart="20dp"
+            android:layout_marginBottom="8dp"/>
 
         <Button
             android:id="@+id/btn_set_zram"
             android:layout_width="match_parent"
             android:layout_height="60dp"
-            android:text="SET ZRAM SIZE"
+            android:text="ZRAM SIZE"
+            android:drawableLeft="@android:drawable/ic_menu_agenda"
+            android:drawablePadding="10dp"
             android:backgroundTint="#FF5722"
             android:textColor="@color/white"
             android:textSize="16sp"
-            android:layout_marginBottom="10dp"/>
+            android:gravity="center_vertical|start"
+            android:paddingStart="20dp"
+            android:layout_marginBottom="8dp"/>
 
         <Button
             android:id="@+id/btn_thermal"
             android:layout_width="match_parent"
             android:layout_height="60dp"
-            android:text="THERMAL CONTROL"
+            android:text="THERMAL CTL"
+            android:drawableLeft="@android:drawable/ic_menu_sort_by_size"
+            android:drawablePadding="10dp"
             android:backgroundTint="#4CAF50"
             android:textColor="@color/white"
             android:textSize="16sp"
-            android:layout_marginBottom="10dp"/>
+            android:gravity="center_vertical|start"
+            android:paddingStart="20dp"
+            android:layout_marginBottom="8dp"/>
 
         <Button
             android:id="@+id/btn_clean_ram"
             android:layout_width="match_parent"
             android:layout_height="60dp"
-            android:text="CLEAN RAM &amp; EXIT"
+            android:text="CLEAN RAM"
+            android:drawableLeft="@android:drawable/ic_menu_delete"
+            android:drawablePadding="10dp"
             android:backgroundTint="@color/vortex_red"
             android:textColor="@color/white"
             android:textSize="16sp"
+            android:gravity="center_vertical|start"
+            android:paddingStart="20dp"
             android:layout_marginBottom="20dp"/>
 
-        <!-- SYSTEM CARD (ONLY KERNEL) -->
+        <!-- GLASS CARD SYSTEM -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:background="#2C2C2C"
+            android:background="@drawable/bg_card_glass"
             android:padding="15dp"
-            android:layout_marginBottom="20dp">
+            android:layout_marginBottom="10dp">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="SYSTEM"
-                android:textColor="#00FF00"
+                android:text="SYSTEM INFO"
+                android:textColor="#00E5FF"
                 android:textSize="14sp"
                 android:textStyle="bold"
                 android:layout_marginBottom="5dp"/>
+
+            <!-- Auto Detect Device -->
+            <TextView
+                android:id="@+id/tv_device"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Device: Detecting..."
+                android:textColor="#FFFFFF"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:fontFamily="monospace"/>
 
             <TextView
                 android:id="@+id/tv_kernel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="Kernel: ..."
-                android:textColor="#FFFFFF"
-                android:textSize="13sp"
-                android:fontFamily="monospace"/>
+                android:textColor="#DDDDDD"
+                android:textSize="12sp"
+                android:fontFamily="monospace"
+                android:layout_marginTop="2dp"/>
         </LinearLayout>
 
-        <!-- FOOTER INFO -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Powered by: @VorteXSU_Dev"
-            android:textColor="#808080"
-            android:textSize="10sp"
-            android:layout_gravity="center"
-            android:layout_marginTop="10dp"/>
+        <!-- TERMINAL LOG CARD -->
+        <ScrollView
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_card_glass"
+            android:padding="10dp"
+            android:layout_marginBottom="10dp">
+            
+            <TextView
+                android:id="@+id/tv_terminal_log"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="> Waiting for action..."
+                android:textColor="#00FF00"
+                android:textSize="11sp"
+                android:fontFamily="monospace"
+                android:typeface="monospace"/>
+        </ScrollView>
 
+        <!-- FOOTER -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Join Channel: https://t.me/vortexgki"
-            android:autoLink="web"
-            android:textColor="#808080"
+            android:text="Powered by: @VorteXSU_Dev | Channel: t.me/vortexgki"
+            android:textColor="#AAAAAA"
             android:textSize="10sp"
-            android:layout_gravity="center"
-            android:layout_marginTop="2dp"/>
+            android:layout_gravity="center"/>
 
     </LinearLayout>
 </LinearLayout>
