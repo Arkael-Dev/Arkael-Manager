@@ -3,6 +3,7 @@ plugins {
 }
 
 android {
+    buildConfigField "String", "SECRET_PASSKEY", ""VORTEX_DEFAULT_KEY""
     namespace 'com.vortex.core'
     compileSdk 35
 
