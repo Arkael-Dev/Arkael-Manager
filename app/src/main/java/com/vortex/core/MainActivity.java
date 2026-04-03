@@ -145,27 +145,35 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    // --- THERMAL CONTROL FUNCTIONS ---
+    // --- THERMAL CONTROL FUNCTIONS (FIXED) ---
     public void showThermalMenu() {
         final String[] options = {"DISABLE THERMAL (Gaming)", "ENABLE THERMAL (Normal)"};
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Thermal Control");
         builder.setItems(options, (dialog, which) -> {
             if (which == 0) {
-                // Disable Thermal
+                // DISABLE THERMAL (Universal Loop Script)
                 new Thread(() -> {
-                    // Stop common thermal daemons (Universal commands)
-                    runSu("stop thermald 2>/dev/null");
-                    runSu("stop thermal-engine 2>/dev/null");
-                    runSu("setprop vendor.thermal.config 0 2>/dev/null");
-                    runOnUiThread(() -> Toast.makeText(this, "Thermal DISABLED (Gaming Mode)", Toast.LENGTH_SHORT).show());
+                    // Script loop yang diminta user: Cari semua properti thermal, cek 'running', lalu stop & resetprop
+                    String thermalLoop = 
+                        "for thermal in $(getprop | awk -F '[][]' '/thermal/ {print $2}'); do " +
+                        "  if [ \"$(getprop $thermal)\" = \"running\" ]; then " +
+                        "    stop ${thermal/init.svc.} 2>/dev/null; " +
+                        "    resetprop -n $thermal stopped 2>/dev/null; " +
+                        "  fi; " +
+                        "done";
+                    
+                    runSu(thermalLoop);
+                    runOnUiThread(() -> Toast.makeText(this, "Thermal DISABLED (Universal)", Toast.LENGTH_SHORT).show());
                 }).start();
             } else {
-                // Enable Thermal
+                // ENABLE THERMAL
                 new Thread(() -> {
-                    // Start thermal daemons
+                    // Coba start service umum
                     runSu("start thermald 2>/dev/null");
                     runSu("start thermal-engine 2>/dev/null");
+                    runSu("start mi_thermald 2>/dev/null");
+                    runSu("start android.thermal-hal 2>/dev/null");
                     runSu("setprop vendor.thermal.config 1 2>/dev/null");
                     runOnUiThread(() -> Toast.makeText(this, "Thermal ENABLED (Normal Mode)", Toast.LENGTH_SHORT).show());
                 }).start();
