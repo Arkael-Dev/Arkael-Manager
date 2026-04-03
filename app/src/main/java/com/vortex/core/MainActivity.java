@@ -153,14 +153,14 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    // --- THERMAL CONTROL (LOGIC PERBAIKAN FILTER) ---
+    // --- THERMAL CONTROL (RAW GETPROP OUTPUT) ---
     public void showThermalMenu() {
         final String[] options = {"DISABLE THERMAL (Gaming)", "ENABLE THERMAL (Normal)"};
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Thermal Control");
         builder.setItems(options, (dialog, which) -> {
             if (which == 0) {
-                // DISABLE THERMAL
+                // DISABLE
                 new Thread(() -> {
                     runOnUiThread(() -> tvTerminalLog.setText("> Disabling Thermal Services..."));
                     
@@ -174,10 +174,9 @@ public class MainActivity extends AppCompatActivity {
                     
                     runSu(thermalLoop);
                     
-                    // Filter: Hanya tampilkan init.svc.thermal yang statusnya STOPPED
-                    // Kita grep init.svc. (service status) lalu grep stopped
-                    String result = runSuReturnAll("getprop | grep init.svc. | grep thermal");
-                    final String logOutput = "> Thermal DISABLED.\n> Current Status:\n" + (result.isEmpty() ? "No thermal services found." : result);
+                    // PERBAIKAN: Tampilkan hasil MENTAH `getprop | grep thermal`
+                    String result = runSuReturnAll("getprop | grep thermal");
+                    final String logOutput = "> Thermal DISABLED.\n> Status Check (Full):\n" + result;
                     
                     runOnUiThread(() -> {
                         tvTerminalLog.setText(logOutput);
@@ -185,7 +184,7 @@ public class MainActivity extends AppCompatActivity {
                     });
                 }).start();
             } else {
-                // ENABLE THERMAL
+                // ENABLE
                 new Thread(() -> {
                     runOnUiThread(() -> tvTerminalLog.setText("> Enabling Thermal Services..."));
                     
@@ -195,9 +194,9 @@ public class MainActivity extends AppCompatActivity {
                     runSu("start android.thermal-hal 2>/dev/null");
                     runSu("setprop vendor.thermal.config 1 2>/dev/null");
                     
-                    // Filter: Hanya tampilkan init.svc.thermal yang statusnya RUNNING
-                    String result = runSuReturnAll("getprop | grep init.svc. | grep thermal");
-                    final String logOutput = "> Thermal ENABLED.\n> Current Status:\n" + (result.isEmpty() ? "No thermal services found." : result);
+                    // PERBAIKAN: Tampilkan hasil MENTAH `getprop | grep thermal`
+                    String result = runSuReturnAll("getprop | grep thermal");
+                    final String logOutput = "> Thermal ENABLED.\n> Status Check (Full):\n" + result;
 
                     runOnUiThread(() -> {
                         tvTerminalLog.setText(logOutput);
@@ -234,7 +233,6 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception e) { return ""; }
     }
     
-    // FUNGSI BARU: Baca SEMUA BARIS OUTPUT (Untuk Log Terminal)
     private String runSuReturnAll(String c) {
         try {
             Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", c});
