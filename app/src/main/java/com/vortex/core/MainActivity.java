@@ -78,8 +78,10 @@ public class MainActivity extends AppCompatActivity {
             String gov = runCmd("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor");
             if(tvCpu != null) tvCpu.setText("GOV: " + gov.toUpperCase());
 
-            String z = runCmd("cat /sys/block/zram0/disksize");
+            // --- PERBAIKAN PENTING: PAKSA BACA ZRAM PAKAI ROOT ---
+            String z = runSuReturn("cat /sys/block/zram0/disksize");
             if(tvZram != null) tvZram.setText("ZRAM: " + (z.isEmpty() ? "0" : (Long.parseLong(z)/1048576)) + " MB");
+
         } catch (Exception ignored) {}
     }
 
@@ -99,7 +101,7 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    // --- ZRAM FUNCTIONS (FIXED - THREAD SAFE) ---
+    // --- ZRAM FUNCTIONS (FINAL FIX) ---
     public void applyZram(int sizeGB) {
         new Thread(() -> {
             long sizeInBytes = sizeGB * 1073741824L;
@@ -110,10 +112,7 @@ public class MainActivity extends AppCompatActivity {
             runSu("mkswap /dev/block/zram0 2>/dev/null");
             runSu("swapon /dev/block/zram0 2>/dev/null");
             
-            // Beri jeda sedikit agar sistem stabil sebelum membaca data
             try { Thread.sleep(500); } catch (Exception e){}
-            
-            // Update UI harus di Main Thread
             runOnUiThread(() -> updateStats());
         }).start();
     }
@@ -123,27 +122,39 @@ public class MainActivity extends AppCompatActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Select ZRAM Size");
         builder.setItems(options, (dialog, which) -> {
-            switch (which) {
-                case 0: applyZram(4); break;
-                case 1: applyZram(8); break;
-                case 2: applyZram(12); break;
-                case 3: applyZram(16); break;
-                case 4: 
+            if (which == 4) { // Disable
+                new Thread(() -> {
                     runSu("swapoff /dev/block/zram0 2>/dev/null");
                     runSu("echo 1 > /sys/block/zram0/reset 2>/dev/null");
-                    updateStats();
-                    break;
+                    try { Thread.sleep(500); } catch (Exception e){}
+                    runOnUiThread(() -> updateStats());
+                }).start();
+            } else {
+                applyZram(new int[]{4, 8, 12, 16}[which]);
             }
             Toast.makeText(this, "ZRAM " + options[which] + " Applied", Toast.LENGTH_SHORT).show();
         });
         builder.show();
     }
 
+    // Fungsi baca biasa (Non Root)
     private String runCmd(String c) {
         try { return new BufferedReader(new InputStreamReader(Runtime.getRuntime().exec(c).getInputStream())).readLine().trim(); } catch (Exception e) { return ""; }
     }
 
+    // Fungsi tulis Root (Void)
     private void runSu(String c) {
         try { Runtime.getRuntime().exec(new String[]{"su", "-c", c}).waitFor(); } catch (Exception ignored) {}
+    }
+
+    // --- FUNGSI BARU: BACA ROOT (Return String) ---
+    private String runSuReturn(String c) {
+        try {
+            Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", c});
+            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            String line = reader.readLine();
+            p.waitFor();
+            return (line == null) ? "" : line.trim();
+        } catch (Exception e) { return ""; }
     }
 }
