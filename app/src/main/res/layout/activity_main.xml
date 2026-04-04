@@ -7,6 +7,15 @@
     android:fitsSystemWindows="true"
     android:id="@+id/root_layout">
 
+    <!-- CUSTOM HEADER BANNER (Hidden by default) -->
+    <ImageView
+        android:id="@+id/header_banner"
+        android:layout_width="match_parent"
+        android:layout_height="180dp"
+        android:scaleType="centerCrop"
+        android:visibility="gone"
+        android:background="#000000"/>
+
     <!-- 1. CONTENT AREA (VIEWFLIPPER) -->
     <ViewFlipper
         android:id="@+id/main_view_flipper"
@@ -14,7 +23,7 @@
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <!-- TAB 1: SYSTEM MONITOR (MONITOR STYLE) -->
+        <!-- TAB 1: SYSTEM MONITOR -->
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent">
@@ -31,7 +40,8 @@
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
                     android:layout_marginBottom="15dp"
-                    android:padding="10dp">
+                    android:padding="10dp"
+                    android:background="@drawable/bg_card_glass">
                     
                     <TextView
                         android:layout_width="0dp"
@@ -52,38 +62,21 @@
                         android:paddingStart="8dp"
                         android:paddingEnd="8dp"
                         android:paddingTop="4dp"
-                        android:paddingBottom="4dp"/>
+                        android:paddingBottom="4dp"
+                        android:layout_marginStart="10dp"/>
                 </LinearLayout>
 
-                <!-- Main Quick Stats (Grid Style) -->
+                <!-- Main Quick Stats (Grid) -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:layout_marginBottom="10dp">
-                    
-                    <!-- Card RAM -->
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:background="#1E1E1E"
-                        android:padding="15dp"
-                        android:layout_marginEnd="5dp">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="#1E1E1E" android:padding="15dp" android:layout_marginEnd="5dp">
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="RAM" android:textColor="#888888" android:textSize="11sp"/>
                         <TextView android:id="@+id/tv_ram" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="18sp" android:textStyle="bold" android:layout_marginTop="5dp"/>
                     </LinearLayout>
-
-                    <!-- Card Battery -->
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical"
-                        android:background="#1E1E1E"
-                        android:padding="15dp"
-                        android:layout_marginStart="5dp">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="#1E1E1E" android:padding="15dp" android:layout_marginStart="5dp">
                         <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="BATTERY" android:textColor="#888888" android:textSize="11sp"/>
                         <TextView android:id="@+id/tv_battery" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="18sp" android:textStyle="bold" android:layout_marginTop="5dp"/>
                     </LinearLayout>
@@ -97,24 +90,19 @@
                     android:background="#1E1E1E"
                     android:padding="15dp"
                     android:layout_marginBottom="10dp">
-                    
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SYSTEM STATUS" android:textColor="#4CAF50" android:textSize="12sp" android:textStyle="bold" android:layout_marginBottom="10dp"/>
-
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="10dp">
                         <TextView android:layout_width="80dp" android:layout_height="wrap_content" android:text="Governor" android:textColor="#AAAAAA" android:textSize="12sp"/>
-                        <!-- tv_cpu DIKEMBALIKAN -->
                         <TextView android:id="@+id/tv_cpu" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="..." android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="end"/>
                     </LinearLayout>
-
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
                         <TextView android:layout_width="80dp" android:layout_height="wrap_content" android:text="ZRAM" android:textColor="#AAAAAA" android:textSize="12sp"/>
                         <TextView android:id="@+id/tv_zram" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="..." android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="end"/>
                     </LinearLayout>
                 </LinearLayout>
 
-                <!-- Detailed CPU Info -->
+                <!-- Detailed CPU Info & SLIDER -->
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="CPU ARCHITECTURE" android:textColor="#888888" android:textSize="10sp" android:layout_marginTop="10dp" android:layout_marginBottom="5dp"/>
-                
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -131,14 +119,32 @@
 
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Big Cluster" android:textColor="#666666" android:textSize="11sp"/>
                     <TextView android:id="@+id/tv_big_cluster" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="13sp" android:layout_marginBottom="8dp"/>
-                    
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Temperature" android:textColor="#666666" android:textSize="11sp"/>
+
+                    <!-- FREQ INFO (KEMBALI) -->
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="5dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Current Freq" android:textColor="#666666" android:textSize="11sp"/>
+                        <TextView android:id="@+id/tv_current_freq" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="..." android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="end"/>
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="10dp">
+                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Max Freq" android:textColor="#666666" android:textSize="11sp"/>
+                        <TextView android:id="@+id/tv_max_freq" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="..." android:textColor="#FFFFFF" android:textSize="12sp" android:gravity="end"/>
+                    </LinearLayout>
+
+                    <!-- SLIDER MAX FREQ -->
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Adjust Max Freq (Slider)" android:textColor="#4CAF50" android:textSize="10sp" android:layout_marginBottom="5dp"/>
+                    <SeekBar
+                        android:id="@+id/seekbar_max_freq"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:progressTint="#4CAF50"
+                        android:thumbTint="#FFFFFF"/>
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Temperature" android:textColor="#666666" android:textSize="11sp" android:layout_marginTop="10dp"/>
                     <TextView android:id="@+id/tv_temp" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="..." android:textColor="#FF5252" android:textSize="14sp" android:textStyle="bold"/>
                 </LinearLayout>
 
                 <!-- GPU Info -->
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="GPU RENDERER" android:textColor="#888888" android:textSize="10sp" android:layout_marginTop="10dp" android:layout_marginBottom="5dp"/>
-
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -146,17 +152,14 @@
                     android:background="#1E1E1E"
                     android:padding="15dp"
                     android:layout_marginBottom="10dp">
-
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Model" android:textColor="#666666" android:textSize="11sp"/>
                     <TextView android:id="@+id/tv_gpu_renderer" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Detecting..." android:textColor="#FFFFFF" android:textSize="14sp" android:layout_marginBottom="8dp"/>
-
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Version" android:textColor="#666666" android:textSize="11sp"/>
                     <TextView android:id="@+id/tv_gpu_version" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="12sp"/>
                 </LinearLayout>
 
-                <!-- System Info (Kernel Full) -->
+                <!-- System Info -->
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SYSTEM INFO" android:textColor="#888888" android:textSize="10sp" android:layout_marginTop="10dp" android:layout_marginBottom="5dp"/>
-
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -164,23 +167,12 @@
                     android:background="#1E1E1E"
                     android:padding="15dp"
                     android:layout_marginBottom="10dp">
-
                     <TextView android:id="@+id/tv_device" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="13sp" android:layout_marginBottom="8dp"/>
-                    
-                    <TextView android:id="@+id/tv_kernel"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:text="..."
-                        android:textColor="#AAAAAA"
-                        android:textSize="10sp"
-                        android:fontFamily="monospace"
-                        android:maxLines="5"
-                        android:ellipsize="none"/>
+                    <TextView android:id="@+id/tv_kernel" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="..." android:textColor="#AAAAAA" android:textSize="10sp" android:fontFamily="monospace" android:maxLines="5" android:ellipsize="none"/>
                 </LinearLayout>
 
                 <!-- TERMINAL LOG -->
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="TERMINAL LOG" android:textColor="#888888" android:textSize="10sp" android:layout_marginTop="10dp" android:layout_marginBottom="5dp"/>
-                
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -188,25 +180,14 @@
                     android:background="#000000"
                     android:padding="10dp"
                     android:layout_marginBottom="20dp">
-                    
-                    <ScrollView
-                        android:layout_width="match_parent"
-                        android:layout_height="120dp">
-                        <TextView
-                            android:id="@+id/tv_terminal_log"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="> Ready"
-                            android:textColor="#00E676"
-                            android:textSize="10sp"
-                            android:fontFamily="monospace"/>
+                    <ScrollView android:layout_width="match_parent" android:layout_height="120dp">
+                        <TextView android:id="@+id/tv_terminal_log" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="> Ready" android:textColor="#00E676" android:textSize="10sp" android:fontFamily="monospace"/>
                     </ScrollView>
                 </LinearLayout>
-
             </LinearLayout>
         </ScrollView>
 
-        <!-- TAB 2: TOOLS (BATTERY HONEY STYLE LIST) -->
+        <!-- TAB 2: TOOLS (WITH ICONS & FIX CLICK) -->
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent">
@@ -215,78 +196,39 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="15dp">
-
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="POWER TOOLS" android:textColor="#888888" android:textSize="12sp" android:layout_marginBottom="15dp" android:textStyle="bold"/>
-
-                <!-- Tool Item -->
-                <LinearLayout
-                    android:id="@+id/btn_cpu_gov"
-                    android:layout_width="match_parent"
-                    android:layout_height="55dp"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:background="#1E1E1E"
-                    android:paddingStart="15dp"
-                    android:paddingEnd="15dp"
-                    android:layout_marginBottom="10dp"
-                    android:clickable="true"
-                    android:focusable="true">
+                
+                <!-- GOVERNOR -->
+                <LinearLayout android:id="@+id/btn_cpu_gov" android:layout_width="match_parent" android:layout_height="55dp" android:orientation="horizontal" android:gravity="center_vertical" android:background="#1E1E1E" android:paddingStart="15dp" android:paddingEnd="15dp" android:layout_marginBottom="10dp" android:clickable="true" android:focusable="true" android:foreground="?android:attr/selectableItemBackground">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="⚡ " android:textSize="20sp" android:layout_marginEnd="15dp"/>
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="GOVERNOR SETTINGS" android:textColor="#FFFFFF" android:textSize="14sp"/>
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=">" android:textColor="#555555" android:textSize="18sp"/>
                 </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/btn_set_zram"
-                    android:layout_width="match_parent"
-                    android:layout_height="55dp"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:background="#1E1E1E"
-                    android:paddingStart="15dp"
-                    android:paddingEnd="15dp"
-                    android:layout_marginBottom="10dp"
-                    android:clickable="true"
-                    android:focusable="true">
+                <!-- ZRAM -->
+                <LinearLayout android:id="@+id/btn_set_zram" android:layout_width="match_parent" android:layout_height="55dp" android:orientation="horizontal" android:gravity="center_vertical" android:background="#1E1E1E" android:paddingStart="15dp" android:paddingEnd="15dp" android:layout_marginBottom="10dp" android:clickable="true" android:focusable="true" android:foreground="?android:attr/selectableItemBackground">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="💾 " android:textSize="20sp" android:layout_marginRight="15dp"/>
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="ZRAM CONFIG" android:textColor="#FFFFFF" android:textSize="14sp"/>
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=">" android:textColor="#555555" android:textSize="18sp"/>
                 </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/btn_thermal"
-                    android:layout_width="match_parent"
-                    android:layout_height="55dp"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:background="#1E1E1E"
-                    android:paddingStart="15dp"
-                    android:paddingEnd="15dp"
-                    android:layout_marginBottom="10dp"
-                    android:clickable="true"
-                    android:focusable="true">
+                <!-- THERMAL -->
+                <LinearLayout android:id="@+id/btn_thermal" android:layout_width="match_parent" android:layout_height="55dp" android:orientation="horizontal" android:gravity="center_vertical" android:background="#1E1E1E" android:paddingStart="15dp" android:paddingEnd="15dp" android:layout_marginBottom="10dp" android:clickable="true" android:focusable="true" android:foreground="?android:attr/selectableItemBackground">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🌡 " android:textSize="20sp" android:layout_marginRight="15dp"/>
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="THERMAL CONTROL" android:textColor="#FFFFFF" android:textSize="14sp"/>
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=">" android:textColor="#555555" android:textSize="18sp"/>
                 </LinearLayout>
 
-                <LinearLayout
-                    android:id="@+id/btn_clean_ram"
-                    android:layout_width="match_parent"
-                    android:layout_height="55dp"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:background="#1E1E1E"
-                    android:paddingStart="15dp"
-                    android:paddingEnd="15dp"
-                    android:layout_marginBottom="10dp"
-                    android:clickable="true"
-                    android:focusable="true">
+                <!-- CLEAN CACHE (FIXED CLICKABLE) -->
+                <LinearLayout android:id="@+id/btn_clean_ram" android:layout_width="match_parent" android:layout_height="55dp" android:orientation="horizontal" android:gravity="center_vertical" android:background="#1E1E1E" android:paddingStart="15dp" android:paddingEnd="15dp" android:layout_marginBottom="10dp" android:clickable="true" android:focusable="true" android:foreground="?android:attr/selectableItemBackground">
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="🧹 " android:textSize="20sp" android:layout_marginRight="15dp"/>
                     <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="CLEAN CACHE" android:textColor="#FF5252" android:textSize="14sp"/>
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=">" android:textColor="#555555" android:textSize="18sp"/>
                 </LinearLayout>
-
             </LinearLayout>
         </ScrollView>
 
-        <!-- TAB 3: SETTINGS (FUNCTIONAL THEME) -->
+        <!-- TAB 3: SETTINGS (BANNER & LINKS) -->
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent">
@@ -298,150 +240,49 @@
                 
                 <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SETTINGS" android:textColor="#888888" android:textSize="12sp" android:layout_marginBottom="15dp" android:textStyle="bold"/>
 
-                <!-- Appearance -->
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="APPEARANCE" android:textColor="#555555" android:textSize="10sp" android:layout_marginBottom="5dp"/>
-                
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="#1E1E1E"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical"
-                    android:padding="15dp"
-                    android:layout_marginBottom="15dp">
-                    
-                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="App Theme (Dark/Light)" android:textColor="#FFFFFF" android:textSize="14sp"/>
-                    <Switch android:id="@+id/switch_theme" android:layout_width="wrap_content" android:layout_height="wrap_content"/>
+                <!-- Banner Customization -->
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="BANNER CUSTOMIZATION" android:textColor="#555555" android:textSize="10sp" android:layout_marginBottom="5dp"/>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="#1E1E1E" android:padding="15dp" android:layout_marginBottom="15dp">
+                    <TextView android:id="@+id/btn_change_banner" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Change Banner Image" android:textColor="#4CAF50" android:textSize="14sp" android:layout_marginBottom="10dp" android:clickable="true" android:focusable="true"/>
+                    <TextView android:id="@+id/btn_reset_banner" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Reset Banner" android:textColor="#AAAAAA" android:textSize="12sp" android:clickable="true" android:focusable="true" android:visibility="gone"/>
                 </LinearLayout>
 
-                <!-- Dev Bio -->
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="DEVELOPER" android:textColor="#555555" android:textSize="10sp" android:layout_marginBottom="5dp"/>
-                
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="#1E1E1E"
-                    android:orientation="vertical"
-                    android:padding="15dp">
-                    
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@VortexSU_Dev" android:textColor="#FFFFFF" android:textSize="16sp" android:textStyle="bold" android:layout_marginBottom="5dp"/>
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Channel: t.me/vortexgki" android:textColor="#AAAAAA" android:textSize="12sp"/>
+                <!-- Theme Colors -->
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="APP THEME COLORS" android:textColor="#555555" android:textSize="10sp" android:layout_marginBottom="5dp"/>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:background="#1E1E1E" android:padding="15dp" android:layout_marginBottom="15dp" android:gravity="center">
+                    <TextView android:id="@+id/btn_theme_black" android:layout_width="50dp" android:layout_height="50dp" android:text="⚫" android:textSize="30sp" android:gravity="center" android:background="#000000" android:layout_marginEnd="10dp" android:clickable="true" android:focusable="true"/>
+                    <TextView android:id="@+id/btn_theme_white" android:layout_width="50dp" android:layout_height="50dp" android:text="⚪" android:textSize="30sp" android:gravity="center" android:background="#FFFFFF" android:layout_marginEnd="10dp" android:clickable="true" android:focusable="true"/>
+                    <TextView android:id="@+id/btn_theme_blue" android:layout_width="50dp" android:layout_height="50dp" android:text="🔵" android:textSize="30sp" android:gravity="center" android:background="#0000FF" android:clickable="true" android:focusable="true"/>
+                </LinearLayout>
+
+                <!-- Developer Links -->
+                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="DEVELOPER INFO" android:textColor="#555555" android:textSize="10sp" android:layout_marginBottom="5dp"/>
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="#1E1E1E" android:padding="15dp">
+                    <TextView android:id="@+id/tv_dev_link" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@VortexSU_Dev" android:textColor="#4CAF50" android:textSize="16sp" android:textStyle="bold" android:layout_marginBottom="5dp" android:clickable="true" android:focusable="true"/>
+                    <TextView android:id="@+id/tv_channel_link" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Channel: t.me/vortexgki" android:textColor="#AAAAAA" android:textSize="12sp" android:clickable="true" android:focusable="true"/>
                 </LinearLayout>
 
             </LinearLayout>
         </ScrollView>
-
     </ViewFlipper>
 
-    <!-- 3. BOTTOM NAVIGATION BAR (Clean) -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:orientation="horizontal"
-        android:background="#1E1E1E"
-        android:elevation="10dp">
-
-        <LinearLayout
-            android:id="@+id/nav_system"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?android:attr/selectableItemBackground">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="MONITOR"
-                android:textColor="#4CAF50"
-                android:textSize="12sp"
-                android:textStyle="bold"/>
+    <!-- BOTTOM NAVIGATION -->
+    <LinearLayout android:layout_width="match_parent" android:layout_height="60dp" android:orientation="horizontal" android:background="#1E1E1E" android:elevation="10dp">
+        <LinearLayout android:id="@+id/nav_system" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:clickable="true" android:focusable="true" android:background="?android:attr/selectableItemBackground">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="MONITOR" android:textColor="#4CAF50" android:textSize="12sp" android:textStyle="bold"/>
         </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/nav_tools"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?android:attr/selectableItemBackground">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="TOOLS"
-                android:textColor="#888888"
-                android:textSize="12sp"/>
+        <LinearLayout android:id="@+id/nav_tools" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:clickable="true" android:focusable="true" android:background="?android:attr/selectableItemBackground">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="TOOLS" android:textColor="#888888" android:textSize="12sp"/>
         </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/nav_settings"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:clickable="true"
-            android:focusable="true"
-            android:background="?android:attr/selectableItemBackground">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="SETTINGS"
-                android:textColor="#888888"
-                android:textSize="12sp"/>
+        <LinearLayout android:id="@+id/nav_settings" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:clickable="true" android:focusable="true" android:background="?android:attr/selectableItemBackground">
+            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SETTINGS" android:textColor="#888888" android:textSize="12sp"/>
         </LinearLayout>
-
     </LinearLayout>
 
     <!-- LOCKED LAYOUT -->
-    <LinearLayout
-        android:id="@+id/layout_locked"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        android:gravity="center"
-        android:background="#121212"
-        android:visibility="gone"> 
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="VORTEX CORE"
-            android:textColor="#FF5252"
-            android:textSize="32sp"
-            android:textStyle="bold"
-            android:layout_marginBottom="20dp"/>
-
-        <EditText
-            android:id="@+id/input_code"
-            android:layout_width="match_parent"
-            android:layout_height="50dp"
-            android:layout_margin="40dp"
-            android:background="#1E1E1E"
-            android:textColor="#FFFFFF"
-            android:hint="ENTER ACCESS CODE"
-            android:textColorHint="#666666"
-            android:inputType="textPassword"
-            android:gravity="center"
-            android:padding="10dp"/>
-
-        <Button
-            android:id="@+id/btn_unlock"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="UNLOCK"
-            android:backgroundTint="#4CAF50"
-            android:textColor="#FFFFFF"
-            android:paddingLeft="40dp"
-            android:paddingRight="40dp"/>
+    <LinearLayout android:id="@+id/layout_locked" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:gravity="center" android:background="#121212" android:visibility="gone"> 
+        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="VORTEX CORE" android:textColor="#FF5252" android:textSize="32sp" android:textStyle="bold" android:layout_marginBottom="20dp"/>
+        <EditText android:id="@+id/input_code" android:layout_width="match_parent" android:layout_height="50dp" android:layout_margin="40dp" android:background="#1E1E1E" android:textColor="#FFFFFF" android:hint="ENTER ACCESS CODE" android:textColorHint="#666666" android:inputType="textPassword" android:gravity="center" android:padding="10dp"/>
+        <Button android:id="@+id/btn_unlock" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="UNLOCK" android:backgroundTint="#4CAF50" android:textColor="#FFFFFF" android:paddingLeft="40dp" android:paddingRight="40dp"/>
     </LinearLayout>
-
 </LinearLayout>

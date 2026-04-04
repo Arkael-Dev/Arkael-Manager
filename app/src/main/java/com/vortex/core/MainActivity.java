@@ -1,11 +1,16 @@
 package com.vortex.core;
 
 import android.app.ActivityManager;
+import android.content.Intent;
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Build;
 import android.os.BatteryManager;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.text.method.ScrollingMovementMethod;
@@ -14,30 +19,34 @@ import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CompoundButton;
 import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
+import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ViewFlipper;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import java.io.File;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
 public class MainActivity extends AppCompatActivity {
     private TextView tvRam, tvZram, tvCpu, tvBattery;
     private TextView tvKernel, tvDevice, tvTerminalLog;
-    // tvCurrentFreq & tvMaxFreq DIHAPUS karena tidak ada di XML baru
-    private TextView tvLittleCluster, tvBigCluster, tvCpuVendor, tvTemp, tvGpuRenderer, tvGpuVersion;
+    private TextView tvLittleCluster, tvBigCluster, tvCurrentFreq, tvMaxFreq, tvCpuVendor, tvTemp, tvGpuRenderer, tvGpuVersion;
+    private ImageView headerBanner;
+    private SeekBar seekBarMaxFreq;
 
     private ViewFlipper viewFlipper;
-    private LinearLayout navSystem, navTools, navSettings;
-    private LinearLayout rootLayout; // For Theme Changing
+    private LinearLayout navSystem, navTools, navSettings, rootLayout;
 
     private SharedPreferences prefs;
     private Handler handler = new Handler(Looper.getMainLooper());
-    private boolean isDarkTheme = true; // Default Dark
+    private boolean isDarkTheme = true;
+    private int maxFreqKhz = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -56,13 +65,19 @@ public class MainActivity extends AppCompatActivity {
         tvDevice = findViewById(R.id.tv_device);
         tvTerminalLog = findViewById(R.id.tv_terminal_log);
         
-        // Init Stats Views (Tidak termasuk Current/Max yang dihapus)
+        // Stats
         tvLittleCluster = findViewById(R.id.tv_little_cluster);
         tvBigCluster = findViewById(R.id.tv_big_cluster);
+        tvCurrentFreq = findViewById(R.id.tv_current_freq);
+        tvMaxFreq = findViewById(R.id.tv_max_freq);
         tvCpuVendor = findViewById(R.id.tv_cpu_vendor);
         tvTemp = findViewById(R.id.tv_temp);
         tvGpuRenderer = findViewById(R.id.tv_gpu_renderer);
         tvGpuVersion = findViewById(R.id.tv_gpu_version);
+
+        // Extras
+        headerBanner = findViewById(R.id.header_banner);
+        seekBarMaxFreq = findViewById(R.id.seekbar_max_freq);
 
         viewFlipper = findViewById(R.id.main_view_flipper);
         navSystem = findViewById(R.id.nav_system);
@@ -70,7 +85,7 @@ public class MainActivity extends AppCompatActivity {
         navSettings = findViewById(R.id.nav_settings);
         rootLayout = findViewById(R.id.root_layout);
 
-        applyTheme(isDarkTheme); // Apply saved theme
+        applyTheme(isDarkTheme);
         updateNavUI(0);
 
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
@@ -88,49 +103,95 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Tool Listeners (LinearLayouts act as buttons)
         findViewById(R.id.btn_cpu_gov).setOnClickListener(v -> pickGov());
         findViewById(R.id.btn_set_zram).setOnClickListener(v -> showZramMenu());
         findViewById(R.id.btn_thermal).setOnClickListener(v -> showThermalMenu());
         findViewById(R.id.btn_clean_ram).setOnClickListener(v -> cleanRam());
 
-        // --- NAVIGATION CLICKS ---
+        // --- NAVIGATION ---
         navSystem.setOnClickListener(v -> { viewFlipper.setDisplayedChild(0); updateNavUI(0); });
         navTools.setOnClickListener(v -> { viewFlipper.setDisplayedChild(1); updateNavUI(1); });
         navSettings.setOnClickListener(v -> { viewFlipper.setDisplayedChild(2); updateNavUI(2); });
 
-        // --- THEME SWITCHER LOGIC ---
-        Switch themeSwitch = findViewById(R.id.switch_theme);
-        if(themeSwitch != null) {
-            themeSwitch.setChecked(!isDarkTheme);
-            themeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                isDarkTheme = !isChecked;
-                prefs.edit().putBoolean("dark_theme", isDarkTheme).apply();
-                applyTheme(isDarkTheme);
-            });
+        // --- SETTINGS ACTIONS ---
+        findViewById(R.id.btn_change_banner).setOnClickListener(v -> loadCustomBanner());
+        findViewById(R.id.btn_reset_banner).setOnClickListener(v -> {
+            prefs.edit().putString("custom_banner_path", "").apply();
+            loadCustomBanner();
+            Toast.makeText(this, "Banner Reset", Toast.LENGTH_SHORT).show();
+        });
+
+        // Color Themes
+        findViewById(R.id.btn_theme_black).setOnClickListener(v -> { isDarkTheme=true; prefs.edit().putBoolean("dark_theme", true).apply(); applyTheme(true); });
+        findViewById(R.id.btn_theme_white).setOnClickListener(v -> { isDarkTheme=false; prefs.edit().putBoolean("dark_theme", false).apply(); applyTheme(false); });
+        findViewById(R.id.btn_theme_blue).setOnClickListener(v -> { isDarkTheme=true; prefs.edit().putBoolean("dark_theme", true).apply(); applyTheme(true, Color.parseColor("#000033"), Color.parseColor("#111133")); });
+
+        // Links
+        findViewById(R.id.tv_dev_link).setOnClickListener(v -> openUrl("https://t.me/VorteXSU_Dev"));
+        findViewById(R.id.tv_channel_link).setOnClickListener(v -> openUrl("https://t.me/vortexgki"));
+
+        // SeekBar Listener
+        seekBarMaxFreq.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                if (fromUser && maxFreqKhz > 0) {
+                    // Calculate freq based on percentage (simplified logic)
+                    int targetFreq = (maxFreqKhz * progress) / 100;
+                    setMaxFreq(targetFreq);
+                    if(tvMaxFreq != null) tvMaxFreq.setText((targetFreq/1000) + " MHz");
+                }
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
+        });
+
+        // Load Banner on Start
+        loadCustomBanner();
+    }
+
+    private void openUrl(String url) {
+        Intent i = new Intent(Intent.ACTION_VIEW);
+        i.setData(Uri.parse(url));
+        startActivity(i);
+    }
+
+    private void loadCustomBanner() {
+        String path = prefs.getString("custom_banner_path", "");
+        File imgFile = new File(path);
+        
+        if (imgFile.exists()) {
+            Bitmap myBitmap = BitmapFactory.decodeFile(imgFile.getAbsolutePath());
+            headerBanner.setImageBitmap(myBitmap);
+            headerBanner.setVisibility(View.VISIBLE);
+            findViewById(R.id.btn_reset_banner).setVisibility(View.VISIBLE);
+        } else {
+            // Check default location
+            File defaultFile = new File(Environment.getExternalStorageDirectory().getAbsolutePath() + "/Download/header_bg.png");
+            if (defaultFile.exists()) {
+                Bitmap myBitmap = BitmapFactory.decodeFile(defaultFile.getAbsolutePath());
+                headerBanner.setImageBitmap(myBitmap);
+                headerBanner.setVisibility(View.VISIBLE);
+                prefs.edit().putString("custom_banner_path", defaultFile.getAbsolutePath()).apply();
+            } else {
+                headerBanner.setVisibility(View.GONE);
+                findViewById(R.id.btn_reset_banner).setVisibility(View.GONE);
+            }
         }
     }
 
     private void applyTheme(boolean dark) {
-        int bgColor, cardColor, textColor, subTextColor;
+        applyTheme(dark, Color.parseColor("#121212"), Color.parseColor("#1E1E1E"));
+    }
 
-        if (dark) {
-            bgColor = Color.parseColor("#121212");
-            cardColor = Color.parseColor("#1E1E1E");
-            textColor = Color.parseColor("#FFFFFF");
-            subTextColor = Color.parseColor("#AAAAAA");
-        } else {
-            bgColor = Color.parseColor("#F5F5F5");
-            cardColor = Color.parseColor("#FFFFFF");
-            textColor = Color.parseColor("#000000");
-            subTextColor = Color.parseColor("#666666");
-        }
-
-        if(rootLayout != null) rootLayout.setBackgroundColor(bgColor);
+    private void applyTheme(boolean dark, int bgCol, int cardCol) {
+        if(rootLayout != null) rootLayout.setBackgroundColor(bgCol);
         
-        ((TextView)navSystem.getChildAt(0)).setTextColor(dark ? Color.parseColor("#4CAF50") : Color.parseColor("#000000"));
-        ((TextView)navTools.getChildAt(0)).setTextColor(subTextColor);
-        ((TextView)navSettings.getChildAt(0)).setTextColor(subTextColor);
+        int textCol = dark ? Color.parseColor("#FFFFFF") : Color.parseColor("#000000");
+        int subTextCol = dark ? Color.parseColor("#888888") : Color.parseColor("#666666");
+
+        ((TextView)navSystem.getChildAt(0)).setTextColor(dark ? Color.parseColor("#4CAF50") : textCol);
+        ((TextView)navTools.getChildAt(0)).setTextColor(subTextCol);
+        ((TextView)navSettings.getChildAt(0)).setTextColor(subTextCol);
     }
 
     private void updateNavUI(int activeIndex) {
@@ -140,6 +201,14 @@ public class MainActivity extends AppCompatActivity {
         ((TextView)navSystem.getChildAt(0)).setTextColor(activeIndex == 0 ? colorActive : colorInactive);
         ((TextView)navTools.getChildAt(0)).setTextColor(activeIndex == 1 ? colorActive : colorInactive);
         ((TextView)navSettings.getChildAt(0)).setTextColor(activeIndex == 2 ? colorActive : colorInactive);
+    }
+
+    private void setMaxFreq(int khz) {
+        new Thread(() -> {
+            // Set scaling_max_freq for all cores (Simplified for Little cluster)
+            runSu("echo " + khz + " > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq");
+            // Optional: Apply to big cores too if needed
+        }).start();
     }
 
     private void refreshUI() {
@@ -178,37 +247,58 @@ public class MainActivity extends AppCompatActivity {
 
             String z = runSuReturn("cat /sys/block/zram0/disksize");
             if(tvZram != null) tvZram.setText((z.isEmpty() ? "0" : (Long.parseLong(z)/1048576)) + " MB");
-
         } catch (Exception ignored) {}
     }
 
     private void updateDetailedStats() {
         try {
-            // CPU CLUSTERS
+            // VENDOR LOGIC (FIXED)
+            String vendor = "Unknown";
+            String socModel = runSuReturn("getprop ro.soc.model"); 
+            String platform = runSuReturn("getprop ro.board.platform").toLowerCase();
+
+            // Logic Bersih
+            if (socModel.toLowerCase().contains("qualcomm") || platform.contains("qcom")) {
+                vendor = "Qualcomm";
+                // Cek nama spesifik jika ada
+                String hardware = runSuReturn("getprop ro.product.board").toLowerCase();
+                if (hardware.contains("fiji")) vendor += " 660";
+                else if (hardware.contains("lahaina")) vendor += " 888";
+            } 
+            else if (socModel.toLowerCase().contains("mediatek") || platform.contains("mt")) {
+                vendor = "Mediatek";
+            }
+            else if (socModel.toLowerCase().contains("unisoc")) {
+                vendor = "Unisoc";
+            }
+            else {
+                vendor = socModel.isEmpty() ? (platform.isEmpty() ? "Unknown" : platform.toUpperCase()) : socModel;
+            }
+            
+            if(tvCpuVendor != null) tvCpuVendor.setText(vendor);
+
+            // FREQS
+            String cur = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq");
+            String max = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
+            
+            if(!cur.isEmpty() && tvCurrentFreq != null) tvCurrentFreq.setText((Integer.parseInt(cur)/1000) + " MHz");
+            
+            if(!max.isEmpty()) {
+                maxFreqKhz = Integer.parseInt(max);
+                if(tvMaxFreq != null) tvMaxFreq.setText((maxFreqKhz/1000) + " MHz");
+                // Update SeekBar Max
+                if(seekBarMaxFreq != null) seekBarMaxFreq.setMax(100);
+            }
+
+            // CLUSTERS
             String littleMax = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
             String bigMax = runSuReturn("cat /sys/devices/system/cpu/cpu4/cpufreq/cpuinfo_max_freq");
-            if(bigMax.isEmpty()) bigMax = runSuReturn("cat /sys/devices/system/cpu/cpu7/cpufreq/cpuinfo_max_freq"); 
             if(bigMax.isEmpty()) bigMax = littleMax;
 
             if(tvLittleCluster != null) tvLittleCluster.setText((littleMax.isEmpty() ? "N/A" : (Integer.parseInt(littleMax)/1000) + " MHz"));
             if(tvBigCluster != null) tvBigCluster.setText((bigMax.isEmpty() ? "N/A" : (Integer.parseInt(bigMax)/1000) + " MHz"));
 
-            // Kode tvCurrentFreq & tvMaxFreq DIHAPUS DISINI
-
-            // VENDOR
-            String vendor = "Unknown";
-            String soc = runSuReturn("getprop ro.soc.manufacturer");
-            if(soc.isEmpty()) soc = runSuReturn("getprop ro.board.platform");
-            if(soc.isEmpty()) soc = runSuReturn("cat /proc/cpuinfo | grep -i 'Hardware' | cut -d':' -f2");
-
-            if(soc.toLowerCase().contains("qualcomm") || soc.toLowerCase().contains("qcom")) vendor = "Qualcomm";
-            else if(soc.toLowerCase().contains("mediatek") || soc.toLowerCase().contains("mtk")) vendor = "Mediatek";
-            else if(soc.toLowerCase().contains("samsung")) vendor = "Samsung";
-            else vendor = soc.trim().isEmpty() ? "Unknown SoC" : soc;
-            
-            if(tvCpuVendor != null) tvCpuVendor.setText(vendor);
-
-            // TEMPERATURE
+            // TEMP
             String temp = runSuReturn("cat /sys/class/thermal/thermal_zone0/temp");
             if(temp.isEmpty()) temp = runSuReturn("cat /sys/class/thermal/thermal_zone10/temp");
             if(!temp.isEmpty() && tvTemp != null) {
@@ -220,24 +310,15 @@ public class MainActivity extends AppCompatActivity {
 
             // GPU
             String gpu = "Unknown GPU";
-            String platform = runSuReturn("getprop ro.board.platform").toLowerCase();
-
             if (platform.contains("mt") || platform.contains("mtk")) {
                 gpu = runSuReturn("cat /sys/class/misc/mali0/device/gpuinfo");
-                if(gpu.isEmpty()) gpu = runSuReturn("dmesg | grep -i 'mali' | head -n 1");
                 if(gpu.isEmpty()) gpu = "Mali GPU";
             } else if (platform.contains("qcom") || platform.contains("msm")) {
                 gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_model");
-                if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_chip_id");
                 if(gpu.isEmpty()) gpu = "Adreno GPU";
-            } else {
-                gpu = runSuReturn("getprop ro.hardware.egl");
-                if(gpu.isEmpty()) gpu = "Generic GPU";
             }
-
             if(tvGpuRenderer != null) tvGpuRenderer.setText(gpu);
 
-            // GPU VERSION
             String gl = runSuReturn("getprop ro.opengles.version");
             if(tvGpuVersion != null) tvGpuVersion.setText("OpenGL ES " + (gl.isEmpty() ? "3.x" : gl));
 
