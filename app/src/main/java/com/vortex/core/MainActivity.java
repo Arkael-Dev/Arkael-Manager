@@ -1,9 +1,13 @@
 package com.vortex.core;
 
+import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.graphics.Color;
+import android.graphics.PorterDuff;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
@@ -12,7 +16,7 @@ import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.Settings;
+import android.provider.MediaStore;
 import android.text.method.ScrollingMovementMethod;
 import android.view.View;
 import android.widget.ArrayAdapter;
@@ -25,29 +29,39 @@ import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ViewFlipper;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import com.bumptech.glide.Glide;
 import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
+import java.io.InputStream;
+import java.io.OutputStream;
 
 public class MainActivity extends AppCompatActivity {
     private TextView tvRam, tvZram, tvCpu, tvBattery;
     private TextView tvKernel, tvDevice, tvTerminalLog;
-    private TextView tvLittleCluster, tvBigCluster, tvCurrentFreq, tvMaxFreq, tvCpuVendor, tvTemp, tvGpuRenderer, tvGpuVersion;
+    private TextView tvLittleCluster, tvBigCluster, tvCurrentFreq, tvMaxFreq, tvCpuVendor, tvTemp, tvGpuRenderer, tvGpuVersion, tvMaxFreqTools, tvAuthActive;
     private ImageView headerBanner;
     private SeekBar seekBarMaxFreq;
-    private LinearLayout cardRam, cardBat, rootLayout;
-
+    private LinearLayout cardRam, cardBat, rootLayout, bannerContainer;
     private ViewFlipper viewFlipper;
     private LinearLayout navSystem, navTools, navSettings;
 
     private SharedPreferences prefs;
     private Handler handler = new Handler(Looper.getMainLooper());
-    private boolean isDarkTheme = true;
     private int maxFreqKhz = 0;
     private int minFreqKhz = 0;
+    private boolean isGlassTheme = false;
+    private boolean isRainbowTheme = false;
+    
+    // Launcher untuk Pick Image
+    private ActivityResultLauncher<Intent> pickImageLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -55,7 +69,17 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         prefs = getSharedPreferences("VortexPrefs", 0);
-        isDarkTheme = prefs.getBoolean("dark_theme", true);
+        
+        // Register Image Picker
+        pickImageLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(),
+            result -> {
+                if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
+                    Uri imageUri = result.getData().getData();
+                    copyImageToInternal(imageUri);
+                }
+            }
+        );
 
         // --- INIT VIEWS ---
         tvRam = findViewById(R.id.tv_ram);
@@ -66,7 +90,6 @@ public class MainActivity extends AppCompatActivity {
         tvDevice = findViewById(R.id.tv_device);
         tvTerminalLog = findViewById(R.id.tv_terminal_log);
         
-        // Detailed Stats
         tvLittleCluster = findViewById(R.id.tv_little_cluster);
         tvBigCluster = findViewById(R.id.tv_big_cluster);
         tvCurrentFreq = findViewById(R.id.tv_current_freq);
@@ -75,23 +98,39 @@ public class MainActivity extends AppCompatActivity {
         tvTemp = findViewById(R.id.tv_temp);
         tvGpuRenderer = findViewById(R.id.tv_gpu_renderer);
         tvGpuVersion = findViewById(R.id.tv_gpu_version);
+        tvMaxFreqTools = findViewById(R.id.tv_max_freq_tools);
+        tvAuthActive = findViewById(R.id.tv_auth_active);
 
-        // Extras
         headerBanner = findViewById(R.id.header_banner);
         seekBarMaxFreq = findViewById(R.id.seekbar_max_freq);
         cardRam = findViewById(R.id.card_ram);
         cardBat = findViewById(R.id.card_bat);
         rootLayout = findViewById(R.id.root_layout);
+        bannerContainer = findViewById(R.id.banner_container);
 
         viewFlipper = findViewById(R.id.main_view_flipper);
         navSystem = findViewById(R.id.nav_system);
         navTools = findViewById(R.id.nav_tools);
         navSettings = findViewById(R.id.nav_settings);
 
-        applyTheme(isDarkTheme);
-        updateNavUI(0);
+        // Load Theme Settings
+        isGlassTheme = prefs.getBoolean("glass_theme", false);
+        isRainbowTheme = prefs.getBoolean("rainbow_theme", false);
+        applyThemeSettings();
 
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
+
+        // --- AUTH LOGIC (STRICT) ---
+        String device = Build.DEVICE.toLowerCase();
+        String product = Build.PRODUCT.toLowerCase();
+        boolean isEKernel = device.contains("vortex-e-sport") || product.contains("vortex-e-sport");
+        
+        if(isEKernel) {
+            prefs.edit().putBoolean("is_unlocked", true).apply();
+            tvAuthActive.setVisibility(View.VISIBLE);
+        } else {
+            tvAuthActive.setVisibility(View.GONE);
+        }
 
         refreshUI();
 
@@ -116,36 +155,63 @@ public class MainActivity extends AppCompatActivity {
             cleanRam();
         });
 
-        // Nav
-        navSystem.setOnClickListener(v -> { viewFlipper.setDisplayedChild(0); updateNavUI(0); });
-        navTools.setOnClickListener(v -> { viewFlipper.setDisplayedChild(1); updateNavUI(1); });
-        navSettings.setOnClickListener(v -> { viewFlipper.setDisplayedChild(2); updateNavUI(2); });
+        // Nav (Handle Banner Visibility)
+        navSystem.setOnClickListener(v -> { 
+            viewFlipper.setDisplayedChild(0); 
+            updateNavUI(0);
+            bannerContainer.setVisibility(View.VISIBLE); 
+        });
+        navTools.setOnClickListener(v -> { 
+            viewFlipper.setDisplayedChild(1); 
+            updateNavUI(1);
+            bannerContainer.setVisibility(View.GONE); 
+        });
+        navSettings.setOnClickListener(v -> { 
+            viewFlipper.setDisplayedChild(2); 
+            updateNavUI(2);
+            bannerContainer.setVisibility(View.GONE); 
+        });
 
         // Settings Actions
-        findViewById(R.id.btn_change_banner).setOnClickListener(v -> loadCustomBanner());
+        findViewById(R.id.banner_click_area).setOnClickListener(v -> openGallery());
         findViewById(R.id.btn_reset_banner).setOnClickListener(v -> {
             prefs.edit().putString("custom_banner_path", "").apply();
             loadCustomBanner();
             Toast.makeText(this, "Banner Reset", Toast.LENGTH_SHORT).show();
         });
 
-        // Colors
-        findViewById(R.id.btn_theme_black).setOnClickListener(v -> { isDarkTheme=true; prefs.edit().putBoolean("dark_theme", true).apply(); applyTheme(true); });
-        findViewById(R.id.btn_theme_white).setOnClickListener(v -> { isDarkTheme=false; prefs.edit().putBoolean("dark_theme", false).apply(); applyTheme(false); });
-        findViewById(R.id.btn_theme_blue).setOnClickListener(v -> { isDarkTheme=true; prefs.edit().putBoolean("dark_theme", true).apply(); applyTheme(true, Color.parseColor("#000033"), Color.parseColor("#111133")); });
+        // Pro Theme Actions
+        findViewById(R.id.btn_theme_glass).setOnClickListener(v -> {
+            isGlassTheme = !isGlassTheme;
+            prefs.edit().putBoolean("glass_theme", isGlassTheme).apply();
+            applyThemeSettings();
+            Toast.makeText(this, "Glass Effect: " + (isGlassTheme?"ON":"OFF"), Toast.LENGTH_SHORT).show();
+        });
+
+        findViewById(R.id.btn_theme_rainbow).setOnClickListener(v -> {
+            isRainbowTheme = !isRainbowTheme;
+            prefs.edit().putBoolean("rainbow_theme", isRainbowTheme).apply();
+            applyThemeSettings();
+            Toast.makeText(this, "Rainbow Icons: " + (isRainbowTheme?"ON":"OFF"), Toast.LENGTH_SHORT).show();
+        });
+
+        findViewById(R.id.btn_bg_black).setOnClickListener(v -> setBackgroundMode(0));
+        findViewById(R.id.btn_bg_white).setOnClickListener(v -> setBackgroundMode(1));
+        findViewById(R.id.btn_bg_gray).setOnClickListener(v -> setBackgroundMode(2));
 
         // Links
         findViewById(R.id.tv_dev_link).setOnClickListener(v -> openUrl("https://t.me/VorteXSU_Dev"));
         findViewById(R.id.tv_channel_link).setOnClickListener(v -> openUrl("https://t.me/vortexgki"));
 
-        // Slider Logic
+        // Slider Logic (MANUAL ONLY - NO AUTO UPDATE)
         seekBarMaxFreq.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                // Hanya jalankan jika user yang menggeser
                 if (fromUser && maxFreqKhz > 0 && minFreqKhz > 0) {
                     int range = maxFreqKhz - minFreqKhz;
                     int targetFreq = minFreqKhz + ((range * progress) / 100);
                     setMaxFreq(targetFreq);
-                    if(tvMaxFreq != null) tvMaxFreq.setText((targetFreq/1000) + " MHz");
+                    if(tvMaxFreqTools != null) tvMaxFreqTools.setText((targetFreq/1000) + " MHz");
                 }
             }
             @Override public void onStartTrackingTouch(SeekBar seekBar) {}
@@ -155,82 +221,153 @@ public class MainActivity extends AppCompatActivity {
         loadCustomBanner();
     }
 
+    private void setBackgroundMode(int mode) {
+        int bgCol, cardCol, textCol;
+        
+        if(mode == 0) { // Black
+            bgCol = Color.parseColor("#121212");
+            cardCol = Color.parseColor("#1E1E1E");
+            textCol = Color.WHITE;
+        } else if (mode == 1) { // White
+            bgCol = Color.parseColor("#F0F0F0"); // Abu muda biar card putih kelihatan
+            cardCol = Color.parseColor("#FFFFFF");
+            textCol = Color.BLACK;
+        } else { // Gray
+            bgCol = Color.parseColor("#808080");
+            cardCol = Color.parseColor("#909090");
+            textCol = Color.WHITE;
+        }
+
+        if(isGlassTheme) {
+            // Glass Effect: Transparan
+            cardCol = Color.parseColor("#CC000000"); // 80% Black opacity
+            if(mode==1) cardCol = Color.parseColor("#CCFFFFFF"); // 80% White opacity
+        }
+
+        // Simpan pilihan mode
+        prefs.edit().putInt("bg_mode", mode).apply();
+
+        if(rootLayout != null) rootLayout.setBackgroundColor(bgCol);
+        
+        GradientDrawable gd = new GradientDrawable();
+        gd.setShape(GradientDrawable.RECTANGLE);
+        gd.setColor(cardCol);
+        gd.setCornerRadius(20);
+        
+        if(cardRam != null) cardRam.setBackground(gd);
+        if(cardBat != null) cardBat.setBackground(gd);
+        
+        // Update Text Colors globally
+        boolean isDark = (mode == 0 || mode == 2);
+        int finalText = isDark ? Color.WHITE : Color.BLACK;
+        if(tvRam != null) tvRam.setTextColor(finalText);
+        if(tvBattery != null) tvBattery.setTextColor(finalText);
+
+        applyIconColor();
+    }
+
+    private void applyThemeSettings() {
+        int savedMode = prefs.getInt("bg_mode", 0);
+        setBackgroundMode(savedMode);
+    }
+
+    private void applyIconColor() {
+        int color = Color.GRAY; 
+        if(isRainbowTheme) {
+            color = Color.parseColor("#FF4081"); // Pinkish/Colorful
+        } else {
+            color = Color.parseColor("#AAAAAA");
+        }
+        
+        // Apply tint to Nav icons
+        if(navSystem != null) tintCompoundDrawables(navSystem.getChildAt(0), color);
+        if(navTools != null) tintCompoundDrawables(navTools.getChildAt(0), color);
+        if(navSettings != null) tintCompoundDrawables(navSettings.getChildAt(0), color);
+    }
+
+    private void tintCompoundDrawables(View view, int color) {
+        if(view instanceof TextView) {
+            TextView tv = (TextView) view;
+            for(Drawable d : tv.getCompoundDrawables()) {
+                if(d != null) d.setColorFilter(color, PorterDuff.Mode.SRC_IN);
+            }
+        }
+    }
+
+    // --- IMAGE PICKER LOGIC ---
+    private void openGallery() {
+        Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
+        intent.setType("image/*");
+        pickImageLauncher.launch(intent);
+    }
+
+    private void copyImageToInternal(Uri uri) {
+        try {
+            InputStream inputStream = getContentResolver().openInputStream(uri);
+            String fileName = "custom_banner.jpg";
+            File outFile = new File(getFilesDir(), fileName);
+            OutputStream outputStream = new FileOutputStream(outFile);
+            
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = inputStream.read(buffer)) > 0) {
+                outputStream.write(buffer, 0, len);
+            }
+            outputStream.close();
+            inputStream.close();
+
+            String path = outFile.getAbsolutePath();
+            prefs.edit().putString("custom_banner_path", path).apply();
+            loadCustomBanner();
+            Toast.makeText(this, "Banner Applied", Toast.LENGTH_SHORT).show();
+
+        } catch (Exception e) {
+            Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     private void openUrl(String url) {
         try {
             Intent i = new Intent(Intent.ACTION_VIEW);
             i.setData(Uri.parse(url));
             startActivity(i);
-        } catch (Exception e) {
-            Toast.makeText(this, "No Browser Found", Toast.LENGTH_SHORT).show();
-        }
+        } catch (Exception e) {}
     }
 
     private void loadCustomBanner() {
         String customPath = prefs.getString("custom_banner_path", "");
         
-        // Prioritas 1: Custom Banner User
         if (!customPath.isEmpty()) {
             File imgFile = new File(customPath);
             if (imgFile.exists()) {
                 Glide.with(this).load(imgFile).centerCrop().into(headerBanner);
                 headerBanner.setVisibility(View.VISIBLE);
+                bannerContainer.setVisibility(View.VISIBLE);
                 findViewById(R.id.btn_reset_banner).setVisibility(View.VISIBLE);
                 return;
             }
         }
         
-        // Prioritas 2: Default Banner dari Resource (Yang sudah di-push)
         try {
             Glide.with(this).load(R.drawable.header_bg).centerCrop().into(headerBanner);
             headerBanner.setVisibility(View.VISIBLE);
+            bannerContainer.setVisibility(View.VISIBLE);
         } catch (Exception e) {
             headerBanner.setVisibility(View.GONE);
+            bannerContainer.setVisibility(View.GONE);
         }
         
         findViewById(R.id.btn_reset_banner).setVisibility(View.GONE);
     }
 
-    private void applyTheme(boolean dark) {
-        applyTheme(dark, Color.parseColor("#121212"), Color.parseColor("#1E1E1E"));
-    }
-
-    private void applyTheme(boolean dark, int bgCol, int cardCol) {
-        if(rootLayout != null) rootLayout.setBackgroundColor(bgCol);
-        
-        int textMain, textSec, cardBg;
-
-        if(dark) {
-            textMain = Color.parseColor("#FFFFFF");
-            textSec  = Color.parseColor("#AAAAAA");
-            cardBg   = Color.parseColor("#1E1E1E");
-        } else {
-            // LIGHT THEME FIX
-            textMain = Color.parseColor("#000000");
-            textSec  = Color.parseColor("#555555");
-            cardBg   = Color.parseColor("#F1F1F1");
-        }
-
-        GradientDrawable gd = new GradientDrawable();
-        gd.setShape(GradientDrawable.RECTANGLE);
-        gd.setColor(cardBg);
-        gd.setCornerRadius(20);
-        
-        if(cardRam != null) cardRam.setBackground(gd);
-        if(cardBat != null) cardBat.setBackground(gd);
-
-        if(tvRam != null) tvRam.setTextColor(textMain);
-        if(tvBattery != null) tvBattery.setTextColor(textMain);
-        
-        updateNavUI(viewFlipper.getDisplayedChild());
-    }
-
     private void updateNavUI(int activeIndex) {
-        int colorActive = isDarkTheme ? Color.parseColor("#4CAF50") : Color.parseColor("#000000");
-        int colorInactive = isDarkTheme ? Color.parseColor("#888888") : Color.parseColor("#666666");
+        int colorActive = Color.parseColor("#4CAF50");
+        int colorInactive = isRainbowTheme ? Color.parseColor("#FF4081") : Color.parseColor("#888888");
 
         ((TextView)navSystem.getChildAt(0)).setTextColor(activeIndex == 0 ? colorActive : colorInactive);
         ((TextView)navTools.getChildAt(0)).setTextColor(activeIndex == 1 ? colorActive : colorInactive);
         ((TextView)navSettings.getChildAt(0)).setTextColor(activeIndex == 2 ? colorActive : colorInactive);
+        applyIconColor(); 
     }
 
     private void setMaxFreq(int khz) {
@@ -242,10 +379,12 @@ public class MainActivity extends AppCompatActivity {
 
     private void refreshUI() {
         boolean ok = prefs.getBoolean("is_unlocked", false);
-        if (true) { ok = true; } 
-        
         findViewById(R.id.layout_locked).setVisibility(ok ? View.GONE : View.VISIBLE);
-        if (ok) startLoop();
+        if (ok) {
+            startLoop();
+            if(viewFlipper.getDisplayedChild() == 0) bannerContainer.setVisibility(View.VISIBLE);
+            else bannerContainer.setVisibility(View.GONE);
+        }
     }
 
     private void startLoop() {
@@ -297,15 +436,13 @@ public class MainActivity extends AppCompatActivity {
                 if(!socModel.isEmpty()) vendor += " (" + socModel + ")";
             }
             else if (platform.contains("exynos")) vendor = "Exynos";
-            else if (platform.contains("universal") || platform.contains("sp98") || platform.contains("ums")) vendor = "Unisoc";
+            else if (platform.contains("universal") || platform.contains("sp98")) vendor = "Unisoc";
             else vendor = platform.toUpperCase();
 
             if(tvCpuVendor != null) tvCpuVendor.setText(vendor);
 
-            // --- BALANCED FREQ LOGIC (FIX REQUEST) ---
-            // Baca limit hardware absolut
+            // --- FREQ LOGIC (NO AUTO SLIDER UPDATE - MANUAL ONLY) ---
             String max = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
-            // Baca limit sistem saat ini (biasanya sudah diatur governor, biar gak langsung max)
             String scalingMax = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq");
             String cur = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq");
             
@@ -313,19 +450,17 @@ public class MainActivity extends AppCompatActivity {
 
             if(!cur.isEmpty() && tvCurrentFreq != null) tvCurrentFreq.setText((Integer.parseInt(cur)/1000) + " MHz");
             
-            // Set Slider berdasarkan Current System Limit (Balanced), bukan Hardware Max
-            if(!scalingMax.isEmpty() && maxFreqKhz > 0) {
-                int currentMaxVal = Integer.parseInt(scalingMax);
-                if(tvMaxFreq != null) tvMaxFreq.setText((currentMaxVal/1000) + " MHz");
-                
-                // Hitung persentase slider berdasarkan kondisi sistem sekarang
-                int progress = (currentMaxVal * 100) / maxFreqKhz;
-                if(seekBarMaxFreq != null) seekBarMaxFreq.setProgress(progress);
+            int currentMaxVal = 0;
+            if(!scalingMax.isEmpty()) {
+                currentMaxVal = Integer.parseInt(scalingMax);
             } else if (!max.isEmpty()) {
-                // Fallback jika scalingMax gagal baca
-                if(tvMaxFreq != null) tvMaxFreq.setText((maxFreqKhz/1000) + " MHz");
-                if(seekBarMaxFreq != null) seekBarMaxFreq.setProgress(100);
+                currentMaxVal = maxFreqKhz;
             }
+
+            if(tvMaxFreq != null) tvMaxFreq.setText((currentMaxVal/1000) + " MHz");
+            if(tvMaxFreqTools != null) tvMaxFreqTools.setText((currentMaxVal/1000) + " MHz");
+            
+            // DILARANG MENGUBAH SLIDER DISINI AGAR TIDAK JUMPING
 
             // CLUSTERS
             String cpuCount = runSuReturn("cat /proc/cpuinfo | grep 'processor' | wc -l");
@@ -339,35 +474,40 @@ public class MainActivity extends AppCompatActivity {
             if(tvLittleCluster != null) tvLittleCluster.setText((little.isEmpty() ? "N/A" : (Integer.parseInt(little)/1000) + " MHz"));
             if(tvBigCluster != null) tvBigCluster.setText((big.isEmpty() ? "N/A" : (Integer.parseInt(big)/1000) + " MHz"));
 
-            // --- TEMPERATURE BATTERY ACCURATE ---
+            // --- TEMP BATTERY FIX (AKURAT) ---
             String temp = "";
+            // Cari thermal zone yang berhubungan dengan baterai
             for(int i=0; i<20; i++) {
-                String type = runSuReturn("cat /sys/class/thermal/thermal_zone"+i+"/type");
-                if(type.toLowerCase().contains("bat") || type.toLowerCase().contains("batt")) {
-                    temp = runSuReturn("cat /sys/class/thermal/thermal_zone"+i+"/temp");
-                    if(!temp.isEmpty()) break;
+                String type = runSuReturn("cat /sys/class/thermal/thermal_zone"+i+"/type 2>/dev/null");
+                if(type.toLowerCase().contains("batt") || type.toLowerCase().contains("battery") || type.toLowerCase().contains("tsens")) {
+                    temp = runSuReturn("cat /sys/class/thermal/thermal_zone"+i+"/temp 2>/dev/null");
+                    if(!temp.isEmpty() && Integer.parseInt(temp) > 0) break;
                 }
             }
-            if(temp.isEmpty()) temp = runSuReturn("cat /sys/class/power_supply/battery/temp");
+            // Fallback langsung ke power supply
+            if(temp.isEmpty()) temp = runSuReturn("cat /sys/class/power_supply/battery/temp 2>/dev/null");
             
             if(!temp.isEmpty() && tvTemp != null) {
                 try {
-                    int t = Integer.parseInt(temp.trim()) / 1000;
+                    int t = Integer.parseInt(temp.trim());
+                    if(t > 1000) t = t / 1000; 
+                    if(t == 0) throw new Exception(); // Jika 0, anggap gagal baca
                     tvTemp.setText(t + "°C");
                 } catch (Exception e) { tvTemp.setText("N/A"); }
             }
 
-            // --- GPU RENDERER ACCURATE ---
+            // --- GPU RENDERER FIX (AKURAT) ---
             String gpu = "Unknown GPU";
             if (platform.contains("mt") || hardware.contains("mt")) {
-                gpu = runSuReturn("cat /sys/class/misc/mali0/device/gpuinfo");
+                gpu = runSuReturn("cat /sys/class/misc/mali0/device/gpu_model 2>/dev/null");
+                if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/kernel/debug/mali0/gpu_id 2>/dev/null");
                 if(gpu.isEmpty()) gpu = "Mali GPU";
             } else if (platform.contains("qcom") || platform.contains("msm")) {
-                gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_model");
+                gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_model 2>/dev/null");
+                if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/devices/platform/soc/soc:qcom,kgsl-3d0/devfreq/soc:qcom,kgsl-3d0/gpu_model 2>/dev/null");
                 if(gpu.isEmpty()) gpu = "Adreno GPU";
             } else if (platform.contains("exynos")) {
-                 gpu = runSuReturn("cat /sys/class/devfreq/gpu/governor"); 
-                 if(gpu.isEmpty()) gpu = "Exynos GPU";
+                 gpu = "Exynos GPU";
             }
 
             if(tvGpuRenderer != null) tvGpuRenderer.setText(gpu);
