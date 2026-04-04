@@ -35,12 +35,11 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import com.bumptech.glide.Glide;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 
 public class MainActivity extends AppCompatActivity {
@@ -60,7 +59,9 @@ public class MainActivity extends AppCompatActivity {
     private boolean isGlassTheme = false;
     private boolean isRainbowTheme = false;
     
-    // Launcher untuk Pick Image
+    // SECRET KEY (AKAN DIBACA OTOMATIS DARI FILE)
+    private String SECRET_PASSKEY = "vortex"; // Default fallback
+    
     private ActivityResultLauncher<Intent> pickImageLauncher;
 
     @Override
@@ -70,7 +71,9 @@ public class MainActivity extends AppCompatActivity {
 
         prefs = getSharedPreferences("VortexPrefs", 0);
         
-        // Register Image Picker
+        // 1. BACA PASSKEY OTOMATIS DARI FILE ASSETS
+        readPasskeyFromAssets();
+        
         pickImageLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
@@ -120,16 +123,24 @@ public class MainActivity extends AppCompatActivity {
 
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
 
-        // --- AUTH LOGIC (STRICT) ---
-        String device = Build.DEVICE.toLowerCase();
-        String product = Build.PRODUCT.toLowerCase();
-        boolean isEKernel = device.contains("vortex-e-sport") || product.contains("vortex-e-sport");
+        // 2. AUTH LOGIC (FIX & AUTO-UNLOCK KERNEL)
+        String kernelVer = System.getProperty("os.version").toLowerCase();
+        String devName = Build.DEVICE.toLowerCase();
+        String prodName = Build.PRODUCT.toLowerCase();
         
+        // Cek apakah pakai Kernel VorteX E-Sport (Auto Unlock)
+        boolean isEKernel = kernelVer.contains("vortex-e-sport") || 
+                            kernelVer.contains("vortex_esport") || 
+                            kernelVer.contains("vortex");
+
         if(isEKernel) {
             prefs.edit().putBoolean("is_unlocked", true).apply();
-            tvAuthActive.setVisibility(View.VISIBLE);
+            if(tvAuthActive != null) {
+                tvAuthActive.setVisibility(View.VISIBLE);
+                tvAuthActive.setText("● AUTH ACTIVE (VORTEX-E-SPORT)");
+            }
         } else {
-            tvAuthActive.setVisibility(View.GONE);
+            if(tvAuthActive != null) tvAuthActive.setVisibility(View.GONE);
         }
 
         refreshUI();
@@ -137,12 +148,14 @@ public class MainActivity extends AppCompatActivity {
         // --- LISTENERS ---
         findViewById(R.id.btn_unlock).setOnClickListener(v -> {
             EditText input = findViewById(R.id.input_code);
-            String SECRET = "vortex"; 
-            if (input.getText().toString().trim().equals(SECRET)) {
+            String userInput = input.getText().toString().trim();
+            
+            // Cek Passkey (Yang sudah dibaca otomatis dari file assets)
+            if(userInput.equals(SECRET_PASSKEY)) {
                 prefs.edit().putBoolean("is_unlocked", true).apply();
                 refreshUI();
             } else {
-                Toast.makeText(this, "DENIED", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "DENIED: Wrong Code", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -203,10 +216,9 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.tv_dev_link).setOnClickListener(v -> openUrl("https://t.me/VorteXSU_Dev"));
         findViewById(R.id.tv_channel_link).setOnClickListener(v -> openUrl("https://t.me/vortexgki"));
 
-        // Slider Logic (MANUAL ONLY - NO AUTO UPDATE)
+        // Slider Logic (MANUAL ONLY)
         seekBarMaxFreq.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                // Hanya jalankan jika user yang menggeser
                 if (fromUser && maxFreqKhz > 0 && minFreqKhz > 0) {
                     int range = maxFreqKhz - minFreqKhz;
                     int targetFreq = minFreqKhz + ((range * progress) / 100);
@@ -221,6 +233,27 @@ public class MainActivity extends AppCompatActivity {
         loadCustomBanner();
     }
 
+    // FUNGSI MEMBACA PASSKEY DARI FILE ASSETS
+    private void readPasskeyFromAssets() {
+        try {
+            // Membaca file VORTEX_PASSKEY.txt yang ada di folder app/src/main/assets/
+            InputStream is = getAssets().open("VORTEX_PASSKEY.txt");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+            String line = reader.readLine();
+            if (line != null && line.contains("PASSKEY:")) {
+                // Ambil kata setelah "PASSKEY:"
+                String[] parts = line.split(":");
+                if(parts.length > 1) {
+                    SECRET_PASSKEY = parts[1].trim();
+                }
+            }
+            is.close();
+        } catch (Exception e) {
+            // Jika file tidak ketemu, gunakan default atau abaikan
+            // SECRET_PASSKEY tetap "vortex" (default)
+        }
+    }
+
     private void setBackgroundMode(int mode) {
         int bgCol, cardCol, textCol;
         
@@ -229,7 +262,7 @@ public class MainActivity extends AppCompatActivity {
             cardCol = Color.parseColor("#1E1E1E");
             textCol = Color.WHITE;
         } else if (mode == 1) { // White
-            bgCol = Color.parseColor("#F0F0F0"); // Abu muda biar card putih kelihatan
+            bgCol = Color.parseColor("#F0F0F0");
             cardCol = Color.parseColor("#FFFFFF");
             textCol = Color.BLACK;
         } else { // Gray
@@ -239,12 +272,10 @@ public class MainActivity extends AppCompatActivity {
         }
 
         if(isGlassTheme) {
-            // Glass Effect: Transparan
-            cardCol = Color.parseColor("#CC000000"); // 80% Black opacity
-            if(mode==1) cardCol = Color.parseColor("#CCFFFFFF"); // 80% White opacity
+            cardCol = Color.parseColor("#CC000000");
+            if(mode==1) cardCol = Color.parseColor("#CCFFFFFF");
         }
 
-        // Simpan pilihan mode
         prefs.edit().putInt("bg_mode", mode).apply();
 
         if(rootLayout != null) rootLayout.setBackgroundColor(bgCol);
@@ -257,7 +288,6 @@ public class MainActivity extends AppCompatActivity {
         if(cardRam != null) cardRam.setBackground(gd);
         if(cardBat != null) cardBat.setBackground(gd);
         
-        // Update Text Colors globally
         boolean isDark = (mode == 0 || mode == 2);
         int finalText = isDark ? Color.WHITE : Color.BLACK;
         if(tvRam != null) tvRam.setTextColor(finalText);
@@ -274,12 +304,11 @@ public class MainActivity extends AppCompatActivity {
     private void applyIconColor() {
         int color = Color.GRAY; 
         if(isRainbowTheme) {
-            color = Color.parseColor("#FF4081"); // Pinkish/Colorful
+            color = Color.parseColor("#FF4081"); 
         } else {
             color = Color.parseColor("#AAAAAA");
         }
         
-        // Apply tint to Nav icons
         if(navSystem != null) tintCompoundDrawables(navSystem.getChildAt(0), color);
         if(navTools != null) tintCompoundDrawables(navTools.getChildAt(0), color);
         if(navSettings != null) tintCompoundDrawables(navSettings.getChildAt(0), color);
@@ -294,7 +323,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    // --- IMAGE PICKER LOGIC ---
     private void openGallery() {
         Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
         intent.setType("image/*");
@@ -441,7 +469,6 @@ public class MainActivity extends AppCompatActivity {
 
             if(tvCpuVendor != null) tvCpuVendor.setText(vendor);
 
-            // --- FREQ LOGIC (NO AUTO SLIDER UPDATE - MANUAL ONLY) ---
             String max = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
             String scalingMax = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq");
             String cur = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq");
@@ -459,8 +486,6 @@ public class MainActivity extends AppCompatActivity {
 
             if(tvMaxFreq != null) tvMaxFreq.setText((currentMaxVal/1000) + " MHz");
             if(tvMaxFreqTools != null) tvMaxFreqTools.setText((currentMaxVal/1000) + " MHz");
-            
-            // DILARANG MENGUBAH SLIDER DISINI AGAR TIDAK JUMPING
 
             // CLUSTERS
             String cpuCount = runSuReturn("cat /proc/cpuinfo | grep 'processor' | wc -l");
@@ -474,9 +499,8 @@ public class MainActivity extends AppCompatActivity {
             if(tvLittleCluster != null) tvLittleCluster.setText((little.isEmpty() ? "N/A" : (Integer.parseInt(little)/1000) + " MHz"));
             if(tvBigCluster != null) tvBigCluster.setText((big.isEmpty() ? "N/A" : (Integer.parseInt(big)/1000) + " MHz"));
 
-            // --- TEMP BATTERY FIX (AKURAT) ---
+            // TEMP
             String temp = "";
-            // Cari thermal zone yang berhubungan dengan baterai
             for(int i=0; i<20; i++) {
                 String type = runSuReturn("cat /sys/class/thermal/thermal_zone"+i+"/type 2>/dev/null");
                 if(type.toLowerCase().contains("batt") || type.toLowerCase().contains("battery") || type.toLowerCase().contains("tsens")) {
@@ -484,19 +508,18 @@ public class MainActivity extends AppCompatActivity {
                     if(!temp.isEmpty() && Integer.parseInt(temp) > 0) break;
                 }
             }
-            // Fallback langsung ke power supply
             if(temp.isEmpty()) temp = runSuReturn("cat /sys/class/power_supply/battery/temp 2>/dev/null");
             
             if(!temp.isEmpty() && tvTemp != null) {
                 try {
                     int t = Integer.parseInt(temp.trim());
                     if(t > 1000) t = t / 1000; 
-                    if(t == 0) throw new Exception(); // Jika 0, anggap gagal baca
+                    if(t == 0) throw new Exception(); 
                     tvTemp.setText(t + "°C");
                 } catch (Exception e) { tvTemp.setText("N/A"); }
             }
 
-            // --- GPU RENDERER FIX (AKURAT) ---
+            // GPU
             String gpu = "Unknown GPU";
             if (platform.contains("mt") || hardware.contains("mt")) {
                 gpu = runSuReturn("cat /sys/class/misc/mali0/device/gpu_model 2>/dev/null");
