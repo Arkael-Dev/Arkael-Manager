@@ -4,7 +4,6 @@ import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
@@ -13,7 +12,6 @@ import android.net.Uri;
 import android.os.Build;
 import android.os.BatteryManager;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
@@ -25,7 +23,6 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
-import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 import android.widget.ViewFlipper;
@@ -33,7 +30,6 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
 import com.bumptech.glide.Glide;
 import java.io.BufferedReader;
 import java.io.File;
@@ -45,22 +41,22 @@ import java.io.OutputStream;
 public class MainActivity extends AppCompatActivity {
     private TextView tvRam, tvZram, tvCpu, tvBattery;
     private TextView tvKernel, tvDevice, tvTerminalLog;
-    private TextView tvLittleCluster, tvBigCluster, tvCurrentFreq, tvMaxFreq, tvCpuVendor, tvTemp, tvGpuRenderer, tvGpuVersion, tvMaxFreqTools, tvAuthActive;
+    private TextView tvLittleCluster, tvBigCluster, tvCpuVendor, tvTemp, tvGpuRenderer, tvGpuVersion, tvAuthActive;
+    // Tambahan untuk GPU Freq Akurat
+    private TextView tvGpuCurFreq, tvGpuMaxFreq;
+    
     private ImageView headerBanner;
-    private SeekBar seekBarMaxFreq;
     private LinearLayout cardRam, cardBat, rootLayout, bannerContainer;
     private ViewFlipper viewFlipper;
     private LinearLayout navSystem, navTools, navSettings;
 
     private SharedPreferences prefs;
     private Handler handler = new Handler(Looper.getMainLooper());
-    private int maxFreqKhz = 0;
-    private int minFreqKhz = 0;
     private boolean isGlassTheme = false;
     private boolean isRainbowTheme = false;
+    private boolean gpuInfoLoaded = false;
     
-    // SECRET KEY (AKAN DIBACA OTOMATIS DARI FILE)
-    private String SECRET_PASSKEY = "vortex"; // Default fallback
+    private String SECRET_PASSKEY = "vortex"; 
     
     private ActivityResultLauncher<Intent> pickImageLauncher;
 
@@ -70,8 +66,6 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         prefs = getSharedPreferences("VortexPrefs", 0);
-        
-        // 1. BACA PASSKEY OTOMATIS DARI FILE ASSETS
         readPasskeyFromAssets();
         
         pickImageLauncher = registerForActivityResult(
@@ -95,40 +89,36 @@ public class MainActivity extends AppCompatActivity {
         
         tvLittleCluster = findViewById(R.id.tv_little_cluster);
         tvBigCluster = findViewById(R.id.tv_big_cluster);
-        tvCurrentFreq = findViewById(R.id.tv_current_freq);
-        tvMaxFreq = findViewById(R.id.tv_max_freq);
         tvCpuVendor = findViewById(R.id.tv_cpu_vendor);
         tvTemp = findViewById(R.id.tv_temp);
         tvGpuRenderer = findViewById(R.id.tv_gpu_renderer);
         tvGpuVersion = findViewById(R.id.tv_gpu_version);
-        tvMaxFreqTools = findViewById(R.id.tv_max_freq_tools);
+        tvGpuCurFreq = findViewById(R.id.tv_gpu_cur_freq);
+        tvGpuMaxFreq = findViewById(R.id.tv_gpu_max_freq);
         tvAuthActive = findViewById(R.id.tv_auth_active);
 
         headerBanner = findViewById(R.id.header_banner);
-        seekBarMaxFreq = findViewById(R.id.seekbar_max_freq);
         cardRam = findViewById(R.id.card_ram);
         cardBat = findViewById(R.id.card_bat);
         rootLayout = findViewById(R.id.root_layout);
-        bannerContainer = findViewById(R.id.banner_container);
+        bannerContainer = findViewById(R.id/banner_container);
 
         viewFlipper = findViewById(R.id.main_view_flipper);
         navSystem = findViewById(R.id.nav_system);
         navTools = findViewById(R.id.nav_tools);
         navSettings = findViewById(R.id.nav_settings);
 
-        // Load Theme Settings
         isGlassTheme = prefs.getBoolean("glass_theme", false);
         isRainbowTheme = prefs.getBoolean("rainbow_theme", false);
         applyThemeSettings();
 
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
 
-        // 2. AUTH LOGIC (FIX & AUTO-UNLOCK KERNEL)
+        // --- AUTH LOGIC ---
         String kernelVer = System.getProperty("os.version").toLowerCase();
         String devName = Build.DEVICE.toLowerCase();
         String prodName = Build.PRODUCT.toLowerCase();
         
-        // Cek apakah pakai Kernel VorteX E-Sport (Auto Unlock)
         boolean isEKernel = kernelVer.contains("vortex-e-sport") || 
                             kernelVer.contains("vortex_esport") || 
                             kernelVer.contains("vortex");
@@ -137,7 +127,7 @@ public class MainActivity extends AppCompatActivity {
             prefs.edit().putBoolean("is_unlocked", true).apply();
             if(tvAuthActive != null) {
                 tvAuthActive.setVisibility(View.VISIBLE);
-                tvAuthActive.setText("● AUTH ACTIVE (VORTEX-E-SPORT)");
+                tvAuthActive.setText("AUTH ACTIVE (VORTEX-E-SPORT)");
             }
         } else {
             if(tvAuthActive != null) tvAuthActive.setVisibility(View.GONE);
@@ -149,8 +139,6 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_unlock).setOnClickListener(v -> {
             EditText input = findViewById(R.id.input_code);
             String userInput = input.getText().toString().trim();
-            
-            // Cek Passkey (Yang sudah dibaca otomatis dari file assets)
             if(userInput.equals(SECRET_PASSKEY)) {
                 prefs.edit().putBoolean("is_unlocked", true).apply();
                 refreshUI();
@@ -159,7 +147,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Tools Clicks
         findViewById(R.id.btn_cpu_gov).setOnClickListener(v -> pickGov());
         findViewById(R.id.btn_set_zram).setOnClickListener(v -> showZramMenu());
         findViewById(R.id.btn_thermal).setOnClickListener(v -> showThermalMenu());
@@ -167,8 +154,11 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Starting Advanced Clean...", Toast.LENGTH_SHORT).show();
             cleanRam();
         });
+        findViewById(R.id.btn_boost_gpu).setOnClickListener(v -> {
+            Toast.makeText(this, "Applying GPU Boost...", Toast.LENGTH_SHORT).show();
+            boostGPU();
+        });
 
-        // Nav (Handle Banner Visibility)
         navSystem.setOnClickListener(v -> { 
             viewFlipper.setDisplayedChild(0); 
             updateNavUI(0);
@@ -185,7 +175,6 @@ public class MainActivity extends AppCompatActivity {
             bannerContainer.setVisibility(View.GONE); 
         });
 
-        // Settings Actions
         findViewById(R.id.banner_click_area).setOnClickListener(v -> openGallery());
         findViewById(R.id.btn_reset_banner).setOnClickListener(v -> {
             prefs.edit().putString("custom_banner_path", "").apply();
@@ -193,7 +182,6 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Banner Reset", Toast.LENGTH_SHORT).show();
         });
 
-        // Pro Theme Actions
         findViewById(R.id.btn_theme_glass).setOnClickListener(v -> {
             isGlassTheme = !isGlassTheme;
             prefs.edit().putBoolean("glass_theme", isGlassTheme).apply();
@@ -203,8 +191,7 @@ public class MainActivity extends AppCompatActivity {
 
         findViewById(R.id.btn_theme_rainbow).setOnClickListener(v -> {
             isRainbowTheme = !isRainbowTheme;
-            prefs.edit().putBoolean("rainbow_theme", isRainbowTheme).apply();
-            applyThemeSettings();
+            prefs.edit().putBoolean("rainbow_theme", isRainbowTheme).applyThemeSettings();
             Toast.makeText(this, "Rainbow Icons: " + (isRainbowTheme?"ON":"OFF"), Toast.LENGTH_SHORT).show();
         });
 
@@ -212,60 +199,50 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_bg_white).setOnClickListener(v -> setBackgroundMode(1));
         findViewById(R.id.btn_bg_gray).setOnClickListener(v -> setBackgroundMode(2));
 
-        // Links
         findViewById(R.id.tv_dev_link).setOnClickListener(v -> openUrl("https://t.me/VorteXSU_Dev"));
         findViewById(R.id.tv_channel_link).setOnClickListener(v -> openUrl("https://t.me/vortexgki"));
-
-        // Slider Logic (MANUAL ONLY)
-        seekBarMaxFreq.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser && maxFreqKhz > 0 && minFreqKhz > 0) {
-                    int range = maxFreqKhz - minFreqKhz;
-                    int targetFreq = minFreqKhz + ((range * progress) / 100);
-                    setMaxFreq(targetFreq);
-                    if(tvMaxFreqTools != null) tvMaxFreqTools.setText((targetFreq/1000) + " MHz");
-                }
-            }
-            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
-            @Override public void onStopTrackingTouch(SeekBar seekBar) {}
-        });
 
         loadCustomBanner();
     }
 
-    // FUNGSI MEMBACA PASSKEY DARI FILE ASSETS
+    private void boostGPU() {
+        new Thread(() -> {
+            runSu("echo performance > /sys/class/kgsl/kgsl-3d0/devfreq/soc:qcom,kgsl-3d0/governor 2>/dev/null");
+            runSu("echo performance > /sys/class/devfreq/mali0/governor 2>/dev/null");
+            runOnUiThread(() -> {
+                Toast.makeText(this, "GPU Boosted", Toast.LENGTH_SHORT).show();
+                tvTerminalLog.setText("> GPU Governor set to PERFORMANCE");
+            });
+        }).start();
+    }
+
     private void readPasskeyFromAssets() {
         try {
-            // Membaca file VORTEX_PASSKEY.txt yang ada di folder app/src/main/assets/
-            InputStream is = getAssets().open("VORTEX_PASSKEY.txt");
+            // Baca file VORTEX_PASSKEY.TXT dari assets (yang dipindah oleh workflow)
+            InputStream is = getAssets().open("VORTEX_PASSKEY.TXT");
             BufferedReader reader = new BufferedReader(new InputStreamReader(is));
             String line = reader.readLine();
             if (line != null && line.contains("PASSKEY:")) {
-                // Ambil kata setelah "PASSKEY:"
                 String[] parts = line.split(":");
                 if(parts.length > 1) {
                     SECRET_PASSKEY = parts[1].trim();
                 }
             }
             is.close();
-        } catch (Exception e) {
-            // Jika file tidak ketemu, gunakan default atau abaikan
-            // SECRET_PASSKEY tetap "vortex" (default)
-        }
+        } catch (Exception e) { }
     }
 
     private void setBackgroundMode(int mode) {
         int bgCol, cardCol, textCol;
-        
-        if(mode == 0) { // Black
+        if(mode == 0) { 
             bgCol = Color.parseColor("#121212");
             cardCol = Color.parseColor("#1E1E1E");
             textCol = Color.WHITE;
-        } else if (mode == 1) { // White
+        } else if (mode == 1) { 
             bgCol = Color.parseColor("#F0F0F0");
             cardCol = Color.parseColor("#FFFFFF");
             textCol = Color.BLACK;
-        } else { // Gray
+        } else { 
             bgCol = Color.parseColor("#808080");
             cardCol = Color.parseColor("#909090");
             textCol = Color.WHITE;
@@ -398,13 +375,6 @@ public class MainActivity extends AppCompatActivity {
         applyIconColor(); 
     }
 
-    private void setMaxFreq(int khz) {
-        new Thread(() -> {
-            String cmd = "for c in /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq; do echo " + khz + " > $c; done";
-            runSu(cmd);
-        }).start();
-    }
-
     private void refreshUI() {
         boolean ok = prefs.getBoolean("is_unlocked", false);
         findViewById(R.id.layout_locked).setVisibility(ok ? View.GONE : View.VISIBLE);
@@ -436,7 +406,7 @@ public class MainActivity extends AppCompatActivity {
             if(tvBattery != null) {
                 int level = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
                 int status = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS);
-                String statusText = (status == BatteryManager.BATTERY_STATUS_CHARGING) ? "Charging" : "Discharging";
+                String statusText = (status == BatteryManager.BATTERY_STATUS_CHARGING) ? "Charging" : "Discharging");
                 tvBattery.setText(level + "% (" + statusText + ")");
             }
 
@@ -444,7 +414,7 @@ public class MainActivity extends AppCompatActivity {
             if(tvCpu != null) tvCpu.setText(gov.toUpperCase());
 
             String z = runSuReturn("cat /sys/block/zram0/disksize");
-            if(tvZram != null) tvZram.setText((z.isEmpty() ? "0" : (Long.parseLong(z)/1048576)) + " MB");
+            if(tvZram != null) tvZram.setText((z.isEmpty() ? "0" : (Long.parseLong(z)/1048576) + " MB"));
         } catch (Exception ignored) {}
     }
 
@@ -469,76 +439,70 @@ public class MainActivity extends AppCompatActivity {
 
             if(tvCpuVendor != null) tvCpuVendor.setText(vendor);
 
-            String max = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
-            String scalingMax = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq");
-            String cur = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq");
-            
-            if(!max.isEmpty()) maxFreqKhz = Integer.parseInt(max);
-
-            if(!cur.isEmpty() && tvCurrentFreq != null) tvCurrentFreq.setText((Integer.parseInt(cur)/1000) + " MHz");
-            
-            int currentMaxVal = 0;
-            if(!scalingMax.isEmpty()) {
-                currentMaxVal = Integer.parseInt(scalingMax);
-            } else if (!max.isEmpty()) {
-                currentMaxVal = maxFreqKhz;
-            }
-
-            if(tvMaxFreq != null) tvMaxFreq.setText((currentMaxVal/1000) + " MHz");
-            if(tvMaxFreqTools != null) tvMaxFreqTools.setText((currentMaxVal/1000) + " MHz");
-
-            // CLUSTERS
-            String cpuCount = runSuReturn("cat /proc/cpuinfo | grep 'processor' | wc -l");
-            int cores = cpuCount.isEmpty() ? 4 : Integer.parseInt(cpuCount.trim());
+            // --- CPU CLUSTERS (SPECIFIC CORES) ---
+            String littleMax = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
+            String cpuCountStr = runSuReturn("cat /proc/cpuinfo | grep 'processor' | wc -l");
+            int cores = cpuCountStr.isEmpty() ? 4 : Integer.parseInt(cpuCountStr.trim());
             int lastCore = Math.max(0, cores - 1);
-            
-            String little = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
-            String big = runSuReturn("cat /sys/devices/system/cpu/cpu"+lastCore+"/cpufreq/cpuinfo_max_freq");
-            if(big.isEmpty()) big = little;
+            String bigMax = runSuReturn("cat /sys/devices/system/cpu/cpu"+lastCore+"/cpufreq/cpuinfo_max_freq");
+            if(bigMax.isEmpty()) bigMax = littleMax;
 
-            if(tvLittleCluster != null) tvLittleCluster.setText((little.isEmpty() ? "N/A" : (Integer.parseInt(little)/1000) + " MHz"));
-            if(tvBigCluster != null) tvBigCluster.setText((big.isEmpty() ? "N/A" : (Integer.parseInt(big)/1000) + " MHz"));
+            if(tvLittleCluster != null) tvLittleCluster.setText((littleMax.isEmpty() ? "N/A" : (Integer.parseInt(littleMax)/1000) + " MHz"));
+            if(tvBigCluster != null) tvBigCluster.setText((bigMax.isEmpty() ? "N/A" : (Integer.parseInt(bigMax)/1000) + " MHz"));
 
-            // TEMP
-            String temp = "";
-            for(int i=0; i<20; i++) {
-                String type = runSuReturn("cat /sys/class/thermal/thermal_zone"+i+"/type 2>/dev/null");
-                if(type.toLowerCase().contains("batt") || type.toLowerCase().contains("battery") || type.toLowerCase().contains("tsens")) {
-                    temp = runSuReturn("cat /sys/class/thermal/thermal_zone"+i+"/temp 2>/dev/null");
-                    if(!temp.isEmpty() && Integer.parseInt(temp) > 0) break;
-                }
-            }
-            if(temp.isEmpty()) temp = runSuReturn("cat /sys/class/power_supply/battery/temp 2>/dev/null");
+            // --- TEMPERATURE (ONE PATH ONLY ANTI LAG) ---
+            // JANGAN LOOP 20x! CUKUP 1 PATH BATTERY SAJA KARNA AGAR AKURAT
+            String temp = runSuReturn("cat /sys/class/power_supply/battery/temp 2>/dev/null");
+            if(temp.isEmpty()) temp = runSuReturn("cat /sys/class/thermal/thermal_zone0/temp 2>/dev/null");
             
             if(!temp.isEmpty() && tvTemp != null) {
                 try {
                     int t = Integer.parseInt(temp.trim());
                     if(t > 1000) t = t / 1000; 
                     if(t == 0) throw new Exception(); 
-                    tvTemp.setText(t + "°C");
+                    tvTemp.setText(t + "C");
                 } catch (Exception e) { tvTemp.setText("N/A"); }
             }
 
-            // GPU
-            String gpu = "Unknown GPU";
-            if (platform.contains("mt") || hardware.contains("mt")) {
-                gpu = runSuReturn("cat /sys/class/misc/mali0/device/gpu_model 2>/dev/null");
-                if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/kernel/debug/mali0/gpu_id 2>/dev/null");
-                if(gpu.isEmpty()) gpu = "Mali GPU";
-            } else if (platform.contains("qcom") || platform.contains("msm")) {
-                gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_model 2>/dev/null");
-                if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/devices/platform/soc/soc:qcom,kgsl-3d0/devfreq/soc:qcom,kgsl-3d0/gpu_model 2>/dev/null");
-                if(gpu.isEmpty()) gpu = "Adreno GPU";
-            } else if (platform.contains("exynos")) {
-                 gpu = "Exynos GPU";
+            // --- GPU RENDERER & FREQ (LIGHTWEIGHT) ---
+            // Hapus Dumpsys (Berat!). Gunakan sysfs.
+            if(!gpuInfoLoaded && tvGpuRenderer != null) {
+                String gpu = "Unknown GPU";
+                if (platform.contains("mt") || hardware.contains("mt")) {
+                    gpu = runSuReturn("cat /sys/class/misc/mali0/device/gpu_model 2>/dev/null");
+                    if(gpu.isEmpty()) gpu = "Mali GPU";
+                } else if (platform.contains("qcom") || platform.contains("msm")) {
+                    gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_model 2>/dev/null");
+                    if(gpu.isEmpty()) gpu = "Adreno GPU";
+                } else if (platform.contains("exynos")) {
+                     gpu = "Exynos GPU";
+                }
+                tvGpuRenderer.setText(gpu);
+                gpuInfoLoaded = true; 
             }
-
-            if(tvGpuRenderer != null) tvGpuRenderer.setText(gpu);
 
             String gl = runSuReturn("getprop ro.opengles.version");
             if(tvGpuVersion != null) {
                 if(gl.isEmpty()) tvGpuVersion.setText("OpenGL ES 3.x");
                 else tvGpuVersion.setText("OpenGL ES " + gl);
+            }
+
+            // --- GPU FREQUENCY (CURRENT & MAX) ---
+            // Adreno
+            String gpuCur = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/devfreq/soc:qcom,kgsl-3d0/cur_freq 2>/dev/null");
+            String gpuMax = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/devfreq/soc:qcom,kgsl-3d0/max_freq 2>/dev/null");
+            
+            // Fallback Mali
+            if(gpuCur.isEmpty()) {
+                gpuCur = runSuReturn("cat /sys/class/devfreq/mali0/cur_freq 2>/dev/null");
+                gpuMax = runSuReturn("cat /sys/class/devfreq/mali0/max_freq 2>/dev/null");
+            }
+
+            if(!gpuCur.isEmpty() && tvGpuCurFreq != null) {
+                try { tvGpuCurFreq.setText((Integer.parseInt(gpuCur)/1000000) + " GHz"); } catch (Exception e) { tvGpuCurFreq.setText("N/A"); }
+            }
+            if(!gpuMax.isEmpty() && tvGpuMaxFreq != null) {
+                try { tvGpuMaxFreq.setText((Integer.parseInt(gpuMax)/1000000) + " GHz"); } catch (Exception e) { tvGpuMaxFreq.setText("N/A"); }
             }
 
         } catch (Exception e) { e.printStackTrace(); }
@@ -614,7 +578,7 @@ public class MainActivity extends AppCompatActivity {
                     runSu("stop thermald 2>/dev/null");
                     runSu("stop thermal-engine 2>/dev/null");
                     runOnUiThread(() -> { 
-                        tvTerminalLog.setText("Thermal Disabled\n(Unlocked Performance)");
+                        tvTerminalLog.setText("Thermal Disabled (Unlocked Performance)");
                         Toast.makeText(this, "Thermal DISABLED", Toast.LENGTH_SHORT).show(); 
                     });
                 }).start();
@@ -623,8 +587,10 @@ public class MainActivity extends AppCompatActivity {
                     runOnUiThread(() -> tvTerminalLog.setText("> Enabling Thermal..."));
                     runSu("start thermald 2>/dev/null");
                     runSu("start thermal-engine 2>/dev/null");
-                    runOnUiThread(() -> { 
-                        tvTerminalLog.setText("Thermal Enabled\n(Safe Mode)");
+                    runSu("start mi_thermald 2>/dev/null");
+                    runSu("start mi_thermald 2>/dev/null");
+                    runUiThread(() -> { 
+                        tvTerminalLog.setText("Thermal Enabled (Safe Mode)");
                         Toast.makeText(this, "Thermal ENABLED", Toast.LENGTH_SHORT).show(); 
                     });
                 }).start();
@@ -665,7 +631,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void cleanRam() {
         new Thread(() -> {
-            String script = "cache_cleared=0\ncache_total_kb=0\nget_size() { du -sk \"$1\" 2>/dev/null | awk '{print $1}'; }\nshow_cleaning_progress() {\n    local duration=10\n    local i=1\n    local spinner=\"123456789\"\n    local spinner_len=10\n    while [ $i -le $duration ]; do\n        spinner_char=$(echo $spinner | cut -c $(( ( ($i-1) % spinner_len ) + 1 )) )\n        echo -ne \"🧹 [CLEANING CACHE] $i $spinner_char\\r\"\n        sleep 1\n        i=$((i+1))\n    done\n    echo -ne \"\\n\"\n}\nshow_cleaning_progress\napp_cache_dirs=(\n    \"/data/data/*/cache\"\n    \"/data/data/*/code_cache\"\n    \"/data/user_de/*/*/cache\"\n    \"/data/user_de/*/*/code_cache\"\n    \"/sdcard/Android/data/*/cache\"\n    \"/data/system/dropbox\"\n)\nstep=1\ntotal_steps=$(( ${#app_cache_dirs[@]} + 6 ))\nfor dir in \"${app_cache_dirs[@]}\"\ndo\n    size=$(du -cs $dir 2>/dev/null | grep total | cut -f 1)\n    [ -n \"$size\" ] && cache_total_kb=$((cache_total_kb + size))\n    echo -ne \" [$step/$total_steps] Cleaning: $dir ${size:-0} KB\\r\"\n    find $dir/* -delete &>/dev/null\n    sleep 1\n    echo -ne \"\\n\"\n    step=$((step+1))\ndone\nsystem_cache_dirs=(\n    \"/cache\"\n    \"/data/dalvik-cache\"\n    \"/data/system/gpu\"\n    \"/system/cache\"\n    \"/vendor/cache\"\n)\nfor sysdir in \"${system_cache_dirs[@]}\"\ndo\n    [ -d \"$sysdir\" ] && cache_total_kb=$((cache_total_kb + $(get_size \"$sysdir\")))\ndone\n[ -d /cache ] && rm -rf /cache/* && echo \"[$step/$total_steps]  Clearing /cache...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\n[ -d /data/dalvik-cache ] && rm -rf /data/dalvik-cache/* && echo \"[$step/$total_steps] Clearing /data/dalvik-cache...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\nsync; echo 3 > /proc/sys/vm/drop_caches && echo \"[$step/$total_steps] Dropping system caches...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\n[ -d /data/system/gpu ] && rm -rf /data/system/gpu/* && echo \"[$step/$total_steps] Clearing /data/system/gpu...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\n[ -d /system/cache ] && rm -rf /system/cache/* && echo \"[$step/$total_steps] Clearing /system/cache...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\n[ -d /vendor/cache ] && rm -rf /vendor/cache/* && echo \"[$step/$total_steps] Clearing /vendor/cache...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\ncache_total_mb=$(awk \"BEGIN {printf \\\"%.2f\\\", $cache_total_kb/1024}\")\necho \"[OK] Cache Cleanup: Cleared $cache_cleared cache directories.\"\necho \"[OK] Estimated cache cleaned: $cache_total_mb MB\"";
+            String script = "cache_cleared=0\ncache_total_kb=0\nget_size() { du -sk \"$1\" 2>/dev/null | awk '{print $1}'; }\nshow_cleaning_progress() {\n    local duration=10\n    local i=1\n    local spinner=\"123456789\"\n    local spinner_len=10\n    while [ $i -le $duration ]; do\n        spinner_char=$(echo $spinner | cut -c $(( ( ($i-1) % spinner_len ) + 1 )) )\n        echo -ne \"[CLEANING CACHE] $i $spinner_char\\r\"\n        sleep 1\n        i=$((i+1))\n    done\n    echo -ne \"\\n\"\n}\nshow_cleaning_progress\napp_cache_dirs=(\n    \"/data/data/*/cache\"\n    \"/data/data/*/code_cache\"\n    \"/data/user_de/*/*/cache\"\n    \"/data/user_de/*/*/code_cache\"\n    \"/sdcard/Android/data/*/cache\"\n    \"/data/system/dropbox\"\n)\nstep=1\ntotal_steps=$(( ${#app_cache_dirs[@]} + 6 ))\nfor dir in \"${app_cache_dirs[@]}\"\ndo\n    size=$(du -cs $dir 2>/dev/null | grep total | cut -f 1)\n    [ -n \"$size\" ] && cache_total_kb=$((cache_total_kb + size))\n    echo -ne \" [$step/$total_steps] Cleaning: $dir ${size:-0} KB\\r\"\n    find $dir/* -delete &>/dev/null\n    sleep 1\n    echo -ne \"\\n\"\n    step=$((step+1))\ndone\nsystem_cache_dirs=(\n    \"/cache\"\n    \"/data/dalvik-cache\"\n    \"/data/system/gpu\"\n    \"/system/cache\"\n    \"/vendor/cache\"\n)\nfor sysdir in \"${system_cache_dirs[@]}\"\ndo\n    [ -d \"$sysdir\" ] && cache_total_kb=$((cache_total_kb + $(get_size \"$sysdir\")))\ndone\n[ -d /cache ] && rm -rf /cache/* && echo \"[$step/$total_steps]  Clearing /cache...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\n[ -d /data/dalvik-cache ] && rm -rf /data/dalvik-cache/* && echo \"[$step/$total_steps]  Clearing /data/dalvik-cache...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\nsync; echo 3 > /proc/sys/vm/drop_caches && echo \"[$step/$total_steps] Dropping system caches...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\n[ -d /data/system/gpu ] && rm -rf /data/system/gpu/* && echo \"[$step/$total_steps] Clearing /data/system/gpu...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\n[ -d /system/cache ] && rm -rf /system/cache/* && echo \"[$step/$total_steps] Clearing /system/cache...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\n[ -d /vendor/cache ] && rm -rf /vendor/cache/* && echo \"[$step/$total_steps] Clearing /vendor/cache...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\ncache_total_mb=$(awk \"BEGIN {printf \\\"%.2f\\\", $cache_total_kb/1024}\")\necho \"[OK] Cache Cleanup: Cleared $cache_cleared cache directories.\"\necho \"[OK] Estimated cache cleaned: $cache_total_mb MB\"";
 
             runOnUiThread(() -> tvTerminalLog.setText("> Starting Advanced Clean..."));
 
