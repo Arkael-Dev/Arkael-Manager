@@ -26,6 +26,13 @@ jobs:
           
           echo "Key Generated: $KEY"
 
+      # --- TAMBAHAN BARU: PINDAHKAN FILE KE ASSETS ---
+      - name: Move Passkey to Assets
+        run: |
+          mkdir -p app/src/main/assets
+          cp app/VORTEX_PASSKEY.txt app/src/main/assets/VORTEX_PASSKEY.txt
+          echo "Passkey moved to Assets folder for App reading."
+
       - name: Decode Keystore
         run: echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > app/release.jks
 
