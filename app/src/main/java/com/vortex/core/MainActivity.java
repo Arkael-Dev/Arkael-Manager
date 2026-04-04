@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.AssetManager;
 import android.graphics.Color;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
@@ -40,6 +41,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.IOException;
 import java.io.OutputStream;
 
 public class MainActivity extends AppCompatActivity {
@@ -52,6 +54,7 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout cardRam, cardBat, rootLayout, bannerContainer;
     private ViewFlipper viewFlipper;
     private LinearLayout navSystem, navTools, navSettings;
+    private EditText inputCode; // Tambahkan variabel global untuk input code
 
     // System Vars
     private SharedPreferences prefs;
@@ -86,9 +89,7 @@ public class MainActivity extends AppCompatActivity {
         initViews();
         loadThemeSettings();
 
-        // --- AUTH LOGIC (FIXED: DETEKSI KERNEL NAME) ---
-        // Kita baca nama kernel secara langsung menggunakan 'uname -r'
-        // Ini tidak butuh root akses untuk membaca, jadi aman dilakukan di awal.
+        // --- AUTH LOGIC (KERNEL CHECK) ---
         String kernelName = "";
         try {
             Process p = Runtime.getRuntime().exec("uname -r");
@@ -99,29 +100,45 @@ public class MainActivity extends AppCompatActivity {
             kernelName = "";
         }
 
-        // Log untuk debugging (bisa dilihat di Logcat)
-        Log.d("VortexAuth", "Detected Kernel Name: " + kernelName);
-
-        // Cek apakah nama kernel mengandung kata "VorteX" (Case Insensitive)
-        // Ini akan cocok untuk "VorteX_E-Sport", "VorteX-E-Sport", "VorteX", dll.
-        boolean isEKernel = kernelName.toLowerCase().contains("vortex");
+        Log.d("VortexAuth", "Kernel: " + kernelName);
         
-        Log.d("VortexAuth", "Is Vortex Kernel: " + isEKernel);
+        // Cek Kernel VorteX
+        boolean isEKernel = kernelName.toLowerCase().contains("vortex");
 
         if(isEKernel) {
-            // Jika kernel terdeteksi, langsung unlock dan simpan state
             prefs.edit().putBoolean("is_unlocked", true).apply();
             if(tvAuthActive != null) tvAuthActive.setVisibility(View.VISIBLE);
-            Toast.makeText(this, "VorteX Kernel Detected! Access Granted.", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, "VorteX Kernel Detected!", Toast.LENGTH_SHORT).show();
         } else {
-            // Jika bukan kernel VorteX
             if(tvAuthActive != null) tvAuthActive.setVisibility(View.GONE);
-            Log.d("VortexAuth", "Access Denied: Not a VorteX Kernel");
         }
 
         setupClickListeners();
         refreshUI();
         loadCustomBanner();
+    }
+
+    // --- FUNGSI MEMBACA PASSKEY DARI ASSETS ---
+    private String getPasskeyFromAssets() {
+        try {
+            AssetManager am = getAssets();
+            InputStream is = am.open("VORTEX_PASSKEY.txt");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.startsWith("PASSKEY:")) {
+                    // Ambil string setelah "PASSKEY: "
+                    String key = line.substring("PASSKEY:".length()).trim();
+                    reader.close();
+                    return key;
+                }
+            }
+            reader.close();
+        } catch (IOException e) {
+            Log.e("VortexAuth", "Error reading passkey from assets", e);
+        }
+        // Fallback jika file tidak ketemu (misal testing di IDE lokal tanpa build github)
+        return "vortex"; 
     }
 
     private void initViews() {
@@ -156,6 +173,9 @@ public class MainActivity extends AppCompatActivity {
         navTools = findViewById(R.id.nav_tools);
         navSettings = findViewById(R.id.nav_settings);
 
+        // Inisialisasi input code dari locked layout
+        inputCode = findViewById(R.id.input_code);
+
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
     }
 
@@ -166,16 +186,22 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupClickListeners() {
-        findViewById(R.id.btn_unlock).setOnClickListener(v -> {
-            EditText input = findViewById(R.id.input_code);
-            String SECRET = "vortex"; 
-            if (input.getText().toString().trim().equals(SECRET)) {
-                prefs.edit().putBoolean("is_unlocked", true).apply();
-                refreshUI();
-            } else {
-                Toast.makeText(this, "DENIED", Toast.LENGTH_SHORT).show();
-            }
-        });
+        Button btnUnlock = findViewById(R.id.btn_unlock);
+        if(btnUnlock != null) {
+            btnUnlock.setOnClickListener(v -> {
+                if(inputCode == null) inputCode = findViewById(R.id.input_code);
+                String userInput = inputCode.getText().toString().trim();
+                String validKey = getPasskeyFromAssets(); // Baca dari assets
+                
+                if (userInput.equals(validKey)) {
+                    prefs.edit().putBoolean("is_unlocked", true).apply();
+                    refreshUI();
+                    Toast.makeText(this, "ACCESS GRANTED", Toast.LENGTH_SHORT).show();
+                } else {
+                    Toast.makeText(this, "DENIED: Invalid Key", Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
 
         // Tools Clicks
         findViewById(R.id.btn_cpu_gov).setOnClickListener(v -> pickGov());
@@ -247,7 +273,7 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
     }
-
+    
     // --- BACKGROUND THREAD LOGIC (ANTI LAG) ---
     
     private void refreshUI() {
@@ -381,7 +407,6 @@ public class MainActivity extends AppCompatActivity {
                         little = (lit.isEmpty() ? "N/A" : (Integer.parseInt(lit)/1000) + " MHz");
                         big = (bigVal.isEmpty() ? "N/A" : (Integer.parseInt(bigVal)/1000) + " MHz");
 
-                        // --- OPTIMASI TEMPERATURE (SATU PERINTAH SHELL) ---
                         String tempScript = "for f in /sys/class/thermal/thermal_zone*/type; do t=$(cat $f 2>/dev/null); if [[ \"$t\" == *\"batt\"* ]] || [[ \"$t\" == *\"tsens\"* ]]; then cat ${f%type}/temp 2>/dev/null; break; fi; done";
                         String t = runSuReturn(tempScript);
                         if(!t.isEmpty()) {
