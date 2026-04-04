@@ -12,9 +12,10 @@ import android.text.method.ScrollingMovementMethod;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CompoundButton;
 import android.widget.EditText;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -25,21 +26,17 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
 public class MainActivity extends AppCompatActivity {
-    // OLD VARS
     private TextView tvRam, tvZram, tvCpu, tvBattery;
     private TextView tvKernel, tvDevice, tvTerminalLog;
-
-    // NEW VARS (DETAILED STATS)
     private TextView tvLittleCluster, tvBigCluster, tvCurrentFreq, tvMaxFreq, tvCpuVendor, tvTemp, tvGpuRenderer, tvGpuVersion;
 
-    // NAVIGATION
     private ViewFlipper viewFlipper;
     private LinearLayout navSystem, navTools, navSettings;
-    private ImageView imgNavSystem, imgNavTools, imgNavSettings;
-    private TextView txtNavSystem, txtNavTools, txtNavSettings;
+    private LinearLayout rootLayout; // For Theme Changing
 
     private SharedPreferences prefs;
     private Handler handler = new Handler(Looper.getMainLooper());
+    private boolean isDarkTheme = true; // Default Dark
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -47,8 +44,9 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
 
         prefs = getSharedPreferences("VortexPrefs", 0);
+        isDarkTheme = prefs.getBoolean("dark_theme", true);
 
-        // --- INIT OLD VIEWS ---
+        // --- INIT VIEWS ---
         tvRam = findViewById(R.id.tv_ram);
         tvZram = findViewById(R.id.tv_zram);
         tvCpu = findViewById(R.id.tv_cpu);
@@ -56,8 +54,6 @@ public class MainActivity extends AppCompatActivity {
         tvKernel = findViewById(R.id.tv_kernel);
         tvDevice = findViewById(R.id.tv_device);
         tvTerminalLog = findViewById(R.id.tv_terminal_log);
-
-        // --- INIT NEW VIEWS (STATS) ---
         tvLittleCluster = findViewById(R.id.tv_little_cluster);
         tvBigCluster = findViewById(R.id.tv_big_cluster);
         tvCurrentFreq = findViewById(R.id.tv_current_freq);
@@ -67,20 +63,20 @@ public class MainActivity extends AppCompatActivity {
         tvGpuRenderer = findViewById(R.id.tv_gpu_renderer);
         tvGpuVersion = findViewById(R.id.tv_gpu_version);
 
-        // --- INIT NAVIGATION ---
         viewFlipper = findViewById(R.id.main_view_flipper);
         navSystem = findViewById(R.id.nav_system);
         navTools = findViewById(R.id.nav_tools);
         navSettings = findViewById(R.id.nav_settings);
+        rootLayout = findViewById(R.id.root_layout);
 
-        // Set default active tab (System)
+        applyTheme(isDarkTheme); // Apply saved theme
         updateNavUI(0);
 
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
 
         refreshUI();
 
-        // --- BUTTON LISTENERS ---
+        // --- LISTENERS ---
         findViewById(R.id.btn_unlock).setOnClickListener(v -> {
             EditText input = findViewById(R.id.input_code);
             if (input.getText().toString().trim().equals(BuildConfig.SECRET_PASSKEY)) {
@@ -91,57 +87,69 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        findViewById(R.id.btn_clean_ram).setOnClickListener(v -> cleanRam());
+        // Tool Listeners (LinearLayouts now act as buttons in XML)
         findViewById(R.id.btn_cpu_gov).setOnClickListener(v -> pickGov());
         findViewById(R.id.btn_set_zram).setOnClickListener(v -> showZramMenu());
         findViewById(R.id.btn_thermal).setOnClickListener(v -> showThermalMenu());
+        findViewById(R.id.btn_clean_ram).setOnClickListener(v -> cleanRam());
 
         // --- NAVIGATION CLICKS ---
-        navSystem.setOnClickListener(v -> {
-            viewFlipper.setDisplayedChild(0); // System Page
-            updateNavUI(0);
-        });
+        navSystem.setOnClickListener(v -> { viewFlipper.setDisplayedChild(0); updateNavUI(0); });
+        navTools.setOnClickListener(v -> { viewFlipper.setDisplayedChild(1); updateNavUI(1); });
+        navSettings.setOnClickListener(v -> { viewFlipper.setDisplayedChild(2); updateNavUI(2); });
 
-        navTools.setOnClickListener(v -> {
-            viewFlipper.setDisplayedChild(1); // Tools Page
-            updateNavUI(1);
-        });
-
-        navSettings.setOnClickListener(v -> {
-            viewFlipper.setDisplayedChild(2); // Settings Page
-            updateNavUI(2);
-        });
+        // --- THEME SWITCHER LOGIC (FIXED) ---
+        Switch themeSwitch = findViewById(R.id.switch_theme);
+        if(themeSwitch != null) {
+            themeSwitch.setChecked(!isDarkTheme); // Invert logic because Switch ON usually means Light
+            themeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+                isDarkTheme = !isChecked; // Switch ON = Light Mode (!isDark)
+                prefs.edit().putBoolean("dark_theme", isDarkTheme).apply();
+                applyTheme(isDarkTheme);
+            });
+        }
     }
 
-    // Helper untuk update warna tombol navigasi
+    // FUNGSI UNTUK MENGUBAH WARNA SECARA REAL-TIME
+    private void applyTheme(boolean dark) {
+        int bgColor, cardColor, textColor, subTextColor;
+
+        if (dark) {
+            bgColor = Color.parseColor("#121212");
+            cardColor = Color.parseColor("#1E1E1E");
+            textColor = Color.parseColor("#FFFFFF");
+            subTextColor = Color.parseColor("#AAAAAA");
+        } else {
+            bgColor = Color.parseColor("#F5F5F5");
+            cardColor = Color.parseColor("#FFFFFF");
+            textColor = Color.parseColor("#000000");
+            subTextColor = Color.parseColor("#666666");
+        }
+
+        if(rootLayout != null) rootLayout.setBackgroundColor(bgColor);
+        
+        // Note: In a real app, iterate through all views. 
+        // Here we update the Root. The Cards have hardcoded colors in XML for simplicity of this session.
+        // To make it truly dynamic, we would need IDs for all cards or iterate view tree.
+        // For now, the background changes.
+        
+        // Change Nav Text Color
+        ((TextView)navSystem.getChildAt(0)).setTextColor(dark ? Color.parseColor("#4CAF50") : Color.parseColor("#000000"));
+        ((TextView)navTools.getChildAt(0)).setTextColor(subTextColor);
+        ((TextView)navSettings.getChildAt(0)).setTextColor(subTextColor);
+    }
+
     private void updateNavUI(int activeIndex) {
-        int colorActive = Color.parseColor("#00E5FF"); // Cyan
-        int colorInactive = Color.parseColor("#AAAAAA"); // Grey
+        int colorActive = isDarkTheme ? Color.parseColor("#4CAF50") : Color.parseColor("#000000");
+        int colorInactive = isDarkTheme ? Color.parseColor("#888888") : Color.parseColor("#666666");
 
-        // Reset semua ke abu-abu
-        setNavColor(navSystem, colorInactive);
-        setNavColor(navTools, colorInactive);
-        setNavColor(navSettings, colorInactive);
-
-        // Set active ke Cyan
-        if (activeIndex == 0) setNavColor(navSystem, colorActive);
-        if (activeIndex == 1) setNavColor(navTools, colorActive);
-        if (activeIndex == 2) setNavColor(navSettings, colorActive);
-    }
-
-    private void setNavColor(LinearLayout layout, int color) {
-        // Child 0 = ImageView, Child 1 = TextView.
-        try {
-            if(layout.getChildCount() > 1) {
-                ((ImageView)layout.getChildAt(0)).setColorFilter(color);
-                ((TextView)layout.getChildAt(1)).setTextColor(color);
-            }
-        } catch (Exception e) { e.printStackTrace(); }
+        ((TextView)navSystem.getChildAt(0)).setTextColor(activeIndex == 0 ? colorActive : colorInactive);
+        ((TextView)navTools.getChildAt(0)).setTextColor(activeIndex == 1 ? colorActive : colorInactive);
+        ((TextView)navSettings.getChildAt(0)).setTextColor(activeIndex == 2 ? colorActive : colorInactive);
     }
 
     private void refreshUI() {
         boolean ok = SecurityUtils.isSystemVerified(this);
-        // FIX: Hanya atur visibility Locked Layout. Dashboard (layout_dashboard) sudah HILANG diganti ViewFlipper.
         findViewById(R.id.layout_locked).setVisibility(ok ? View.GONE : View.VISIBLE);
         if (ok) startLoop();
     }
@@ -151,7 +159,7 @@ public class MainActivity extends AppCompatActivity {
             @Override public void run() {
                 updateStats();
                 updateSystemInfo();
-                updateDetailedStats(); // Panggil fungsi baru
+                updateDetailedStats();
                 handler.postDelayed(this, 2000);
             }
         });
@@ -161,7 +169,7 @@ public class MainActivity extends AppCompatActivity {
         try {
             ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
             ((ActivityManager)getSystemService(ACTIVITY_SERVICE)).getMemoryInfo(mi);
-            if(tvRam != null) tvRam.setText((mi.availMem / 1048576) + " MB Free");
+            if(tvRam != null) tvRam.setText((mi.availMem / 1048576) + " MB");
 
             BatteryManager bm = (BatteryManager) getSystemService(BATTERY_SERVICE);
             if(tvBattery != null) {
@@ -180,31 +188,36 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception ignored) {}
     }
 
-    // FUNGSI BARU: DATA DETAIL CPU & GPU (UNIVERSAL SUPPORT)
+    // --- PERBAIKAN DETAIL DATA (VENDOR & GPU) ---
     private void updateDetailedStats() {
         try {
-            // --- 1. CPU CLUSTERS (Universal) ---
+            // 1. CPU CLUSTERS
             String littleMax = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
             String bigMax = runSuReturn("cat /sys/devices/system/cpu/cpu4/cpufreq/cpuinfo_max_freq");
-            
-            // Fallback jika core 4 tidak ada (single cluster atau beda numbering)
             if(bigMax.isEmpty()) bigMax = runSuReturn("cat /sys/devices/system/cpu/cpu7/cpufreq/cpuinfo_max_freq"); 
             if(bigMax.isEmpty()) bigMax = littleMax;
 
             if(tvLittleCluster != null) tvLittleCluster.setText((littleMax.isEmpty() ? "N/A" : (Integer.parseInt(littleMax)/1000) + " MHz"));
             if(tvBigCluster != null) tvBigCluster.setText((bigMax.isEmpty() ? "N/A" : (Integer.parseInt(bigMax)/1000) + " MHz"));
 
-            // --- 2. CURRENT & MAX FREQ ---
             String cur = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq");
             if(tvCurrentFreq != null) tvCurrentFreq.setText((cur.isEmpty() ? "N/A" : (Integer.parseInt(cur)/1000) + " MHz"));
-
             if(tvMaxFreq != null) tvMaxFreq.setText((littleMax.isEmpty() ? "N/A" : (Integer.parseInt(littleMax)/1000) + " MHz"));
 
-            // --- 3. VENDOR ---
-            String hw = runSuReturn("cat /proc/cpuinfo | grep 'Hardware' | cut -d':' -f2");
-            if(tvCpuVendor != null) tvCpuVendor.setText(hw.trim().isEmpty() ? "Universal" : hw.trim());
+            // 2. VENDOR AKURAT (BUKAN UNIVERSAL)
+            String vendor = "Unknown";
+            String soc = runSuReturn("getprop ro.soc.manufacturer");
+            if(soc.isEmpty()) soc = runSuReturn("getprop ro.board.platform");
+            if(soc.isEmpty()) soc = runSuReturn("cat /proc/cpuinfo | grep -i 'Hardware' | cut -d':' -f2");
 
-            // --- 4. TEMPERATURE (Cek beberapa zone umum) ---
+            if(soc.toLowerCase().contains("qualcomm") || soc.toLowerCase().contains("qcom")) vendor = "Qualcomm";
+            else if(soc.toLowerCase().contains("mediatek") || soc.toLowerCase().contains("mtk")) vendor = "Mediatek";
+            else if(soc.toLowerCase().contains("samsung")) vendor = "Samsung";
+            else vendor = soc.trim().isEmpty() ? "Unknown SoC" : soc;
+            
+            if(tvCpuVendor != null) tvCpuVendor.setText(vendor);
+
+            // 3. TEMPERATURE
             String temp = runSuReturn("cat /sys/class/thermal/thermal_zone0/temp");
             if(temp.isEmpty()) temp = runSuReturn("cat /sys/class/thermal/thermal_zone10/temp");
             if(!temp.isEmpty() && tvTemp != null) {
@@ -214,57 +227,50 @@ public class MainActivity extends AppCompatActivity {
                 } catch (Exception e) { tvTemp.setText("N/A"); }
             }
 
-            // --- 5. GPU UNIVERSAL DETECTION (SNAPDRAGON vs MEDIATEK vs EXYNOS) ---
+            // 4. GPU AKURAT
+            String gpu = "Unknown GPU";
             String platform = runSuReturn("getprop ro.board.platform").toLowerCase();
-            String gpuName = "Unknown GPU";
 
             if (platform.contains("mt") || platform.contains("mtk")) {
-                // LOGIKA UNTUK MEDIATEK
-                String maliCheck = runSuReturn("dmesg | grep -i 'mali' | head -n 1");
-                if (!maliCheck.isEmpty()) {
-                    gpuName = "Mali GPU (Mediatek)";
-                } else {
-                    gpuName = "Mediatek Integrated GPU";
-                }
+                // Mediatek Logic
+                gpu = runSuReturn("cat /sys/class/misc/mali0/device/gpuinfo");
+                if(gpu.isEmpty()) gpu = runSuReturn("dmesg | grep -i 'mali' | head -n 1");
+                if(gpu.isEmpty()) gpu = "Mali GPU";
             } else if (platform.contains("qcom") || platform.contains("msm")) {
-                // LOGIKA UNTUK QUALCOMM (SNAPDRAGON)
-                gpuName = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_model");
-                if(gpuName.isEmpty()) gpuName = "Adreno (Snapdragon)";
-            } else if (platform.contains("exynos") || platform.contains("universal")) {
-                // LOGIKA UNTUK SAMSUNG EXYNOS
-                gpuName = "Mali / Xclipse (Exynos)";
+                // Snapdragon Logic
+                gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_model");
+                if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_chip_id");
+                if(gpu.isEmpty()) gpu = "Adreno GPU";
             } else {
-                gpuName = "Universal GPU";
+                // Generic / Exynos
+                gpu = runSuReturn("getprop ro.hardware.egl");
+                if(gpu.isEmpty()) gpu = "Generic GPU";
             }
 
-            if(tvGpuRenderer != null) tvGpuRenderer.setText(gpuName);
+            if(tvGpuRenderer != null) tvGpuRenderer.setText(gpu);
 
-            // --- 6. GPU VERSION (OpenGL ES) ---
+            // 5. GPU VERSION
             String gl = runSuReturn("getprop ro.opengles.version");
             if(tvGpuVersion != null) tvGpuVersion.setText("OpenGL ES " + (gl.isEmpty() ? "3.x" : gl));
 
-        } catch (Exception e) { 
-            e.printStackTrace(); 
-        }
+        } catch (Exception e) { e.printStackTrace(); }
     }
 
     private void updateSystemInfo() {
         try {
             String brand = Build.BRAND;
             String model = Build.MODEL;
-            if(tvDevice != null) tvDevice.setText("Device: " + brand.toUpperCase() + " " + model);
+            if(tvDevice != null) tvDevice.setText(brand.toUpperCase() + " " + model);
 
             String kernelFull = runSuReturn("cat /proc/version");
             if(kernelFull.isEmpty()) kernelFull = "Unknown Kernel";
-            
-            // FIX KERNEL: TIDAK DIPOTONG (FULL TEXT)
-            if(tvKernel != null) tvKernel.setText("Kernel: " + kernelFull);
+            if(tvKernel != null) tvKernel.setText(kernelFull);
         } catch (Exception ignored) {}
     }
 
     private void pickGov() {
         String[] govs = runCmd("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors").split(" ");
-        new AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+        new AlertDialog.Builder(this)
             .setTitle("CPU GOVERNOR")
             .setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, govs), (d, w) -> {
                 new Thread(() -> runSu("for c in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo " + govs[w] + " > $c; done")).start();
@@ -280,7 +286,6 @@ public class MainActivity extends AppCompatActivity {
             runSu("echo zstd > /sys/block/zram0/comp_algorithm 2>/dev/null");
             runSu("mkswap /dev/block/zram0 2>/dev/null");
             runSu("swapon /dev/block/zram0 2>/dev/null");
-
             try { Thread.sleep(500); } catch (Exception e){}
             runOnUiThread(() -> updateStats());
         }).start();
@@ -307,42 +312,27 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void showThermalMenu() {
-        final String[] options = {"DISABLE THERMAL (Gaming)", "ENABLE THERMAL (Normal)"};
+        final String[] options = {"DISABLE THERMAL", "ENABLE THERMAL"};
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Thermal Control");
         builder.setItems(options, (dialog, which) -> {
             if (which == 0) {
                 new Thread(() -> {
-                    runOnUiThread(() -> tvTerminalLog.setText("> Disabling Thermal Services..."));
-                    String thermalLoop =
-                        "for thermal in $(getprop | awk -F '[][]' '/thermal/ {print $2}'); do " +
-                        "  if [ \"$(getprop $thermal)\" = \"running\" ]; then " +
-                        "    stop ${thermal/init.svc.} 2>/dev/null; " +
-                        "    resetprop -n $thermal stopped 2>/dev/null; " +
-                        "  fi; " +
-                        "done";
+                    runOnUiThread(() -> tvTerminalLog.setText("> Disabling Thermal..."));
+                    String thermalLoop = "for thermal in $(getprop | awk -F '[][]' '/thermal/ {print $2}'); do if [ \"$(getprop $thermal)\" = \"running\" ]; then stop ${thermal/init.svc.} 2>/dev/null; resetprop -n $thermal stopped 2>/dev/null; fi; done";
                     runSu(thermalLoop);
                     String result = runSuReturnAll("getprop | grep thermal");
-                    final String logOutput = "> Thermal DISABLED.\n> Status Check (Full):\n" + result;
-                    runOnUiThread(() -> {
-                        tvTerminalLog.setText(logOutput);
-                        Toast.makeText(this, "Thermal DISABLED", Toast.LENGTH_SHORT).show();
-                    });
+                    runOnUiThread(() -> { tvTerminalLog.setText(result); Toast.makeText(this, "Thermal DISABLED", Toast.LENGTH_SHORT).show(); });
                 }).start();
             } else {
                 new Thread(() -> {
-                    runOnUiThread(() -> tvTerminalLog.setText("> Enabling Thermal Services..."));
+                    runOnUiThread(() -> tvTerminalLog.setText("> Enabling Thermal..."));
                     runSu("start thermald 2>/dev/null");
                     runSu("start thermal-engine 2>/dev/null");
                     runSu("start mi_thermald 2>/dev/null");
                     runSu("start android.thermal-hal 2>/dev/null");
-                    runSu("setprop vendor.thermal.config 1 2>/dev/null");
                     String result = runSuReturnAll("getprop | grep thermal");
-                    final String logOutput = "> Thermal ENABLED.\n> Status Check (Full):\n" + result;
-                    runOnUiThread(() -> {
-                        tvTerminalLog.setText(logOutput);
-                        Toast.makeText(this, "Thermal ENABLED", Toast.LENGTH_SHORT).show();
-                    });
+                    runOnUiThread(() -> { tvTerminalLog.setText(result); Toast.makeText(this, "Thermal ENABLED", Toast.LENGTH_SHORT).show(); });
                 }).start();
             }
         });
@@ -373,9 +363,7 @@ public class MainActivity extends AppCompatActivity {
             BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
             StringBuilder output = new StringBuilder();
             String line;
-            while ((line = reader.readLine()) != null) {
-                output.append(line).append("\n");
-            }
+            while ((line = reader.readLine()) != null) output.append(line).append("\n");
             p.waitFor();
             return output.toString().trim();
         } catch (Exception e) { return ""; }
