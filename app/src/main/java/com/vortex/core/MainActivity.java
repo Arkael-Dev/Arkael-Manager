@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.BatteryManager;
@@ -39,6 +40,7 @@ public class MainActivity extends AppCompatActivity {
     private TextView tvLittleCluster, tvBigCluster, tvCurrentFreq, tvMaxFreq, tvCpuVendor, tvTemp, tvGpuRenderer, tvGpuVersion;
     private ImageView headerBanner;
     private SeekBar seekBarMaxFreq;
+    private LinearLayout cardRam, cardBat;
 
     private ViewFlipper viewFlipper;
     private LinearLayout navSystem, navTools, navSettings, rootLayout;
@@ -65,7 +67,7 @@ public class MainActivity extends AppCompatActivity {
         tvDevice = findViewById(R.id.tv_device);
         tvTerminalLog = findViewById(R.id.tv_terminal_log);
         
-        // Stats
+        // Detailed Stats
         tvLittleCluster = findViewById(R.id.tv_little_cluster);
         tvBigCluster = findViewById(R.id.tv_big_cluster);
         tvCurrentFreq = findViewById(R.id.tv_current_freq);
@@ -78,6 +80,8 @@ public class MainActivity extends AppCompatActivity {
         // Extras
         headerBanner = findViewById(R.id.header_banner);
         seekBarMaxFreq = findViewById(R.id.seekbar_max_freq);
+        cardRam = findViewById(R.id.card_ram);
+        cardBat = findViewById(R.id.card_bat);
 
         viewFlipper = findViewById(R.id.main_view_flipper);
         navSystem = findViewById(R.id.nav_system);
@@ -103,17 +107,23 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // Tools Clicks
         findViewById(R.id.btn_cpu_gov).setOnClickListener(v -> pickGov());
         findViewById(R.id.btn_set_zram).setOnClickListener(v -> showZramMenu());
         findViewById(R.id.btn_thermal).setOnClickListener(v -> showThermalMenu());
-        findViewById(R.id.btn_clean_ram).setOnClickListener(v -> cleanRam());
+        
+        // FIX CLEAN CACHE CLICK
+        findViewById(R.id.btn_clean_ram).setOnClickListener(v -> {
+            Toast.makeText(this, "Starting Cache Clean...", Toast.LENGTH_SHORT).show();
+            cleanRam();
+        });
 
-        // --- NAVIGATION ---
+        // Nav
         navSystem.setOnClickListener(v -> { viewFlipper.setDisplayedChild(0); updateNavUI(0); });
         navTools.setOnClickListener(v -> { viewFlipper.setDisplayedChild(1); updateNavUI(1); });
         navSettings.setOnClickListener(v -> { viewFlipper.setDisplayedChild(2); updateNavUI(2); });
 
-        // --- SETTINGS ACTIONS ---
+        // Settings Actions
         findViewById(R.id.btn_change_banner).setOnClickListener(v -> loadCustomBanner());
         findViewById(R.id.btn_reset_banner).setOnClickListener(v -> {
             prefs.edit().putString("custom_banner_path", "").apply();
@@ -121,7 +131,7 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Banner Reset", Toast.LENGTH_SHORT).show();
         });
 
-        // Color Themes
+        // Colors
         findViewById(R.id.btn_theme_black).setOnClickListener(v -> { isDarkTheme=true; prefs.edit().putBoolean("dark_theme", true).apply(); applyTheme(true); });
         findViewById(R.id.btn_theme_white).setOnClickListener(v -> { isDarkTheme=false; prefs.edit().putBoolean("dark_theme", false).apply(); applyTheme(false); });
         findViewById(R.id.btn_theme_blue).setOnClickListener(v -> { isDarkTheme=true; prefs.edit().putBoolean("dark_theme", true).apply(); applyTheme(true, Color.parseColor("#000033"), Color.parseColor("#111133")); });
@@ -130,12 +140,10 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.tv_dev_link).setOnClickListener(v -> openUrl("https://t.me/VorteXSU_Dev"));
         findViewById(R.id.tv_channel_link).setOnClickListener(v -> openUrl("https://t.me/vortexgki"));
 
-        // SeekBar Listener
+        // Slider
         seekBarMaxFreq.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+            @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (fromUser && maxFreqKhz > 0) {
-                    // Calculate freq based on percentage (simplified logic)
                     int targetFreq = (maxFreqKhz * progress) / 100;
                     setMaxFreq(targetFreq);
                     if(tvMaxFreq != null) tvMaxFreq.setText((targetFreq/1000) + " MHz");
@@ -145,7 +153,6 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
 
-        // Load Banner on Start
         loadCustomBanner();
     }
 
@@ -184,14 +191,32 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void applyTheme(boolean dark, int bgCol, int cardCol) {
+        // Apply Background
         if(rootLayout != null) rootLayout.setBackgroundColor(bgCol);
         
-        int textCol = dark ? Color.parseColor("#FFFFFF") : Color.parseColor("#000000");
-        int subTextCol = dark ? Color.parseColor("#888888") : Color.parseColor("#666666");
+        // Colors based on theme
+        int textMain = dark ? Color.parseColor("#FFFFFF") : Color.parseColor("#000000");
+        int textSec  = dark ? Color.parseColor("#888888") : Color.parseColor("#666666");
+        int navAct   = dark ? Color.parseColor("#4CAF50") : Color.parseColor("#000000");
+        int navInact = dark ? Color.parseColor("#888888") : Color.parseColor("#666666");
 
-        ((TextView)navSystem.getChildAt(0)).setTextColor(dark ? Color.parseColor("#4CAF50") : textCol);
-        ((TextView)navTools.getChildAt(0)).setTextColor(subTextCol);
-        ((TextView)navSettings.getChildAt(0)).setTextColor(subTextCol);
+        // Update Cards Radius & Colors
+        GradientDrawable gd = new GradientDrawable();
+        gd.setShape(GradientDrawable.RECTANGLE);
+        gd.setColor(cardCol);
+        gd.setCornerRadius(20); // Rounded corners, not boxy
+        
+        if(cardRam != null) cardRam.setBackground(gd);
+        if(cardBat != null) cardBat.setBackground(gd);
+
+        // Update Texts
+        if(tvRam != null) tvRam.setTextColor(textMain);
+        if(tvBattery != null) tvBattery.setTextColor(textMain);
+        
+        // Nav
+        ((TextView)navSystem.getChildAt(0)).setTextColor(navAct);
+        ((TextView)navTools.getChildAt(0)).setTextColor(navInact);
+        ((TextView)navSettings.getChildAt(0)).setTextColor(navInact);
     }
 
     private void updateNavUI(int activeIndex) {
@@ -205,9 +230,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void setMaxFreq(int khz) {
         new Thread(() -> {
-            // Set scaling_max_freq for all cores (Simplified for Little cluster)
             runSu("echo " + khz + " > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq");
-            // Optional: Apply to big cores too if needed
         }).start();
     }
 
@@ -252,32 +275,19 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateDetailedStats() {
         try {
-            // VENDOR LOGIC (FIXED)
-            String vendor = "Unknown";
-            String socModel = runSuReturn("getprop ro.soc.model"); 
+            // --- VENDOR FIX (CLEAR LOGIC) ---
             String platform = runSuReturn("getprop ro.board.platform").toLowerCase();
+            String vendor = "Unknown";
 
-            // Logic Bersih
-            if (socModel.toLowerCase().contains("qualcomm") || platform.contains("qcom")) {
-                vendor = "Qualcomm";
-                // Cek nama spesifik jika ada
-                String hardware = runSuReturn("getprop ro.product.board").toLowerCase();
-                if (hardware.contains("fiji")) vendor += " 660";
-                else if (hardware.contains("lahaina")) vendor += " 888";
-            } 
-            else if (socModel.toLowerCase().contains("mediatek") || platform.contains("mt")) {
-                vendor = "Mediatek";
-            }
-            else if (socModel.toLowerCase().contains("unisoc")) {
-                vendor = "Unisoc";
-            }
-            else {
-                vendor = socModel.isEmpty() ? (platform.isEmpty() ? "Unknown" : platform.toUpperCase()) : socModel;
-            }
-            
+            if (platform.contains("qcom") || platform.contains("msm")) vendor = "Qualcomm";
+            else if (platform.contains("mt")) vendor = "Mediatek";
+            else if (platform.contains("universal")) vendor = "Unisoc";
+            else if (platform.contains("exynos")) vendor = "Exynos";
+            else vendor = platform.toUpperCase();
+
             if(tvCpuVendor != null) tvCpuVendor.setText(vendor);
 
-            // FREQS
+            // --- FREQUENCIES ---
             String cur = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq");
             String max = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
             
@@ -286,7 +296,6 @@ public class MainActivity extends AppCompatActivity {
             if(!max.isEmpty()) {
                 maxFreqKhz = Integer.parseInt(max);
                 if(tvMaxFreq != null) tvMaxFreq.setText((maxFreqKhz/1000) + " MHz");
-                // Update SeekBar Max
                 if(seekBarMaxFreq != null) seekBarMaxFreq.setMax(100);
             }
 
@@ -298,9 +307,12 @@ public class MainActivity extends AppCompatActivity {
             if(tvLittleCluster != null) tvLittleCluster.setText((littleMax.isEmpty() ? "N/A" : (Integer.parseInt(littleMax)/1000) + " MHz"));
             if(tvBigCluster != null) tvBigCluster.setText((bigMax.isEmpty() ? "N/A" : (Integer.parseInt(bigMax)/1000) + " MHz"));
 
-            // TEMP
+            // TEMP (Battery Specific)
+            // Cek thermal zone yang biasanya battery (often zone 0 or 10 on many devices)
             String temp = runSuReturn("cat /sys/class/thermal/thermal_zone0/temp");
             if(temp.isEmpty()) temp = runSuReturn("cat /sys/class/thermal/thermal_zone10/temp");
+            if(temp.isEmpty()) temp = runSuReturn("cat /sys/class/power_supply/battery/temp"); // Direct battery path sometimes
+            
             if(!temp.isEmpty() && tvTemp != null) {
                 try {
                     int t = Integer.parseInt(temp.trim()) / 1000;
@@ -314,6 +326,7 @@ public class MainActivity extends AppCompatActivity {
                 gpu = runSuReturn("cat /sys/class/misc/mali0/device/gpuinfo");
                 if(gpu.isEmpty()) gpu = "Mali GPU";
             } else if (platform.contains("qcom") || platform.contains("msm")) {
+                // Try get full model
                 gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_model");
                 if(gpu.isEmpty()) gpu = "Adreno GPU";
             }
