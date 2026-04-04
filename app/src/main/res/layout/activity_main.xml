@@ -7,7 +7,7 @@
     android:fitsSystemWindows="true"
     android:id="@+id/root_layout">
 
-    <!-- HEADER BANNER -->
+    <!-- HEADER BANNER (CARD STYLE, ONLY MONITOR) -->
     <LinearLayout
         android:id="@+id/banner_container"
         android:layout_width="match_parent"
@@ -22,7 +22,7 @@
             android:id="@+id/tv_auth_active"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="AUTH ACTIVE (VORTEX-E-SPORT)"
+            android:text="● AUTH ACTIVE (VORTEX-E-SPORT)"
             android:textColor="#00E676"
             android:textSize="10sp"
             android:textStyle="bold"
@@ -82,13 +82,59 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:layout_marginBottom="12dp">
-                    <LinearLayout android:id="@+id/card_ram" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_card_rounded" android:layout_marginEnd="6dp">
-                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="RAM" android:textColor="#AAAAAA" android:textSize="11sp" android:drawableLeft="@android:drawable/ic_menu_sort_alphabetically" android:drawablePadding="5dp"/>
-                        <TextView android:id="@+id/tv_ram" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="20sp" android:textStyle="bold" android:layout_marginTop="5dp"/>
+                    <LinearLayout 
+                        android:id="@+id/card_ram" 
+                        android:layout_width="0dp" 
+                        android:layout_height="wrap_content" 
+                        android:layout_weight="1" 
+                        android:orientation="vertical" 
+                        android:background="@drawable/bg_card_rounded" 
+                        android:layout_marginEnd="6dp"
+                        android:padding="10dp">
+                        <TextView 
+                            android:layout_width="wrap_content" 
+                            android:layout_height="wrap_content" 
+                            android:text="RAM" 
+                            android:textColor="#AAAAAA" 
+                            android:textSize="11sp" 
+                            android:drawableLeft="@android:drawable/ic_menu_sort_alphabetically" 
+                            android:drawablePadding="5dp"/>
+                        <TextView 
+                            android:id="@+id/tv_ram" 
+                            android:layout_width="wrap_content" 
+                            android:layout_height="wrap_content" 
+                            android:text="..." 
+                            android:textColor="#FFFFFF" 
+                            android:textSize="20sp" 
+                            android:textStyle="bold" 
+                            android:layout_marginTop="5dp"/>
                     </LinearLayout>
-                    <LinearLayout android:id="@+id/card_bat" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:background="@drawable/bg_card_rounded" android:layout_marginStart="6dp">
-                        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="BATTERY" android:textColor="#AAAAAA" android:textSize="11sp" android:drawableLeft="@android:drawable/ic_lock_idle_lock" android:drawablePadding="5dp"/>
-                        <TextView android:id="@+id/tv_battery" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="20sp" android:textStyle="bold" android:layout_marginTop="5dp"/>
+                    <LinearLayout 
+                        android:id="@+id/card_bat" 
+                        android:layout_width="0dp" 
+                        android:layout_height="wrap_content" 
+                        android:layout_weight="1" 
+                        android:orientation="vertical" 
+                        android:background="@drawable/bg_card_rounded" 
+                        android:layout_marginStart="6dp"
+                        android:padding="10dp">
+                        <TextView 
+                            android:layout_width="wrap_content" 
+                            android:layout_height="wrap_content" 
+                            android:text="BATTERY" 
+                            android:textColor="#AAAAAA" 
+                            android:textSize="11sp" 
+                            android:drawableLeft="@android:drawable/ic_lock_idle_lock" 
+                            android:drawablePadding="5dp"/>
+                        <TextView 
+                            android:id="@+id/tv_battery" 
+                            android:layout_width="wrap_content" 
+                            android:layout_height="wrap_content" 
+                            android:text="..." 
+                            android:textColor="#FFFFFF" 
+                            android:textSize="20sp" 
+                            android:textStyle="bold" 
+                            android:layout_marginTop="5dp"/>
                     </LinearLayout>
                 </LinearLayout>
 
@@ -98,101 +144,280 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:background="@drawable/bg_card_rounded"
+                    android:padding="10dp"
                     android:layout_marginBottom="12dp">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SYSTEM STATUS" android:textColor="#4CAF50" android:textSize="12sp" android:textStyle="bold" android:layout_marginBottom="10dp"/>
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="8dp">
-                        <TextView android:layout_width="90dp" android:layout_height="wrap_content" android:text="Governor" android:textColor="#AAAAAA" android:textSize="12sp"/>
-                        <TextView android:id="@+id/tv_cpu" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="..." android:textColor="#FFFFFF" android:textSize="13sp" android:gravity="end"/>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="SYSTEM STATUS" 
+                        android:textColor="#4CAF50" 
+                        android:textSize="12sp" 
+                        android:textStyle="bold" 
+                        android:layout_marginBottom="10dp"/>
+                    <LinearLayout 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:orientation="horizontal" 
+                        android:layout_marginBottom="8dp">
+                        <TextView 
+                            android:layout_width="90dp" 
+                            android:layout_height="wrap_content" 
+                            android:text="Governor" 
+                            android:textColor="#AAAAAA" 
+                            android:textSize="12sp"/>
+                        <TextView 
+                            android:id="@+id/tv_cpu" 
+                            android:layout_width="0dp" 
+                            android:layout_height="wrap_content" 
+                            android:layout_weight="1" 
+                            android:text="..." 
+                            android:textColor="#FFFFFF" 
+                            android:textSize="13sp" 
+                            android:gravity="end"/>
                     </LinearLayout>
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
-                        <TextView android:layout_width="90dp" android:layout_height="wrap_content" android:text="ZRAM" android:textColor="#AAAAAA" android:textSize="12sp"/>
-                        <TextView android:id="@+id/tv_zram" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="..." android:textColor="#FFFFFF" android:textSize="13sp" android:gravity="end"/>
+                    <LinearLayout 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:orientation="horizontal">
+                        <TextView 
+                            android:layout_width="90dp" 
+                            android:layout_height="wrap_content" 
+                            android:text="ZRAM" 
+                            android:textColor="#AAAAAA" 
+                            android:textSize="12sp"/>
+                        <TextView 
+                            android:id="@+id/tv_zram" 
+                            android:layout_width="0dp" 
+                            android:layout_height="wrap_content" 
+                            android:layout_weight="1" 
+                            android:text="..." 
+                            android:textColor="#FFFFFF" 
+                            android:textSize="13sp" 
+                            android:gravity="end"/>
                     </LinearLayout>
                 </LinearLayout>
 
                 <!-- CPU DETAIL -->
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="CPU ARCHITECTURE" android:textColor="#888888" android:textSize="10sp" android:layout_marginTop="10dp" android:layout_marginBottom="5dp"/>
+                <TextView 
+                    android:layout_width="wrap_content" 
+                    android:layout_height="wrap_content" 
+                    android:text="CPU ARCHITECTURE" 
+                    android:textColor="#888888" 
+                    android:textSize="10sp" 
+                    android:layout_marginTop="10dp" 
+                    android:layout_marginBottom="5dp"/>
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:background="@drawable/bg_card_rounded"
+                    android:padding="10dp"
                     android:layout_marginBottom="12dp">
 
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Vendor / Model" android:textColor="#666666" android:textSize="11sp"/>
-                    <TextView android:id="@+id/tv_cpu_vendor" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Detecting..." android:textColor="#FFFFFF" android:textSize="14sp" android:layout_marginBottom="8dp" android:textStyle="bold"/>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="Vendor / Model" 
+                        android:textColor="#666666" 
+                        android:textSize="11sp"/>
+                    <TextView 
+                        android:id="@+id/tv_cpu_vendor" 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:text="Detecting..." 
+                        android:textColor="#FFFFFF" 
+                        android:textSize="14sp" 
+                        android:layout_marginBottom="8dp" 
+                        android:textStyle="bold"/>
 
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="CPU Clusters" android:textColor="#666666" android:textSize="11sp"/>
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginBottom="5dp">
-                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Little Cluster Max:" android:textColor="#AAAAAA" android:textSize="11sp"/>
-                        <TextView android:id="@+id/tv_little_cluster" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="..." android:textColor="#FFFFFF" android:textSize="13sp" android:gravity="end" android:textStyle="bold"/>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="Little Cluster" 
+                        android:textColor="#666666" 
+                        android:textSize="11sp"/>
+                    <TextView 
+                        android:id="@+id/tv_little_cluster" 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:text="..." 
+                        android:textColor="#FFFFFF" 
+                        android:textSize="13sp" 
+                        android:layout_marginBottom="8dp"/>
+
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="Big Cluster" 
+                        android:textColor="#666666" 
+                        android:textSize="11sp"/>
+                    <TextView 
+                        android:id="@+id/tv_big_cluster" 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:text="..." 
+                        android:textColor="#FFFFFF" 
+                        android:textSize="13sp" 
+                        android:layout_marginBottom="8dp"/>
+
+                    <LinearLayout 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:orientation="horizontal" 
+                        android:layout_marginBottom="5dp" 
+                        android:gravity="center_vertical">
+                        <TextView 
+                            android:layout_width="0dp" 
+                            android:layout_height="wrap_content" 
+                            android:layout_weight="1" 
+                            android:text="Current Freq:" 
+                            android:textColor="#AAAAAA" 
+                            android:textSize="11sp"/>
+                        <TextView 
+                            android:id="@+id/tv_current_freq" 
+                            android:layout_width="0dp" 
+                            android:layout_height="wrap_content" 
+                            android:layout_weight="1" 
+                            android:text="Loading..." 
+                            android:textColor="#4CAF50" 
+                            android:textSize="13sp" 
+                            android:gravity="end" 
+                            android:textStyle="bold"/>
                     </LinearLayout>
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginBottom="8dp">
-                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="Big Cluster Max:" android:textColor="#AAAAAA" android:textSize="11sp"/>
-                        <TextView android:id="@+id/tv_big_cluster" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="..." android:textColor="#FFFFFF" android:textSize="13sp" android:gravity="end" android:textStyle="bold"/>
+                    <LinearLayout 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:orientation="horizontal" 
+                        android:layout_marginBottom="10dp" 
+                        android:gravity="center_vertical">
+                        <TextView 
+                            android:layout_width="0dp" 
+                            android:layout_height="wrap_content" 
+                            android:layout_weight="1" 
+                            android:text="Max Freq Limit:" 
+                            android:textColor="#AAAAAA" 
+                            android:textSize="11sp"/>
+                        <TextView 
+                            android:id="@+id/tv_max_freq" 
+                            android:layout_width="0dp" 
+                            android:layout_height="wrap_content" 
+                            android:layout_weight="1" 
+                            android:text="Loading..." 
+                            android:textColor="#FFFFFF" 
+                            android:textSize="13sp" 
+                            android:gravity="end" 
+                            android:textStyle="bold"/>
                     </LinearLayout>
 
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Temperature (Battery)" android:textColor="#666666" android:textSize="11sp" android:layout_marginTop="15dp"/>
-                    <TextView android:id="@+id/tv_temp" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="..." android:textColor="#FF5252" android:textSize="16sp" android:textStyle="bold"/>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="Temperature (Battery)" 
+                        android:textColor="#666666" 
+                        android:textSize="11sp" 
+                        android:layout_marginTop="15dp"/>
+                    <TextView 
+                        android:id="@+id/tv_temp" 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:text="..." 
+                        android:textColor="#FF5252" 
+                        android:textSize="16sp" 
+                        android:textStyle="bold"/>
                 </LinearLayout>
 
-                <!-- GPU DETAIL -->
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="GPU RENDERER AND FREQUENCY" android:textColor="#888888" android:textSize="10sp" android:layout_marginTop="10dp" android:layout_marginBottom="5dp"/>
+                <!-- GPU -->
+                <TextView 
+                    android:layout_width="wrap_content" 
+                    android:layout_height="wrap_content" 
+                    android:text="GPU RENDERER" 
+                    android:textColor="#888888" 
+                    android:textSize="10sp" 
+                    android:layout_marginTop="10dp" 
+                    android:layout_marginBottom="5dp"/>
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:background="@drawable/bg_card_rounded"
+                    android:padding="10dp"
                     android:layout_marginBottom="12dp">
-                    
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Renderer" android:textColor="#666666" android:textSize="11sp"/>
-                    <TextView android:id="@+id/tv_gpu_renderer" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Detecting..." android:textColor="#FFFFFF" android:textSize="14sp" android:layout_marginBottom="8dp" android:textStyle="bold"/>
-                    
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="OpenGL Version" android:textColor="#666666" android:textSize="11sp"/>
-                    <TextView android:id="@+id/tv_gpu_version" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="..." android:textColor="#AAAAAA" android:textSize="11sp" android:layout_marginBottom="8dp"/>
-
-                    <!-- GPU FREQ SPECIFIC -->
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Frequency Control" android:textColor="#4CAF50" android:textSize="10sp" android:layout_marginTop="5dp" android:layout_marginBottom="5dp"/>
-                    
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:layout_marginBottom="5dp">
-                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="GPU Current:" android:textColor="#AAAAAA" android:textSize="11sp"/>
-                        <TextView android:id="@+id/tv_gpu_cur_freq" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="..." android:textColor="#FFFFFF" android:textSize="13sp" android:gravity="end" android:textStyle="bold"/>
-                    </LinearLayout>
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-                        <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="GPU Max:" android:textColor="#AAAAAA" android:textSize="11sp"/>
-                        <TextView android:id="@+id/tv_gpu_max_freq" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_width="0dp" android:layout_weight="1" android:text="..." android:textColor="#FFFFFF" android:textSize="13sp" android:gravity="end" android:textStyle="bold"/>
-                    </LinearLayout>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="Renderer" 
+                        android:textColor="#666666" 
+                        android:textSize="11sp"/>
+                    <TextView 
+                        android:id="@+id/tv_gpu_renderer" 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:text="Detecting..." 
+                        android:textColor="#FFFFFF" 
+                        android:textSize="14sp" 
+                        android:layout_marginBottom="8dp" 
+                        android:textStyle="bold"/>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="OpenGL Version" 
+                        android:textColor="#666666" 
+                        android:textSize="11sp"/>
+                    <TextView 
+                        android:id="@+id/tv_gpu_version" 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:text="..." 
+                        android:textColor="#AAAAAA" 
+                        android:textSize="11sp"/>
                 </LinearLayout>
 
                 <!-- SYSTEM INFO -->
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SYSTEM INFO" android:textColor="#888888" android:textSize="10sp" android:layout_marginTop="10dp" android:layout_marginBottom="5dp"/>
+                <TextView 
+                    android:layout_width="wrap_content" 
+                    android:layout_height="wrap_content" 
+                    android:text="SYSTEM INFO" 
+                    android:textColor="#888888" 
+                    android:textSize="10sp" 
+                    android:layout_marginTop="10dp" 
+                    android:layout_marginBottom="5dp"/>
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:background="@drawable/bg_card_rounded"
+                    android:padding="10dp"
                     android:layout_marginBottom="12dp">
-                    <TextView android:id="@+id/tv_device" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="..." android:textColor="#FFFFFF" android:textSize="13sp" android:layout_marginBottom="8dp" android:textStyle="bold"/>
-                    <TextView android:id="@+id/tv_kernel" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="..." android:textColor="#AAAAAA" android:textSize="10sp" android:fontFamily="monospace" android:maxLines="5" android:ellipsize="none"/>
+                    <TextView 
+                        android:id="@+id/tv_device" 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:text="..." 
+                        android:textColor="#FFFFFF" 
+                        android:textSize="13sp" 
+                        android:layout_marginBottom="8dp" 
+                        android:textStyle="bold"/>
+                    <TextView 
+                        android:id="@+id/tv_kernel" 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:text="..." 
+                        android:textColor="#AAAAAA" 
+                        android:textSize="10sp" 
+                        android:fontFamily="monospace" 
+                        android:maxLines="5" 
+                        android:ellipsize="none"/>
                 </LinearLayout>
 
                 <!-- TERMINAL -->
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="TERMINAL LOG" android:textColor="#888888" android:textSize="10sp" android:layout_marginTop="10dp" android:layout_marginBottom="5dp"/>
+                <TextView 
+                    android:layout_width="wrap_content" 
+                    android:layout_height="wrap_content" 
+                    android:text="TERMINAL LOG" 
+                    android:textColor="#888888" 
+                    android:textSize="10sp" 
+                    android:layout_marginTop="10dp" 
+                    android:layout_marginBottom="5dp"/>
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -200,14 +425,23 @@
                     android:background="#000000"
                     android:padding="10dp"
                     android:layout_marginBottom="20dp">
-                    <ScrollView android:layout_width="match_parent" android:layout_height="120dp">
-                        <TextView android:id="@+id/tv_terminal_log" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="> Ready" android:textColor="#00E676" android:textSize="10sp" android:fontFamily="monospace"/>
+                    <ScrollView 
+                        android:layout_width="match_parent" 
+                        android:layout_height="120dp">
+                        <TextView 
+                            android:id="@+id/tv_terminal_log" 
+                            android:layout_width="match_parent" 
+                            android:layout_height="wrap_content" 
+                            android:text="> Ready" 
+                            android:textColor="#00E676" 
+                            android:textSize="10sp" 
+                            android:fontFamily="monospace"/>
                     </ScrollView>
                 </LinearLayout>
             </LinearLayout>
         </ScrollView>
 
-        <!-- TAB 2: TOOLS -->
+        <!-- TAB 2: TOOLS (SLIDER DISINI) -->
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent">
@@ -216,51 +450,201 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="15dp">
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="POWER TOOLS" android:textColor="#888888" android:textSize="12sp" android:layout_marginBottom="15dp" android:textStyle="bold"/>
+                <TextView 
+                    android:layout_width="wrap_content" 
+                    android:layout_height="wrap_content" 
+                    android:text="POWER TOOLS" 
+                    android:textColor="#888888" 
+                    android:textSize="12sp" 
+                    android:layout_marginBottom="15dp" 
+                    android:textStyle="bold"/>
                 
                 <!-- GOV -->
-                <LinearLayout android:id="@+id/btn_cpu_gov" android:layout_width="match_parent" android:layout_height="60dp" android:orientation="horizontal" android:gravity="center_vertical" android:background="@drawable/bg_card_rounded" android:paddingStart="15dp" android:paddingEnd="15dp" android:layout_marginBottom="10dp" android:clickable="true" android:focusable="true">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Gov" android:drawableLeft="@android:drawable/ic_menu_manage" android:drawablePadding="15dp"/>
-                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="GOVERNOR" android:textColor="#FFFFFF" android:textSize="15sp" android:textStyle="bold" android:layout_marginStart="5dp"/>
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=">" android:textColor="#555555" android:textSize="18sp"/>
+                <LinearLayout 
+                    android:id="@+id/btn_cpu_gov" 
+                    android:layout_width="match_parent" 
+                    android:layout_height="60dp" 
+                    android:orientation="horizontal" 
+                    android:gravity="center_vertical" 
+                    android:background="@drawable/bg_card_rounded" 
+                    android:paddingStart="15dp" 
+                    android:paddingEnd="15dp" 
+                    android:layout_marginBottom="10dp" 
+                    android:clickable="true" 
+                    android:focusable="true">
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="Gov" 
+                        android:drawableLeft="@android:drawable/ic_menu_manage" 
+                        android:drawablePadding="15dp"/>
+                    <TextView 
+                        android:layout_width="0dp" 
+                        android:layout_height="wrap_content" 
+                        android:layout_weight="1" 
+                        android:text="GOVERNOR" 
+                        android:textColor="#FFFFFF" 
+                        android:textSize="15sp" 
+                        android:textStyle="bold" 
+                        android:layout_marginStart="5dp"/>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text=">" 
+                        android:textColor="#555555" 
+                        android:textSize="18sp"/>
                 </LinearLayout>
 
                 <!-- ZRAM -->
-                <LinearLayout android:id="@+id/btn_set_zram" android:layout_width="match_parent" android:layout_height="60dp" android:orientation="horizontal" android:gravity="center_vertical" android:background="@drawable/bg_card_rounded" android:paddingStart="15dp" android:paddingEnd="15dp" android:layout_marginBottom="10dp" android:clickable="true" android:focusable="true">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Zram" android:drawableLeft="@android:drawable/ic_menu_save" android:drawablePadding="15dp"/>
-                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="ZRAM" android:textColor="#FFFFFF" android:textSize="15sp" android:textStyle="bold" android:layout_marginStart="5dp"/>
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=">" android:textColor="#555555" android:textSize="18sp"/>
+                <LinearLayout 
+                    android:id="@+id/btn_set_zram" 
+                    android:layout_width="match_parent" 
+                    android:layout_height="60dp" 
+                    android:orientation="horizontal" 
+                    android:gravity="center_vertical" 
+                    android:background="@drawable/bg_card_rounded" 
+                    android:paddingStart="15dp" 
+                    android:paddingEnd="15dp" 
+                    android:layout_marginBottom="10dp" 
+                    android:clickable="true" 
+                    android:focusable="true">
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="Zram" 
+                        android:drawableLeft="@android:drawable/ic_menu_save" 
+                        android:drawablePadding="15dp"/>
+                    <TextView 
+                        android:layout_width="0dp" 
+                        android:layout_height="wrap_content" 
+                        android:layout_weight="1" 
+                        android:text="ZRAM" 
+                        android:textColor="#FFFFFF" 
+                        android:textSize="15sp" 
+                        android:textStyle="bold" 
+                        android:layout_marginStart="5dp"/>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text=">" 
+                        android:textColor="#555555" 
+                        android:textSize="18sp"/>
                 </LinearLayout>
 
                 <!-- THERMAL -->
-                <LinearLayout android:id="@+id/btn_thermal" android:layout_width="match_parent" android:layout_height="60dp" android:orientation="horizontal" android:gravity="center_vertical" android:background="@drawable/bg_card_rounded" android:paddingStart="15dp" android:paddingEnd="15dp" android:layout_marginBottom="10dp" android:clickable="true" android:focusable="true">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Heat" android:drawableLeft="@android:drawable/ic_menu_sort_by_size" android:drawablePadding="15dp"/>
-                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="THERMAL" android:textColor="#FFFFFF" android:textSize="15sp" android:textStyle="bold" android:layout_marginStart="5dp"/>
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=">" android:textColor="#555555" android:textSize="18sp"/>
+                <LinearLayout 
+                    android:id="@+id/btn_thermal" 
+                    android:layout_width="match_parent" 
+                    android:layout_height="60dp" 
+                    android:orientation="horizontal" 
+                    android:gravity="center_vertical" 
+                    android:background="@drawable/bg_card_rounded" 
+                    android:paddingStart="15dp" 
+                    android:paddingEnd="15dp" 
+                    android:layout_marginBottom="10dp" 
+                    android:clickable="true" 
+                    android:focusable="true">
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="Heat" 
+                        android:drawableLeft="@android:drawable/ic_menu_sort_by_size" 
+                        android:drawablePadding="15dp"/>
+                    <TextView 
+                        android:layout_width="0dp" 
+                        android:layout_height="wrap_content" 
+                        android:layout_weight="1" 
+                        android:text="THERMAL" 
+                        android:textColor="#FFFFFF" 
+                        android:textSize="15sp" 
+                        android:textStyle="bold" 
+                        android:layout_marginStart="5dp"/>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text=">" 
+                        android:textColor="#555555" 
+                        android:textSize="18sp"/>
                 </LinearLayout>
 
                 <!-- CLEAN CACHE -->
-                <LinearLayout android:id="@+id/btn_clean_ram" android:layout_width="match_parent" android:layout_height="60dp" android:orientation="horizontal" android:gravity="center_vertical" android:background="@drawable/bg_card_rounded" android:paddingStart="15dp" android:paddingEnd="15dp" android:layout_marginBottom="20dp" android:clickable="true" android:focusable="true">
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Del" android:drawableLeft="@android:drawable/ic_menu_delete" android:drawablePadding="15dp"/>
-                    <TextView android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="CLEAN CACHE" android:textColor="#FF5252" android:textSize="15sp" android:textStyle="bold" android:layout_marginStart="5dp"/>
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text=">" android:textColor="#555555" android:textSize="18sp"/>
+                <LinearLayout 
+                    android:id="@+id/btn_clean_ram" 
+                    android:layout_width="match_parent" 
+                    android:layout_height="60dp" 
+                    android:orientation="horizontal" 
+                    android:gravity="center_vertical" 
+                    android:background="@drawable/bg_card_rounded" 
+                    android:paddingStart="15dp" 
+                    android:paddingEnd="15dp" 
+                    android:layout_marginBottom="20dp" 
+                    android:clickable="true" 
+                    android:focusable="true">
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="Del" 
+                        android:drawableLeft="@android:drawable/ic_menu_delete" 
+                        android:drawablePadding="15dp"/>
+                    <TextView 
+                        android:layout_width="0dp" 
+                        android:layout_height="wrap_content" 
+                        android:layout_weight="1" 
+                        android:text="CLEAN CACHE" 
+                        android:textColor="#FF5252" 
+                        android:textSize="15sp" 
+                        android:textStyle="bold" 
+                        android:layout_marginStart="5dp"/>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text=">" 
+                        android:textColor="#555555" 
+                        android:textSize="18sp"/>
                 </LinearLayout>
 
-                <!-- BOOST GPU UNIVERSAL -->
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="PERFORMANCE BOOST" android:textColor="#888888" android:textSize="12sp" android:layout_marginBottom="10dp" android:textStyle="bold"/>
+                <!-- SLIDER MAX FREQ (MANUAL ONLY) -->
+                <TextView 
+                    android:layout_width="wrap_content" 
+                    android:layout_height="wrap_content" 
+                    android:text="CPU CONTROL" 
+                    android:textColor="#888888" 
+                    android:textSize="12sp" 
+                    android:layout_marginBottom="10dp" 
+                    android:textStyle="bold"/>
                 <LinearLayout
-                    android:id="@+id/btn_boost_gpu"
                     android:layout_width="match_parent"
-                    android:layout_height="80dp"
+                    android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:gravity="center"
                     android:background="@drawable/bg_card_rounded"
-                    android:padding="15dp"
-                    android:clickable="true"
-                    android:focusable="true">
+                    android:padding="15dp">
                     
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="BOOST GPU UNIVERSAL" android:textColor="#00B0FF" android:textSize="18sp" android:textStyle="bold"/>
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Max Performance Mode" android:textColor="#AAAAAA" android:textSize="11sp" android:layout_marginTop="5dp"/>
+                    <TextView 
+                        android:id="@+id/tv_max_freq_tools" 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:text="Current Max: ..." 
+                        android:textColor="#FFFFFF" 
+                        android:textSize="14sp" 
+                        android:layout_marginBottom="10dp" 
+                        android:textStyle="bold"/>
+                    
+                    <SeekBar
+                        android:id="@+id/seekbar_max_freq"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:max="100"
+                        android:progress="50"
+                        android:progressTint="#4CAF50"
+                        android:thumbTint="#FFFFFF"/>
+                        
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="Slide to adjust CPU Max Frequency (Manual)" 
+                        android:textColor="#666666" 
+                        android:textSize="10sp" 
+                        android:layout_marginTop="5dp"/>
                 </LinearLayout>
 
             </LinearLayout>
@@ -276,36 +660,184 @@
                 android:orientation="vertical"
                 android:padding="15dp">
                 
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SETTINGS" android:textColor="#888888" android:textSize="12sp" android:layout_marginBottom="15dp" android:textStyle="bold"/>
+                <TextView 
+                    android:layout_width="wrap_content" 
+                    android:layout_height="wrap_content" 
+                    android:text="SETTINGS" 
+                    android:textColor="#888888" 
+                    android:textSize="12sp" 
+                    android:layout_marginBottom="15dp" 
+                    android:textStyle="bold"/>
 
                 <!-- BANNER (Clickable Area) -->
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="CUSTOM BANNER" android:textColor="#555555" android:textSize="10sp" android:layout_marginBottom="5dp"/>
-                <LinearLayout android:id="@+id/banner_click_area" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card_rounded" android:padding="15dp" android:layout_marginBottom="15dp" android:clickable="true" android:focusable="true">
-                    <TextView android:id="@+id/btn_change_banner" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Change Banner (JPG/PNG/GIF)" android:textColor="#4CAF50" android:textSize="14sp" android:layout_marginBottom="10dp" android:drawableLeft="@android:drawable/ic_menu_gallery" android:drawablePadding="10dp"/>
-                    <TextView android:id="@+id/btn_reset_banner" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Reset Banner to Default" android:textColor="#AAAAAA" android:textSize="12sp" android:drawableLeft="@android:drawable/ic_menu_revert" android:drawablePadding="10dp" android:visibility="gone"/>
+                <TextView 
+                    android:layout_width="wrap_content" 
+                    android:layout_height="wrap_content" 
+                    android:text="CUSTOM BANNER" 
+                    android:textColor="#555555" 
+                    android:textSize="10sp" 
+                    android:layout_marginBottom="5dp"/>
+                <LinearLayout 
+                    android:id="@+id/banner_click_area" 
+                    android:layout_width="match_parent" 
+                    android:layout_height="wrap_content" 
+                    android:orientation="vertical" 
+                    android:background="@drawable/bg_card_rounded" 
+                    android:padding="15dp" 
+                    android:layout_marginBottom="15dp" 
+                    android:clickable="true" 
+                    android:focusable="true">
+                    <TextView 
+                        android:id="@+id/btn_change_banner" 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:text="Change Banner (JPG/PNG/GIF)" 
+                        android:textColor="#4CAF50" 
+                        android:textSize="14sp" 
+                        android:layout_marginBottom="10dp" 
+                        android:drawableLeft="@android:drawable/ic_menu_gallery" 
+                        android:drawablePadding="10dp"/>
+                    <TextView 
+                        android:id="@+id/btn_reset_banner" 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:text="Reset Banner to Default" 
+                        android:textColor="#AAAAAA" 
+                        android:textSize="12sp" 
+                        android:drawableLeft="@android:drawable/ic_menu_revert" 
+                        android:drawablePadding="10dp" 
+                        android:visibility="gone"/>
                 </LinearLayout>
 
                 <!-- PRO THEME -->
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="APP THEME PRO" android:textColor="#555555" android:textSize="10sp" android:layout_marginBottom="5dp"/>
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card_rounded" android:padding="15dp" android:layout_marginBottom="15dp">
+                <TextView 
+                    android:layout_width="wrap_content" 
+                    android:layout_height="wrap_content" 
+                    android:text="APP THEME PRO" 
+                    android:textColor="#555555" 
+                    android:textSize="10sp" 
+                    android:layout_marginBottom="5dp"/>
+                <LinearLayout 
+                    android:layout_width="match_parent" 
+                    android:layout_height="wrap_content" 
+                    android:orientation="vertical" 
+                    android:background="@drawable/bg_card_rounded" 
+                    android:padding="15dp" 
+                    android:layout_marginBottom="15dp">
                     
-                    <TextView android:id="@+id/btn_theme_glass" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Style: Glass Soft Effect" android:textColor="#FFFFFF" android:textSize="14sp" android:layout_marginBottom="10dp" android:clickable="true" android:focusable="true" android:drawableLeft="@android:drawable/ic_menu_gallery" android:drawablePadding="10dp"/>
+                    <TextView 
+                        android:id="@+id/btn_theme_glass" 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:text="Style: Glass Soft Effect (Toggle)" 
+                        android:textColor="#FFFFFF" 
+                        android:textSize="14sp" 
+                        android:layout_marginBottom="10dp" 
+                        android:clickable="true" 
+                        android:focusable="true" 
+                        android:drawableLeft="@android:drawable/ic_menu_gallery" 
+                        android:drawablePadding="10dp"/>
                     
-                    <TextView android:id="@+id/btn_theme_rainbow" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Icons: Rainbow Colorful" android:textColor="#FFFFFF" android:textSize="14sp" android:layout_marginBottom="10dp" android:clickable="true" android:focusable="true" android:layout_left="@android:drawable/ic_menu_edit" android:drawablePadding="10dp"/>
+                    <TextView 
+                        android:id="@+id/btn_theme_rainbow" 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:text="Icons: Rainbow / Colorful (Toggle)" 
+                        android:textColor="#FFFFFF" 
+                        android:textSize="14sp" 
+                        android:layout_marginBottom="10dp" 
+                        android:clickable="true" 
+                        android:focusable="true" 
+                        android:drawableLeft="@android:drawable/ic_menu_edit" 
+                        android:drawablePadding="10dp"/>
                     
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Background Color:" android:textColor="#AAAAAA" android:textSize="11sp"/>
-                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginTop="5dp">
-                        <TextView android:id="@+id/btn_bg_black" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:text="Black" android:gravity="center" android:background="#000000" android:layout_marginEnd="5dp" android:textColor="#FFF" android:clickable="true" android:focusable="true"/>
-                        <TextView android:id="@+id/btn_bg_white" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:text="White" android:gravity="center" android:background="#FFFFFF" android:layout_marginEnd="5dp" android:textColor="#000" android:clickable="true" android:focusable="true"/>
-                        <TextView android:id="@+id/btn_bg_gray" android:layout_width="0dp" android:layout_height="40dp" android:layout_weight="1" android:text="Gray" android:gravity="center" android:background="#888888" android:textColor="#FFF" android:clickable="true" android:focusable="true"/>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="Background Color:" 
+                        android:textColor="#AAAAAA" 
+                        android:textSize="11sp"/>
+                    <LinearLayout 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:orientation="horizontal" 
+                        android:layout_marginTop="5dp">
+                        <TextView 
+                            android:id="@+id/btn_bg_black" 
+                            android:layout_width="0dp" 
+                            android:layout_height="40dp" 
+                            android:layout_weight="1" 
+                            android:text="Black" 
+                            android:gravity="center" 
+                            android:background="#000000" 
+                            android:layout_marginEnd="5dp" 
+                            android:textColor="#FFF" 
+                            android:clickable="true" 
+                            android:focusable="true"/>
+                        <TextView 
+                            android:id="@+id/btn_bg_white" 
+                            android:layout_width="0dp" 
+                            android:layout_height="40dp" 
+                            android:layout_weight="1" 
+                            android:text="White" 
+                            android:gravity="center" 
+                            android:background="#FFFFFF" 
+                            android:layout_marginEnd="5dp" 
+                            android:textColor="#000" 
+                            android:clickable="true" 
+                            android:focusable="true"/>
+                        <TextView 
+                            android:id="@+id/btn_bg_gray" 
+                            android:layout_width="0dp" 
+                            android:layout_height="40dp" 
+                            android:layout_weight="1" 
+                            android:text="Gray" 
+                            android:gravity="center" 
+                            android:background="#888888" 
+                            android:textColor="#FFF" 
+                            android:clickable="true" 
+                            android:focusable="true"/>
                     </LinearLayout>
                 </LinearLayout>
 
                 <!-- INFO -->
-                <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="DEVELOPER" android:textColor="#555555" android:textSize="10sp" android:layout_marginBottom="5dp"/>
-                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:background="@drawable/bg_card_rounded" android:padding="15dp">
-                    <TextView android:id="@+id/tv_dev_link" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="VortexSU_Dev (Click to Telegram)" android:textColor="#4CAF50" android:textSize="14sp" android:textStyle="bold" android:layout_marginBottom="5dp" android:clickable="true" android:focusable="true" android:drawableLeft="@android:drawable/ic_menu_send" android:drawablePadding="10dp"/>
-                    <TextView android:id="@+id/tv_channel_link" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Channel: t.me/vortexgki (Click to Join)" android:textColor="#AAAAAA" android:textSize="12sp" android:clickable="true" android:focusable="true" android:drawableLeft="@android:drawable/ic_menu_view" android:drawablePadding="10dp"/>
+                <TextView 
+                    android:layout_width="wrap_content" 
+                    android:layout_height="wrap_content" 
+                    android:text="DEVELOPER" 
+                    android:textColor="#555555" 
+                    android:textSize="10sp" 
+                    android:layout_marginBottom="5dp"/>
+                <LinearLayout 
+                    android:layout_width="match_parent" 
+                    android:layout_height="wrap_content" 
+                    android:orientation="vertical" 
+                    android:background="@drawable/bg_card_rounded" 
+                    android:padding="15dp">
+                    <TextView 
+                        android:id="@+id/tv_dev_link" 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:text="@VortexSU_Dev (Click to Telegram)" 
+                        android:textColor="#4CAF50" 
+                        android:textSize="14sp" 
+                        android:textStyle="bold" 
+                        android:layout_marginBottom="5dp" 
+                        android:clickable="true" 
+                        android:focusable="true" 
+                        android:drawableLeft="@android:drawable/ic_menu_send" 
+                        android:drawablePadding="10dp"/>
+                    <TextView 
+                        android:id="@+id/tv_channel_link" 
+                        android:layout_width="match_parent" 
+                        android:layout_height="wrap_content" 
+                        android:text="Channel: t.me/vortexgki (Click to Join)" 
+                        android:textColor="#AAAAAA" 
+                        android:textSize="12sp" 
+                        android:clickable="true" 
+                        android:focusable="true" 
+                        android:drawableLeft="@android:drawable/ic_menu_view" 
+                        android:drawablePadding="10dp"/>
                 </LinearLayout>
 
             </LinearLayout>
@@ -313,22 +845,106 @@
     </ViewFlipper>
 
     <!-- NAVIGATION -->
-    <LinearLayout android:layout_width="match_parent" android:layout_height="60dp" android:orientation="horizontal" android:background="#1E1E1E" android:elevation="10dp">
-        <LinearLayout android:id="@+id/nav_system" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:clickable="true" android:focusable="true">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="MONITOR" android:textColor="#4CAF50" android:textSize="12sp" android:textStyle="bold" android:drawableTop="@android:drawable/ic_menu_info_details" android:drawablePadding="2dp"/>
+    <LinearLayout 
+        android:layout_width="match_parent" 
+        android:layout_height="60dp" 
+        android:orientation="horizontal" 
+        android:background="#1E1E1E" 
+        android:elevation="10dp">
+        <LinearLayout 
+            android:id="@+id/nav_system" 
+            android:layout_width="0dp" 
+            android:layout_height="match_parent" 
+            android:layout_weight="1" 
+            android:orientation="vertical" 
+            android:gravity="center" 
+            android:clickable="true" 
+            android:focusable="true">
+            <TextView 
+                android:layout_width="wrap_content" 
+                android:layout_height="wrap_content" 
+                android:text="MONITOR" 
+                android:textColor="#4CAF50" 
+                android:textSize="12sp" 
+                android:textStyle="bold" 
+                android:drawableTop="@android:drawable/ic_menu_info_details" 
+                android:drawablePadding="2dp"/>
         </LinearLayout>
-        <LinearLayout android:id="@+id/nav_tools" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:clickable="true" android:focusable="true">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="TOOLS" android:textColor="#888888" android:textSize="12sp" android:drawableTop="@android:drawable/ic_menu_manage" android:drawablePadding="2dp"/>
+        <LinearLayout 
+            android:id="@+id/nav_tools" 
+            android:layout_width="0dp" 
+            android:layout_height="match_parent" 
+            android:layout_weight="1" 
+            android:orientation="vertical" 
+            android:gravity="center" 
+            android:clickable="true" 
+            android:focusable="true">
+            <TextView 
+                android:layout_width="wrap_content" 
+                android:layout_height="wrap_content" 
+                android:text="TOOLS" 
+                android:textColor="#888888" 
+                android:textSize="12sp" 
+                android:drawableTop="@android:drawable/ic_menu_manage" 
+                android:drawablePadding="2dp"/>
         </LinearLayout>
-        <LinearLayout android:id="@+id/nav_settings" android:layout_width="0dp" android:layout_height="match_parent" android:layout_weight="1" android:orientation="vertical" android:gravity="center" android:clickable="true" android:focusable="true">
-            <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SETTINGS" android:textColor="#888888" android:textSize="12sp" android:drawableTop="@android:drawable/ic_menu_preferences" android:drawablePadding="2dp"/>
+        <LinearLayout 
+            android:id="@+id/nav_settings" 
+            android:layout_width="0dp" 
+            android:layout_height="match_parent" 
+            android:layout_weight="1" 
+            android:orientation="vertical" 
+            android:gravity="center" 
+            android:clickable="true" 
+            android:focusable="true">
+            <TextView 
+                android:layout_width="wrap_content" 
+                android:layout_height="wrap_content" 
+                android:text="SETTINGS" 
+                android:textColor="#888888" 
+                android:textSize="12sp" 
+                android:drawableTop="@android:drawable/ic_menu_preferences" 
+                android:drawablePadding="2dp"/>
         </LinearLayout>
     </LinearLayout>
 
     <!-- LOCKED -->
-    <LinearLayout android:id="@+id/layout_locked" android:layout_width="match_parent" android:layout_height="match_parent" android:layout_orientation="vertical" android:gravity="center" android:background="#121212" android:visibility="gone"> 
-        <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="VORTEX CORE" android:textColor="#FF5252" android:textSize="32sp" android:textStyle="bold" android:layout_marginBottom="20dp"/>
-        <EditText android:id="@+id/input_code" android:layout_width="match_parent" android:layout_height="50dp" android:layout_margin="40dp" android:background="#1E1E1E" android:textColor="#FFFFFF" android:hint="ENTER CODE" android:textColorHint="#666666" android:inputType="textPassword" android:gravity="center" android:padding="10dp"/>
-        <Button android:id="@+id/btn_unlock" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="UNLOCK" android:backgroundTint="#4CAF50" android:textColor="#FFFFFF" android:paddingLeft="40dp" android:paddingRight="40dp"/>
+    <LinearLayout 
+        android:id="@+id/layout_locked" 
+        android:layout_width="match_parent" 
+        android:layout_height="match_parent" 
+        android:orientation="vertical" 
+        android:gravity="center" 
+        android:background="#121212" 
+        android:visibility="gone"> 
+        <TextView 
+            android:layout_width="wrap_content" 
+            android:layout_height="wrap_content" 
+            android:text="VORTEX CORE" 
+            android:textColor="#FF5252" 
+            android:textSize="32sp" 
+            android:textStyle="bold" 
+            android:layout_marginBottom="20dp"/>
+        <EditText 
+            android:id="@+id/input_code" 
+            android:layout_width="match_parent" 
+            android:layout_height="50dp" 
+            android:layout_margin="40dp" 
+            android:background="#1E1E1E" 
+            android:textColor="#FFFFFF" 
+            android:hint="ENTER CODE" 
+            android:textColorHint="#666666" 
+            android:inputType="textPassword" 
+            android:gravity="center" 
+            android:padding="10dp"/>
+        <Button 
+            android:id="@+id/btn_unlock" 
+            android:layout_width="wrap_content" 
+            android:layout_height="wrap_content" 
+            android:text="UNLOCK" 
+            android:backgroundTint="#4CAF50" 
+            android:textColor="#FFFFFF" 
+            android:paddingLeft="40dp" 
+            android:paddingRight="40dp"/>
     </LinearLayout>
 </LinearLayout>
