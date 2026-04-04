@@ -80,7 +80,7 @@
                     android:layout_marginBottom="10dp">
                     
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SYSTEM STATUS" android:textColor="@color/vortex_cyan" android:textSize="12sp" android:textStyle="bold" android:layout_marginBottom="10dp"/>
-                    
+
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="5dp">
                         <TextView android:layout_width="60dp" android:layout_height="wrap_content" android:text="RAM" android:textColor="#AAAAAA" android:textSize="12sp"/>
                         <TextView android:id="@+id/tv_ram" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="..." android:textColor="@color/white" android:textSize="12sp" android:fontFamily="monospace"/>
@@ -88,6 +88,11 @@
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="5dp">
                         <TextView android:layout_width="60dp" android:layout_height="wrap_content" android:text="ZRAM" android:textColor="#AAAAAA" android:textSize="12sp"/>
                         <TextView android:id="@+id/tv_zram" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="..." android:textColor="@color/white" android:textSize="12sp" android:fontFamily="monospace"/>
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="5dp">
+                        <TextView android:layout_width="60dp" android:layout_height="wrap_content" android:text="GOV" android:textColor="#AAAAAA" android:textSize="12sp"/>
+                        <!-- tv_cpu DITAMBAHKAN KEMBALI DISINI -->
+                        <TextView android:id="@+id/tv_cpu" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="..." android:textColor="@color/white" android:textSize="12sp" android:fontFamily="monospace"/>
                     </LinearLayout>
                     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal" android:layout_marginBottom="5dp">
                         <TextView android:layout_width="60dp" android:layout_height="wrap_content" android:text="BATTERY" android:textColor="#AAAAAA" android:textSize="12sp"/>
@@ -105,7 +110,7 @@
                     android:layout_marginBottom="10dp">
                     
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="CPU ARCHITECTURE" android:textColor="@color/vortex_cyan" android:textSize="12sp" android:textStyle="bold" android:layout_marginBottom="10dp"/>
-                    
+
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Little Cluster Max:" android:textColor="#AAAAAA" android:textSize="11sp"/>
                     <TextView android:id="@+id/tv_little_cluster" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Detecting..." android:textColor="@color/white" android:textSize="12sp" android:fontFamily="monospace" android:layout_marginBottom="5dp"/>
 
@@ -120,7 +125,7 @@
 
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Vendor:" android:textColor="#AAAAAA" android:textSize="11sp"/>
                     <TextView android:id="@+id/tv_cpu_vendor" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="..." android:textColor="@color/white" android:textSize="12sp" android:fontFamily="monospace" android:layout_marginBottom="5dp"/>
-                    
+
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Temperature:" android:textColor="#AAAAAA" android:textSize="11sp"/>
                     <TextView android:id="@+id/tv_temp" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="..." android:textColor="@color/vortex_red" android:textSize="14sp" android:textStyle="bold" android:fontFamily="monospace"/>
                 </LinearLayout>
@@ -135,10 +140,10 @@
                     android:layout_marginBottom="10dp">
                     
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="GPU RENDERER" android:textColor="@color/vortex_cyan" android:textSize="12sp" android:textStyle="bold" android:layout_marginBottom="10dp"/>
-                    
+
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Renderer:" android:textColor="#AAAAAA" android:textSize="11sp"/>
                     <TextView android:id="@+id/tv_gpu_renderer" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Detecting..." android:textColor="@color/white" android:textSize="11sp" android:fontFamily="monospace" android:layout_marginBottom="5dp"/>
-                    
+
                     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Version:" android:textColor="#AAAAAA" android:textSize="11sp"/>
                     <TextView android:id="@+id/tv_gpu_version" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="..." android:textColor="@color/white" android:textSize="11sp" android:fontFamily="monospace"/>
                 </LinearLayout>
@@ -150,22 +155,53 @@
                     android:orientation="vertical"
                     android:background="@drawable/bg_card_glass"
                     android:padding="15dp"
+                    android:layout_marginBottom="10dp">
+
+                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SYSTEM INFO" android:textColor="@color/vortex_cyan" android:textSize="12sp" android:textStyle="bold" android:layout_marginBottom="10dp"/>
+
+                    <TextView android:id="@+id/tv_device" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Device: ..." android:textColor="@color/white" android:textSize="12sp" android:fontFamily="monospace" android:layout_marginBottom="5dp"/>
+
+                    <!-- Kernel Full Text No Dots -->
+                    <TextView android:id="@+id/tv_kernel"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Kernel: ..."
+                        android:textColor="#DDDDDD"
+                        android:textSize="10sp"
+                        android:fontFamily="monospace"
+                        android:maxLines="5"
+                        android:ellipsize="none"/>
+                </LinearLayout>
+
+                <!-- TERMINAL LOG (DITAMBAHKAN KEMBALI DISINI) -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical"
+                    android:background="#CC000000"
+                    android:padding="10dp"
                     android:layout_marginBottom="20dp">
                     
-                    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="SYSTEM INFO" android:textColor="@color/vortex_cyan" android:textSize="12sp" android:textStyle="bold" android:layout_marginBottom="10dp"/>
-                    
-                    <TextView android:id="@+id/tv_device" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="Device: ..." android:textColor="@color/white" android:textSize="12sp" android:fontFamily="monospace" android:layout_marginBottom="5dp"/>
-                    
-                    <!-- Kernel Full Text No Dots -->
-                    <TextView android:id="@+id/tv_kernel" 
-                        android:layout_width="match_parent" 
-                        android:layout_height="wrap_content" 
-                        android:text="Kernel: ..." 
-                        android:textColor="#DDDDDD" 
-                        android:textSize="10sp" 
-                        android:fontFamily="monospace" 
-                        android:maxLines="5" 
-                        android:ellipsize="none"/>
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="TERMINAL LOG"
+                        android:textColor="#555555"
+                        android:textSize="10sp"
+                        android:layout_marginBottom="5dp"/>
+
+                    <ScrollView
+                        android:layout_width="match_parent"
+                        android:layout_height="150dp">
+                        <TextView
+                            android:id="@+id/tv_terminal_log"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="> System Ready..."
+                            android:textColor="#00FF00"
+                            android:textSize="11sp"
+                            android:fontFamily="monospace"/>
+                    </ScrollView>
                 </LinearLayout>
 
             </LinearLayout>
@@ -273,7 +309,7 @@
             android:clickable="true"
             android:focusable="true"
             android:background="?android:attr/selectableItemBackground">
-            
+
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
@@ -299,7 +335,7 @@
             android:clickable="true"
             android:focusable="true"
             android:background="?android:attr/selectableItemBackground">
-            
+
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
@@ -325,7 +361,7 @@
             android:clickable="true"
             android:focusable="true"
             android:background="?android:attr/selectableItemBackground">
-            
+
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
@@ -350,7 +386,7 @@
         android:orientation="vertical"
         android:gravity="center"
         android:background="#EE000000"
-        android:visibility="gone"> <!-- Default gone jika sudah unlock, atau visible jika lock aktif -->
+        android:visibility="gone"> 
 
         <TextView
             android:layout_width="wrap_content"
