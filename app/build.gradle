@@ -17,22 +17,27 @@ android {
         versionCode 1
         versionName "1.0"
 
-        // Membaca Password dari Environment Variable BUILD_SECRET
-        buildConfigField "String", "SECRET_PASSKEY", "\"${System.getenv('BUILD_SECRET') ?: 'DEFAULT_KEY'}\""
+        // PASSKEY DIHAPUS DISINI.
+        // Kita menggunakan metode ASSETS (VORTEX_PASSKEY.txt) yang di-generate oleh GitHub Actions.
+        // Ini lebih aman karena kunci tidak tertanam (hardcoded) di dalam class APK.
+    }
+
+    // --- PERBAIKAN SIGNING (Dipindah ke luar buildTypes) ---
+    signingConfigs {
+        release {
+            storeFile file("release.jks")
+            storePassword System.getenv("SIGNING_STORE_PASSWORD")
+            keyAlias System.getenv("SIGNING_KEY_ALIAS")
+            keyPassword System.getenv("SIGNING_KEY_PASSWORD")
+        }
     }
 
     buildTypes {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            signingConfigs {
-                release {
-                    storeFile file("release.jks")
-                    storePassword System.getenv("SIGNING_STORE_PASSWORD")
-                    keyAlias System.getenv("SIGNING_KEY_ALIAS")
-                    keyPassword System.getenv("SIGNING_KEY_PASSWORD")
-                }
-            }
+            
+            // Menggunakan config yang sudah didefinisikan di atas
             signingConfig signingConfigs.release
         }
     }
@@ -44,10 +49,13 @@ android {
 }
 
 dependencies {
+    // --- GLIDE & GIF SUPPORT ---
     implementation 'com.github.bumptech.glide:glide:4.16.0'
-    annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0' 
-    implementation 'com.github.bumptech.glide:glide:4.16.0'
-    annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0' 
+    annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
+    
+    // INI ADALAH KUNCI SUPAYA GIF BISA BERGERAK
+    implementation 'com.github.bumptech.glide:gifdecoder:4.16.0'
+
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
