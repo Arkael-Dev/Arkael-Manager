@@ -170,22 +170,27 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadCustomBanner() {
-        // Default Path sesuai request
-        String defaultPath = "/storage/emulated/0/Download/header_bg.png";
         String customPath = prefs.getString("custom_banner_path", "");
         
-        String finalPath = customPath.isEmpty() ? defaultPath : customPath;
-        File imgFile = new File(finalPath);
-
-        // Gunakan Glide untuk support GIF & JPG
-        if (imgFile.exists()) {
-            Glide.with(this)
-                 .load(imgFile)
-                 .centerCrop()
-                 .into(headerBanner);
+        if (!customPath.isEmpty()) {
+            File imgFile = new File(customPath);
+            if (imgFile.exists()) {
+                Glide.with(this).load(imgFile).centerCrop().into(headerBanner);
+                headerBanner.setVisibility(View.VISIBLE);
+                findViewById(R.id.btn_reset_banner).setVisibility(View.VISIBLE);
+                return;
+            }
+        }
+        
+        try {
+            Glide.with(this).load(R.drawable.header_bg).centerCrop().into(headerBanner);
             headerBanner.setVisibility(View.VISIBLE);
-            findViewById(R.id.btn_reset_banner).setVisibility(View.VISIBLE);
-        } else {
+        } catch (Exception e) {
+            headerBanner.setVisibility(View.GONE);
+        }
+        
+        findViewById(R.id.btn_reset_banner).setVisibility(View.GONE);
+    }
             headerBanner.setVisibility(View.GONE);
             findViewById(R.id.btn_reset_banner).setVisibility(View.GONE);
         }
