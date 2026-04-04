@@ -98,7 +98,6 @@ public class MainActivity extends AppCompatActivity {
         // --- LISTENERS ---
         findViewById(R.id.btn_unlock).setOnClickListener(v -> {
             EditText input = findViewById(R.id.input_code);
-            // GANTI KODE RAHASIA ANDA DI SINI ATAU GUNAKAN BuildConfig
             String SECRET = "vortex"; 
             if (input.getText().toString().trim().equals(SECRET)) {
                 prefs.edit().putBoolean("is_unlocked", true).apply();
@@ -112,8 +111,6 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_cpu_gov).setOnClickListener(v -> pickGov());
         findViewById(R.id.btn_set_zram).setOnClickListener(v -> showZramMenu());
         findViewById(R.id.btn_thermal).setOnClickListener(v -> showThermalMenu());
-        
-        // FIX CLEAN CACHE CLICK (ID SAMA DENGAN XML)
         findViewById(R.id.btn_clean_ram).setOnClickListener(v -> {
             Toast.makeText(this, "Starting Advanced Clean...", Toast.LENGTH_SHORT).show();
             cleanRam();
@@ -132,7 +129,7 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Banner Reset", Toast.LENGTH_SHORT).show();
         });
 
-        // Colors (Themes)
+        // Colors
         findViewById(R.id.btn_theme_black).setOnClickListener(v -> { isDarkTheme=true; prefs.edit().putBoolean("dark_theme", true).apply(); applyTheme(true); });
         findViewById(R.id.btn_theme_white).setOnClickListener(v -> { isDarkTheme=false; prefs.edit().putBoolean("dark_theme", false).apply(); applyTheme(false); });
         findViewById(R.id.btn_theme_blue).setOnClickListener(v -> { isDarkTheme=true; prefs.edit().putBoolean("dark_theme", true).apply(); applyTheme(true, Color.parseColor("#000033"), Color.parseColor("#111133")); });
@@ -141,11 +138,10 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.tv_dev_link).setOnClickListener(v -> openUrl("https://t.me/VorteXSU_Dev"));
         findViewById(R.id.tv_channel_link).setOnClickListener(v -> openUrl("https://t.me/vortexgki"));
 
-        // Slider Logic (Accurate)
+        // Slider Logic
         seekBarMaxFreq.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (fromUser && maxFreqKhz > 0 && minFreqKhz > 0) {
-                    // Hitung frekuensi target berdasarkan persentase
                     int range = maxFreqKhz - minFreqKhz;
                     int targetFreq = minFreqKhz + ((range * progress) / 100);
                     setMaxFreq(targetFreq);
@@ -172,6 +168,7 @@ public class MainActivity extends AppCompatActivity {
     private void loadCustomBanner() {
         String customPath = prefs.getString("custom_banner_path", "");
         
+        // Prioritas 1: Custom Banner User
         if (!customPath.isEmpty()) {
             File imgFile = new File(customPath);
             if (imgFile.exists()) {
@@ -182,6 +179,7 @@ public class MainActivity extends AppCompatActivity {
             }
         }
         
+        // Prioritas 2: Default Banner dari Resource (Yang sudah di-push)
         try {
             Glide.with(this).load(R.drawable.header_bg).centerCrop().into(headerBanner);
             headerBanner.setVisibility(View.VISIBLE);
@@ -191,20 +189,14 @@ public class MainActivity extends AppCompatActivity {
         
         findViewById(R.id.btn_reset_banner).setVisibility(View.GONE);
     }
-            headerBanner.setVisibility(View.GONE);
-            findViewById(R.id.btn_reset_banner).setVisibility(View.GONE);
-        }
-    }
 
     private void applyTheme(boolean dark) {
         applyTheme(dark, Color.parseColor("#121212"), Color.parseColor("#1E1E1E"));
     }
 
     private void applyTheme(boolean dark, int bgCol, int cardCol) {
-        // Apply Background
         if(rootLayout != null) rootLayout.setBackgroundColor(bgCol);
         
-        // Colors Fix for Light/Dark
         int textMain, textSec, cardBg;
 
         if(dark) {
@@ -212,26 +204,23 @@ public class MainActivity extends AppCompatActivity {
             textSec  = Color.parseColor("#AAAAAA");
             cardBg   = Color.parseColor("#1E1E1E");
         } else {
-            // LIGHT THEME FIX: Agar tidak "busuk", gunakan warna yang nyaman
-            textMain = Color.parseColor("#000000"); // Hitam Pekat agar terbaca
-            textSec  = Color.parseColor("#555555"); // Abu Gelap
-            cardBg   = Color.parseColor("#F1F1F1"); // Abu Terang (Bukan Putih Polos) agar card terlihat
+            // LIGHT THEME FIX
+            textMain = Color.parseColor("#000000");
+            textSec  = Color.parseColor("#555555");
+            cardBg   = Color.parseColor("#F1F1F1");
         }
 
-        // Update Cards (Radius & Colors)
         GradientDrawable gd = new GradientDrawable();
         gd.setShape(GradientDrawable.RECTANGLE);
         gd.setColor(cardBg);
-        gd.setCornerRadius(20); // Rounded corners
+        gd.setCornerRadius(20);
         
         if(cardRam != null) cardRam.setBackground(gd);
         if(cardBat != null) cardBat.setBackground(gd);
 
-        // Update Texts Global
         if(tvRam != null) tvRam.setTextColor(textMain);
         if(tvBattery != null) tvBattery.setTextColor(textMain);
         
-        // Nav Colors
         updateNavUI(viewFlipper.getDisplayedChild());
     }
 
@@ -246,7 +235,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void setMaxFreq(int khz) {
         new Thread(() -> {
-            // Set untuk semua core agar akurat
             String cmd = "for c in /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq; do echo " + khz + " > $c; done";
             runSu(cmd);
         }).start();
@@ -254,7 +242,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void refreshUI() {
         boolean ok = prefs.getBoolean("is_unlocked", false);
-        // Bypass untuk development jika perlu: ganti 'ok' jadi 'true' sementara
         if (true) { ok = true; } 
         
         findViewById(R.id.layout_locked).setVisibility(ok ? View.GONE : View.VISIBLE);
@@ -267,7 +254,7 @@ public class MainActivity extends AppCompatActivity {
                 updateStats();
                 updateSystemInfo();
                 updateDetailedStats();
-                handler.postDelayed(this, 2000); // Refresh setiap 2 detik
+                handler.postDelayed(this, 2000);
             }
         });
     }
@@ -296,13 +283,11 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateDetailedStats() {
         try {
-            // --- VENDOR DETEKSI CANGGIH ---
             String platform = runSuReturn("getprop ro.board.platform").toLowerCase();
             String hardware = runSuReturn("getprop ro.hardware").toLowerCase();
-            String socModel = runSuReturn("getprop ro.soc.model"); // Some devices have this
+            String socModel = runSuReturn("getprop ro.soc.model"); 
             String vendor = "Unknown Device";
 
-            // Logic deteksi
             if (platform.contains("qcom") || platform.contains("msm")) {
                 vendor = "Qualcomm";
                 if(!socModel.isEmpty()) vendor += " (" + socModel + ")";
@@ -317,25 +302,32 @@ public class MainActivity extends AppCompatActivity {
 
             if(tvCpuVendor != null) tvCpuVendor.setText(vendor);
 
-            // --- FREQUENCIES ACCURATE ---
-            // Ambil min/max fisik dari CPU
-            String min = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq");
+            // --- BALANCED FREQ LOGIC (FIX REQUEST) ---
+            // Baca limit hardware absolut
             String max = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
+            // Baca limit sistem saat ini (biasanya sudah diatur governor, biar gak langsung max)
+            String scalingMax = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq");
             String cur = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq");
             
-            if(!min.isEmpty()) minFreqKhz = Integer.parseInt(min);
             if(!max.isEmpty()) maxFreqKhz = Integer.parseInt(max);
 
             if(!cur.isEmpty() && tvCurrentFreq != null) tvCurrentFreq.setText((Integer.parseInt(cur)/1000) + " MHz");
             
-            if(!max.isEmpty() && tvMaxFreq != null) {
-                tvMaxFreq.setText((maxFreqKhz/1000) + " MHz");
-                // Set slider max agar 100% = max freq asli
-                if(seekBarMaxFreq != null) seekBarMaxFreq.setProgress(100); 
+            // Set Slider berdasarkan Current System Limit (Balanced), bukan Hardware Max
+            if(!scalingMax.isEmpty() && maxFreqKhz > 0) {
+                int currentMaxVal = Integer.parseInt(scalingMax);
+                if(tvMaxFreq != null) tvMaxFreq.setText((currentMaxVal/1000) + " MHz");
+                
+                // Hitung persentase slider berdasarkan kondisi sistem sekarang
+                int progress = (currentMaxVal * 100) / maxFreqKhz;
+                if(seekBarMaxFreq != null) seekBarMaxFreq.setProgress(progress);
+            } else if (!max.isEmpty()) {
+                // Fallback jika scalingMax gagal baca
+                if(tvMaxFreq != null) tvMaxFreq.setText((maxFreqKhz/1000) + " MHz");
+                if(seekBarMaxFreq != null) seekBarMaxFreq.setProgress(100);
             }
 
-            // CLUSTERS (Big/Little)
-            // Coba baca core 0 (little) dan core tertinggi (big)
+            // CLUSTERS
             String cpuCount = runSuReturn("cat /proc/cpuinfo | grep 'processor' | wc -l");
             int cores = cpuCount.isEmpty() ? 4 : Integer.parseInt(cpuCount.trim());
             int lastCore = Math.max(0, cores - 1);
@@ -348,7 +340,6 @@ public class MainActivity extends AppCompatActivity {
             if(tvBigCluster != null) tvBigCluster.setText((big.isEmpty() ? "N/A" : (Integer.parseInt(big)/1000) + " MHz"));
 
             // --- TEMPERATURE BATTERY ACCURATE ---
-            // Cari zone yang mengandung 'bat' atau 'battery'
             String temp = "";
             for(int i=0; i<20; i++) {
                 String type = runSuReturn("cat /sys/class/thermal/thermal_zone"+i+"/type");
@@ -357,7 +348,6 @@ public class MainActivity extends AppCompatActivity {
                     if(!temp.isEmpty()) break;
                 }
             }
-            // Fallback
             if(temp.isEmpty()) temp = runSuReturn("cat /sys/class/power_supply/battery/temp");
             
             if(!temp.isEmpty() && tvTemp != null) {
@@ -376,13 +366,12 @@ public class MainActivity extends AppCompatActivity {
                 gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_model");
                 if(gpu.isEmpty()) gpu = "Adreno GPU";
             } else if (platform.contains("exynos")) {
-                 gpu = runSuReturn("cat /sys/class/devfreq/gpu/governor"); // Partial info
+                 gpu = runSuReturn("cat /sys/class/devfreq/gpu/governor"); 
                  if(gpu.isEmpty()) gpu = "Exynos GPU";
             }
 
             if(tvGpuRenderer != null) tvGpuRenderer.setText(gpu);
 
-            // OpenGL Version
             String gl = runSuReturn("getprop ro.opengles.version");
             if(tvGpuVersion != null) {
                 if(gl.isEmpty()) tvGpuVersion.setText("OpenGL ES 3.x");
@@ -481,7 +470,6 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    // Helpers
     private String runCmd(String c) {
         try { return new BufferedReader(new InputStreamReader(Runtime.getRuntime().exec(c).getInputStream())).readLine().trim(); } catch (Exception e) { return ""; }
     }
