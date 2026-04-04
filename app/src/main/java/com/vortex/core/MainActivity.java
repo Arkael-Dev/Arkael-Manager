@@ -17,6 +17,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
 import android.text.method.ScrollingMovementMethod;
+import android.util.Log;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -34,12 +35,11 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import com.bumptech.glide.Glide;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.FileOutputStream;
 import java.io.BufferedReader;
-import java.io.InputStreamReader;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.io.OutputStream;
 
 public class MainActivity extends AppCompatActivity {
@@ -60,7 +60,7 @@ public class MainActivity extends AppCompatActivity {
     private int minFreqKhz = 0;
     private boolean isGlassTheme = false;
     private boolean isRainbowTheme = false;
-    private boolean staticInfoLoaded = false; // Flag agar static info cuma baca sekali
+    private boolean staticInfoLoaded = false;
     
     // Launcher untuk Pick Image
     private ActivityResultLauncher<Intent> pickImageLauncher;
@@ -86,16 +86,37 @@ public class MainActivity extends AppCompatActivity {
         initViews();
         loadThemeSettings();
 
-        // --- AUTH LOGIC (STRICT) ---
-        String device = Build.DEVICE.toLowerCase();
-        String product = Build.PRODUCT.toLowerCase();
-        boolean isEKernel = device.contains("vortex-e-sport") || product.contains("vortex-e-sport");
+        // --- AUTH LOGIC (FIXED: DETEKSI KERNEL NAME) ---
+        // Kita baca nama kernel secara langsung menggunakan 'uname -r'
+        // Ini tidak butuh root akses untuk membaca, jadi aman dilakukan di awal.
+        String kernelName = "";
+        try {
+            Process p = Runtime.getRuntime().exec("uname -r");
+            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            kernelName = reader.readLine();
+            if(kernelName == null) kernelName = "";
+        } catch (Exception e) {
+            kernelName = "";
+        }
+
+        // Log untuk debugging (bisa dilihat di Logcat)
+        Log.d("VortexAuth", "Detected Kernel Name: " + kernelName);
+
+        // Cek apakah nama kernel mengandung kata "VorteX" (Case Insensitive)
+        // Ini akan cocok untuk "VorteX_E-Sport", "VorteX-E-Sport", "VorteX", dll.
+        boolean isEKernel = kernelName.toLowerCase().contains("vortex");
         
+        Log.d("VortexAuth", "Is Vortex Kernel: " + isEKernel);
+
         if(isEKernel) {
+            // Jika kernel terdeteksi, langsung unlock dan simpan state
             prefs.edit().putBoolean("is_unlocked", true).apply();
             if(tvAuthActive != null) tvAuthActive.setVisibility(View.VISIBLE);
+            Toast.makeText(this, "VorteX Kernel Detected! Access Granted.", Toast.LENGTH_LONG).show();
         } else {
+            // Jika bukan kernel VorteX
             if(tvAuthActive != null) tvAuthActive.setVisibility(View.GONE);
+            Log.d("VortexAuth", "Access Denied: Not a VorteX Kernel");
         }
 
         setupClickListeners();
@@ -233,7 +254,6 @@ public class MainActivity extends AppCompatActivity {
         boolean ok = prefs.getBoolean("is_unlocked", false);
         findViewById(R.id.layout_locked).setVisibility(ok ? View.GONE : View.VISIBLE);
         if (ok) {
-            // Load static info once
             if(!staticInfoLoaded) {
                 loadStaticHardwareInfo();
                 staticInfoLoaded = true;
@@ -245,7 +265,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void loadStaticHardwareInfo() {
-        // Jalankan di background thread agar tidak lag saat buka app
         new Thread(() -> {
             String brand = Build.BRAND;
             String model = Build.MODEL;
@@ -258,7 +277,6 @@ public class MainActivity extends AppCompatActivity {
             String vendor = "Unknown Device";
             String gpu = "Unknown GPU";
 
-            // CPU Vendor Logic
             if (platform.contains("qcom") || platform.contains("msm")) {
                 vendor = "Qualcomm";
                 if(!socModel.isEmpty()) vendor += " (" + socModel + ")";
@@ -271,7 +289,6 @@ public class MainActivity extends AppCompatActivity {
             else if (platform.contains("universal") || platform.contains("sp98")) vendor = "Unisoc";
             else vendor = platform.toUpperCase();
 
-            // GPU Logic (Static)
             if (platform.contains("mt") || hardware.contains("mt")) {
                 gpu = runSuReturn("cat /sys/class/misc/mali0/device/gpu_model 2>/dev/null");
                 if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/kernel/debug/mali0/gpu_id 2>/dev/null");
@@ -288,14 +305,12 @@ public class MainActivity extends AppCompatActivity {
             if(gl.isEmpty()) gl = "OpenGL ES 3.x";
             else gl = "OpenGL ES " + gl;
 
-            // Final Strings
             final String finalVendor = vendor;
             final String finalKernel = kernelFull;
             final String finalDevice = brand.toUpperCase() + " " + model;
             final String finalGpu = gpu;
             final String finalGl = gl;
 
-            // Update UI on Main Thread
             runOnUiThread(() -> {
                 if(tvCpuVendor != null) tvCpuVendor.setText(finalVendor);
                 if(tvKernel != null) tvKernel.setText(finalKernel);
@@ -309,9 +324,7 @@ public class MainActivity extends AppCompatActivity {
     private void startLoop() {
         handler.post(new Runnable() {
             @Override public void run() {
-                // Pindahkan heavy lifting ke Background Thread
                 new Thread(() -> {
-                    // 1. Fetch RAM, Battery, Gov, ZRAM
                     String ramStr = "...";
                     String batStr = "...";
                     String govStr = "...";
@@ -335,7 +348,6 @@ public class MainActivity extends AppCompatActivity {
                         if(!z.isEmpty()) zramStr = (Long.parseLong(z)/1048576) + " MB";
                     } catch (Exception e) { e.printStackTrace(); }
 
-                    // 2. Fetch Detailed Stats (Freq, Clusters, Temp)
                     String curFreq = "N/A";
                     String maxFreqVal = "N/A";
                     String little = "N/A";
@@ -358,7 +370,6 @@ public class MainActivity extends AppCompatActivity {
                         maxFreqVal = (currentMaxVal/1000) + " MHz";
                         maxTools = maxFreqVal;
 
-                        // Clusters
                         String cpuCount = runSuReturn("cat /proc/cpuinfo | grep 'processor' | wc -l");
                         int cores = cpuCount.isEmpty() ? 4 : Integer.parseInt(cpuCount.trim());
                         int lastCore = Math.max(0, cores - 1);
@@ -371,7 +382,6 @@ public class MainActivity extends AppCompatActivity {
                         big = (bigVal.isEmpty() ? "N/A" : (Integer.parseInt(bigVal)/1000) + " MHz");
 
                         // --- OPTIMASI TEMPERATURE (SATU PERINTAH SHELL) ---
-                        // Script ini mencari thermal zone battery dan mengembalikan nilai temp-nya
                         String tempScript = "for f in /sys/class/thermal/thermal_zone*/type; do t=$(cat $f 2>/dev/null); if [[ \"$t\" == *\"batt\"* ]] || [[ \"$t\" == *\"tsens\"* ]]; then cat ${f%type}/temp 2>/dev/null; break; fi; done";
                         String t = runSuReturn(tempScript);
                         if(!t.isEmpty()) {
@@ -381,7 +391,6 @@ public class MainActivity extends AppCompatActivity {
                                 if(tempVal > 0) temp = tempVal + "°C";
                             } catch (Exception e) { temp = "N/A"; }
                         } else {
-                            // Fallback single path
                             t = runSuReturn("cat /sys/class/power_supply/battery/temp 2>/dev/null");
                              if(!t.isEmpty()) {
                                 try {
@@ -394,7 +403,6 @@ public class MainActivity extends AppCompatActivity {
 
                     } catch (Exception e) { e.printStackTrace(); }
 
-                    // 3. Update UI di Main Thread
                     final String fRam = ramStr;
                     final String fBat = batStr;
                     final String fGov = govStr;
@@ -420,14 +428,14 @@ public class MainActivity extends AppCompatActivity {
                         if(tvTemp != null) tvTemp.setText(fTemp);
                     });
 
-                }).start(); // End Background Thread
+                }).start(); 
 
-                handler.postDelayed(this, 2000); // Loop 2 detik
+                handler.postDelayed(this, 2000); 
             }
         });
     }
 
-    // --- HELPER METHODS (No Major Changes, just formatting) ---
+    // --- HELPER METHODS ---
 
     private void setBackgroundMode(int mode) {
         int bgCol, cardCol, textCol;
@@ -605,7 +613,6 @@ public class MainActivity extends AppCompatActivity {
             runSu("mkswap /dev/block/zram0 2>/dev/null");
             runSu("swapon /dev/block/zram0 2>/dev/null");
             try { Thread.sleep(500); } catch (Exception e){}
-            // Refresh handled by loop
         }).start();
     }
 
