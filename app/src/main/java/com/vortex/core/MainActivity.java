@@ -260,7 +260,6 @@ public class MainActivity extends AppCompatActivity {
 
             // Tunggu 5 detik agar user bisa baca log, lalu exit seperti fitur asli
             try { Thread.sleep(5000); } catch (Exception e){}
-            runOnUiThread(() -> { finishAffinity(); System.exit(0); });
         }).start();
     }
 }
