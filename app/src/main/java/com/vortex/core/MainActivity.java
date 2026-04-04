@@ -28,7 +28,8 @@ import java.io.InputStreamReader;
 public class MainActivity extends AppCompatActivity {
     private TextView tvRam, tvZram, tvCpu, tvBattery;
     private TextView tvKernel, tvDevice, tvTerminalLog;
-    private TextView tvLittleCluster, tvBigCluster, tvCurrentFreq, tvMaxFreq, tvCpuVendor, tvTemp, tvGpuRenderer, tvGpuVersion;
+    // tvCurrentFreq & tvMaxFreq DIHAPUS karena tidak ada di XML baru
+    private TextView tvLittleCluster, tvBigCluster, tvCpuVendor, tvTemp, tvGpuRenderer, tvGpuVersion;
 
     private ViewFlipper viewFlipper;
     private LinearLayout navSystem, navTools, navSettings;
@@ -54,10 +55,10 @@ public class MainActivity extends AppCompatActivity {
         tvKernel = findViewById(R.id.tv_kernel);
         tvDevice = findViewById(R.id.tv_device);
         tvTerminalLog = findViewById(R.id.tv_terminal_log);
+        
+        // Init Stats Views (Tidak termasuk Current/Max yang dihapus)
         tvLittleCluster = findViewById(R.id.tv_little_cluster);
         tvBigCluster = findViewById(R.id.tv_big_cluster);
-        tvCurrentFreq = findViewById(R.id.tv_current_freq);
-        tvMaxFreq = findViewById(R.id.tv_max_freq);
         tvCpuVendor = findViewById(R.id.tv_cpu_vendor);
         tvTemp = findViewById(R.id.tv_temp);
         tvGpuRenderer = findViewById(R.id.tv_gpu_renderer);
@@ -87,7 +88,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Tool Listeners (LinearLayouts now act as buttons in XML)
+        // Tool Listeners (LinearLayouts act as buttons)
         findViewById(R.id.btn_cpu_gov).setOnClickListener(v -> pickGov());
         findViewById(R.id.btn_set_zram).setOnClickListener(v -> showZramMenu());
         findViewById(R.id.btn_thermal).setOnClickListener(v -> showThermalMenu());
@@ -98,19 +99,18 @@ public class MainActivity extends AppCompatActivity {
         navTools.setOnClickListener(v -> { viewFlipper.setDisplayedChild(1); updateNavUI(1); });
         navSettings.setOnClickListener(v -> { viewFlipper.setDisplayedChild(2); updateNavUI(2); });
 
-        // --- THEME SWITCHER LOGIC (FIXED) ---
+        // --- THEME SWITCHER LOGIC ---
         Switch themeSwitch = findViewById(R.id.switch_theme);
         if(themeSwitch != null) {
-            themeSwitch.setChecked(!isDarkTheme); // Invert logic because Switch ON usually means Light
+            themeSwitch.setChecked(!isDarkTheme);
             themeSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                isDarkTheme = !isChecked; // Switch ON = Light Mode (!isDark)
+                isDarkTheme = !isChecked;
                 prefs.edit().putBoolean("dark_theme", isDarkTheme).apply();
                 applyTheme(isDarkTheme);
             });
         }
     }
 
-    // FUNGSI UNTUK MENGUBAH WARNA SECARA REAL-TIME
     private void applyTheme(boolean dark) {
         int bgColor, cardColor, textColor, subTextColor;
 
@@ -128,12 +128,6 @@ public class MainActivity extends AppCompatActivity {
 
         if(rootLayout != null) rootLayout.setBackgroundColor(bgColor);
         
-        // Note: In a real app, iterate through all views. 
-        // Here we update the Root. The Cards have hardcoded colors in XML for simplicity of this session.
-        // To make it truly dynamic, we would need IDs for all cards or iterate view tree.
-        // For now, the background changes.
-        
-        // Change Nav Text Color
         ((TextView)navSystem.getChildAt(0)).setTextColor(dark ? Color.parseColor("#4CAF50") : Color.parseColor("#000000"));
         ((TextView)navTools.getChildAt(0)).setTextColor(subTextColor);
         ((TextView)navSettings.getChildAt(0)).setTextColor(subTextColor);
@@ -188,10 +182,9 @@ public class MainActivity extends AppCompatActivity {
         } catch (Exception ignored) {}
     }
 
-    // --- PERBAIKAN DETAIL DATA (VENDOR & GPU) ---
     private void updateDetailedStats() {
         try {
-            // 1. CPU CLUSTERS
+            // CPU CLUSTERS
             String littleMax = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
             String bigMax = runSuReturn("cat /sys/devices/system/cpu/cpu4/cpufreq/cpuinfo_max_freq");
             if(bigMax.isEmpty()) bigMax = runSuReturn("cat /sys/devices/system/cpu/cpu7/cpufreq/cpuinfo_max_freq"); 
@@ -200,11 +193,9 @@ public class MainActivity extends AppCompatActivity {
             if(tvLittleCluster != null) tvLittleCluster.setText((littleMax.isEmpty() ? "N/A" : (Integer.parseInt(littleMax)/1000) + " MHz"));
             if(tvBigCluster != null) tvBigCluster.setText((bigMax.isEmpty() ? "N/A" : (Integer.parseInt(bigMax)/1000) + " MHz"));
 
-            String cur = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq");
-            if(tvCurrentFreq != null) tvCurrentFreq.setText((cur.isEmpty() ? "N/A" : (Integer.parseInt(cur)/1000) + " MHz"));
-            if(tvMaxFreq != null) tvMaxFreq.setText((littleMax.isEmpty() ? "N/A" : (Integer.parseInt(littleMax)/1000) + " MHz"));
+            // Kode tvCurrentFreq & tvMaxFreq DIHAPUS DISINI
 
-            // 2. VENDOR AKURAT (BUKAN UNIVERSAL)
+            // VENDOR
             String vendor = "Unknown";
             String soc = runSuReturn("getprop ro.soc.manufacturer");
             if(soc.isEmpty()) soc = runSuReturn("getprop ro.board.platform");
@@ -217,7 +208,7 @@ public class MainActivity extends AppCompatActivity {
             
             if(tvCpuVendor != null) tvCpuVendor.setText(vendor);
 
-            // 3. TEMPERATURE
+            // TEMPERATURE
             String temp = runSuReturn("cat /sys/class/thermal/thermal_zone0/temp");
             if(temp.isEmpty()) temp = runSuReturn("cat /sys/class/thermal/thermal_zone10/temp");
             if(!temp.isEmpty() && tvTemp != null) {
@@ -227,29 +218,26 @@ public class MainActivity extends AppCompatActivity {
                 } catch (Exception e) { tvTemp.setText("N/A"); }
             }
 
-            // 4. GPU AKURAT
+            // GPU
             String gpu = "Unknown GPU";
             String platform = runSuReturn("getprop ro.board.platform").toLowerCase();
 
             if (platform.contains("mt") || platform.contains("mtk")) {
-                // Mediatek Logic
                 gpu = runSuReturn("cat /sys/class/misc/mali0/device/gpuinfo");
                 if(gpu.isEmpty()) gpu = runSuReturn("dmesg | grep -i 'mali' | head -n 1");
                 if(gpu.isEmpty()) gpu = "Mali GPU";
             } else if (platform.contains("qcom") || platform.contains("msm")) {
-                // Snapdragon Logic
                 gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_model");
                 if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_chip_id");
                 if(gpu.isEmpty()) gpu = "Adreno GPU";
             } else {
-                // Generic / Exynos
                 gpu = runSuReturn("getprop ro.hardware.egl");
                 if(gpu.isEmpty()) gpu = "Generic GPU";
             }
 
             if(tvGpuRenderer != null) tvGpuRenderer.setText(gpu);
 
-            // 5. GPU VERSION
+            // GPU VERSION
             String gl = runSuReturn("getprop ro.opengles.version");
             if(tvGpuVersion != null) tvGpuVersion.setText("OpenGL ES " + (gl.isEmpty() ? "3.x" : gl));
 
