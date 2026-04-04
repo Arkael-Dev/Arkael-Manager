@@ -130,7 +130,7 @@
             android:id="@+id/btn_clean_ram"
             android:layout_width="match_parent"
             android:layout_height="60dp"
-            android:text="CLEAN RAM"
+            android:text="CLEAN CACHE"
             android:drawableLeft="@android:drawable/ic_menu_delete"
             android:drawablePadding="10dp"
             android:backgroundTint="@color/vortex_red"
