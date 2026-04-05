@@ -20,7 +20,6 @@ import android.provider.MediaStore;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
 import android.view.View;
-import android.view.WindowManager;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.EditText;
@@ -37,10 +36,6 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import com.bumptech.glide.Glide;
-import com.bumptech.glide.request.target.SimpleTarget;
-import android.graphics.Bitmap;
-import android.graphics.drawable.Drawable;
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -50,6 +45,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 public class MainActivity extends AppCompatActivity {
+    // UI Components
     private TextView tvRam, tvZram, tvCpu, tvBattery;
     private TextView tvKernel, tvDevice, tvTerminalLog;
     private TextView tvLittleCluster, tvBigCluster, tvCurrentFreq, tvMaxFreq, tvCpuVendor, tvTemp, tvGpuRenderer, tvGpuVersion, tvMaxFreqTools, tvAuthActive;
@@ -60,42 +56,32 @@ public class MainActivity extends AppCompatActivity {
     private LinearLayout navSystem, navTools, navSettings;
     private EditText inputCode; 
 
+    // System Vars
     private SharedPreferences prefs;
     private Handler handler = new Handler(Looper.getMainLooper());
     private int maxFreqKhz = 0;
+    private int minFreqKhz = 0;
     private boolean isGlassTheme = false;
-    private int iconColorMode = 0; 
+    private int iconColorMode = 0; // 0: Gray, 1: Rainbow, 2: Cyan, 3: Orange, 4: Purple
     private boolean staticInfoLoaded = false;
-    private boolean isUpdating = false;
     
+    // Launcher untuk Pick Image
     private ActivityResultLauncher<Intent> pickImageLauncher;
-    private ActivityResultLauncher<Intent> pickBgImageLauncher;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        getWindow().setFlags(WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS, WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS);
 
         prefs = getSharedPreferences("VortexPrefs", 0);
         
+        // Register Image Picker
         pickImageLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
                 if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
                     Uri imageUri = result.getData().getData();
-                    copyImageToInternal(imageUri, "custom_banner.jpg");
-                }
-            }
-        );
-
-        pickBgImageLauncher = registerForActivityResult(
-            new ActivityResultContracts.StartActivityForResult(),
-            result -> {
-                if (result.getResultCode() == Activity.RESULT_OK && result.getData() != null) {
-                    Uri imageUri = result.getData().getData();
-                    copyImageToInternal(imageUri, "custom_bg.jpg");
-                    loadAppBackground();
+                    copyImageToInternal(imageUri);
                 }
             }
         );
@@ -103,6 +89,7 @@ public class MainActivity extends AppCompatActivity {
         initViews();
         loadThemeSettings();
 
+        // --- AUTH LOGIC (KERNEL CHECK) ---
         String kernelName = "";
         try {
             Process p = Runtime.getRuntime().exec("uname -r");
@@ -113,6 +100,9 @@ public class MainActivity extends AppCompatActivity {
             kernelName = "";
         }
 
+        Log.d("VortexAuth", "Kernel: " + kernelName);
+        
+        // Cek Kernel VorteX
         boolean isEKernel = kernelName.toLowerCase().contains("vortex");
 
         if(isEKernel) {
@@ -126,7 +116,6 @@ public class MainActivity extends AppCompatActivity {
         setupClickListeners();
         refreshUI();
         loadCustomBanner();
-        loadAppBackground();
     }
 
     private String getPasskeyFromAssets() {
@@ -143,7 +132,9 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
             reader.close();
-        } catch (IOException e) {}
+        } catch (IOException e) {
+            Log.e("VortexAuth", "Error reading passkey from assets", e);
+        }
         return "vortex"; 
     }
 
@@ -197,6 +188,7 @@ public class MainActivity extends AppCompatActivity {
                 if(inputCode == null) inputCode = findViewById(R.id.input_code);
                 String userInput = inputCode.getText().toString().trim();
                 String validKey = getPasskeyFromAssets(); 
+                
                 if (userInput.equals(validKey)) {
                     prefs.edit().putBoolean("is_unlocked", true).apply();
                     refreshUI();
@@ -207,6 +199,7 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
+        // Tools Clicks
         findViewById(R.id.btn_cpu_gov).setOnClickListener(v -> pickGov());
         findViewById(R.id.btn_set_zram).setOnClickListener(v -> showZramMenu());
         findViewById(R.id.btn_thermal).setOnClickListener(v -> showThermalMenu());
@@ -215,21 +208,24 @@ public class MainActivity extends AppCompatActivity {
             cleanRam();
         });
 
-        navSystem.setOnClickListener(v -> { viewFlipper.setDisplayedChild(0); updateNavUI(0); bannerContainer.setVisibility(View.VISIBLE); });
-        navTools.setOnClickListener(v -> { viewFlipper.setDisplayedChild(1); updateNavUI(1); bannerContainer.setVisibility(View.GONE); });
-        navSettings.setOnClickListener(v -> { viewFlipper.setDisplayedChild(2); updateNavUI(2); bannerContainer.setVisibility(View.GONE); });
-
-        findViewById(R.id.bg_click_area).setOnClickListener(v -> {
-            Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-            intent.setType("image/*");
-            pickBgImageLauncher.launch(intent);
+        // Nav
+        navSystem.setOnClickListener(v -> { 
+            viewFlipper.setDisplayedChild(0); 
+            updateNavUI(0);
+            bannerContainer.setVisibility(View.VISIBLE); 
         });
-        findViewById(R.id.btn_reset_bg_image).setOnClickListener(v -> {
-            prefs.edit().putString("custom_bg_path", "").apply();
-            loadAppBackground();
-            Toast.makeText(this, "Background Reset", Toast.LENGTH_SHORT).show();
+        navTools.setOnClickListener(v -> { 
+            viewFlipper.setDisplayedChild(1); 
+            updateNavUI(1);
+            bannerContainer.setVisibility(View.GONE); 
+        });
+        navSettings.setOnClickListener(v -> { 
+            viewFlipper.setDisplayedChild(2); 
+            updateNavUI(2);
+            bannerContainer.setVisibility(View.GONE); 
         });
 
+        // Settings Actions
         findViewById(R.id.banner_click_area).setOnClickListener(v -> openGallery());
         findViewById(R.id.btn_reset_banner).setOnClickListener(v -> {
             prefs.edit().putString("custom_banner_path", "").apply();
@@ -244,23 +240,36 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Glass Effect: " + (isGlassTheme?"ON":"OFF"), Toast.LENGTH_SHORT).show();
         });
 
+        // ICON COLOR CYCLE
         findViewById(R.id.btn_theme_color).setOnClickListener(v -> {
             iconColorMode = (iconColorMode + 1) % 5;
             prefs.edit().putInt("icon_color_mode", iconColorMode).apply();
             applyThemeSettings();
+            String modeName = "";
+            switch(iconColorMode) {
+                case 0: modeName = "Default Gray"; break;
+                case 1: modeName = "Rainbow Pink"; break;
+                case 2: modeName = "Neon Cyan"; break;
+                case 3: modeName = "Bright Orange"; break;
+                case 4: modeName = "Electric Purple"; break;
+            }
+            Toast.makeText(this, "Icon Color: " + modeName, Toast.LENGTH_SHORT).show();
         });
 
         findViewById(R.id.btn_bg_black).setOnClickListener(v -> setBackgroundMode(0));
         findViewById(R.id.btn_bg_white).setOnClickListener(v -> setBackgroundMode(1));
-        findViewById(R.id.btn_bg_transparent).setOnClickListener(v -> setBackgroundMode(3)); 
+        findViewById(R.id.btn_bg_transparent).setOnClickListener(v -> setBackgroundMode(3)); // Mode 3 Transparent
 
+        // Links
         findViewById(R.id.tv_dev_link).setOnClickListener(v -> openUrl("https://t.me/VorteXSU_Dev"));
         findViewById(R.id.tv_channel_link).setOnClickListener(v -> openUrl("https://t.me/vortexgki"));
 
+        // Slider Logic
         seekBarMaxFreq.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser && maxFreqKhz > 0) {
-                    int targetFreq = (maxFreqKhz * progress) / 100;
+                if (fromUser && maxFreqKhz > 0 && minFreqKhz > 0) {
+                    int range = maxFreqKhz - minFreqKhz;
+                    int targetFreq = minFreqKhz + ((range * progress) / 100);
                     setMaxFreq(targetFreq);
                     if(tvMaxFreqTools != null) tvMaxFreqTools.setText((targetFreq/1000) + " MHz");
                 }
@@ -270,63 +279,8 @@ public class MainActivity extends AppCompatActivity {
         });
     }
     
-    private void copyImageToInternal(Uri uri, String fileName) {
-        try {
-            InputStream inputStream = getContentResolver().openInputStream(uri);
-            File outFile = new File(getFilesDir(), fileName);
-            OutputStream outputStream = new FileOutputStream(outFile);
-            
-            byte[] buffer = new byte[1024];
-            int len;
-            while ((len = inputStream.read(buffer)) > 0) {
-                outputStream.write(buffer, 0, len);
-            }
-            outputStream.close();
-            inputStream.close();
-
-            String path = outFile.getAbsolutePath();
-            if(fileName.equals("custom_banner.jpg")) {
-                prefs.edit().putString("custom_banner_path", path).apply();
-                loadCustomBanner();
-                Toast.makeText(this, "Banner Applied", Toast.LENGTH_SHORT).show();
-            } else if(fileName.equals("custom_bg.jpg")) {
-                prefs.edit().putString("custom_bg_path", path).apply();
-                loadAppBackground();
-                Toast.makeText(this, "Background Applied", Toast.LENGTH_SHORT).show();
-            }
-
-        } catch (Exception e) {
-            Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void loadAppBackground() {
-        String customPath = prefs.getString("custom_bg_path", "");
-        if (!customPath.isEmpty()) {
-            File imgFile = new File(customPath);
-            if (imgFile.exists()) {
-                Glide.with(this)
-                    .load(imgFile)
-                    .centerCrop()
-                    .into(new SimpleTarget<Drawable>() {
-                        @Override
-                        public void onResourceReady(Drawable resource, com.bumptech.glide.request.transition.Transition<? super Drawable> transition) {
-                            if(rootLayout != null) {
-                                rootLayout.setBackground(resource);
-                                findViewById(R.id.btn_reset_bg_image).setVisibility(View.VISIBLE);
-                            }
-                        }
-                    });
-                return;
-            }
-        }
-        if(rootLayout != null) {
-            rootLayout.setBackgroundColor(Color.parseColor("#121212"));
-            rootLayout.setBackground(null);
-        }
-        findViewById(R.id.btn_reset_bg_image).setVisibility(View.GONE);
-    }
-
+    // --- BACKGROUND THREAD LOGIC ---
+    
     private void refreshUI() {
         boolean ok = prefs.getBoolean("is_unlocked", false);
         findViewById(R.id.layout_locked).setVisibility(ok ? View.GONE : View.VISIBLE);
@@ -349,31 +303,51 @@ public class MainActivity extends AppCompatActivity {
             if(kernelFull.isEmpty()) kernelFull = "Unknown Kernel";
             
             String platform = runSuReturn("getprop ro.board.platform").toLowerCase();
+            String hardware = runSuReturn("getprop ro.hardware").toLowerCase();
             String socModel = runSuReturn("getprop ro.soc.model"); 
             String vendor = "Unknown Device";
             String gpu = "Unknown GPU";
 
+            // CPU Vendor Logic
             if (platform.contains("qcom") || platform.contains("msm")) {
                 vendor = "Qualcomm";
                 if(!socModel.isEmpty()) vendor += " (" + socModel + ")";
             } 
-            else if (platform.contains("mt")) {
+            else if (platform.contains("mt") || hardware.contains("mt")) {
                 vendor = "Mediatek";
                 if(!socModel.isEmpty()) vendor += " (" + socModel + ")";
             }
             else if (platform.contains("exynos")) vendor = "Exynos";
+            else if (platform.contains("universal") || platform.contains("sp98")) vendor = "Unisoc";
             else vendor = platform.toUpperCase();
 
-            if (platform.contains("qcom") || platform.contains("msm")) {
-                gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_model 2>/dev/null");
-                if(gpu.isEmpty()) gpu = "Adreno GPU";
-            } else if (platform.contains("mt")) {
+            // --- IMPROVED GPU LOGIC ---
+            boolean gpuFound = false;
+            
+            // Try Direct Root Path first
+            if (platform.contains("mt") || hardware.contains("mt")) {
                 gpu = runSuReturn("cat /sys/class/misc/mali0/device/gpu_model 2>/dev/null");
-                if(gpu.isEmpty()) gpu = "Mali GPU";
-            } else if (platform.contains("exynos")) {
-                gpu = "Exynos GPU";
-            } else {
-                gpu = "Generic GPU";
+                if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/kernel/debug/mali0/gpu_id 2>/dev/null");
+                if(!gpu.isEmpty()) gpuFound = true;
+            } else if (platform.contains("qcom") || platform.contains("msm")) {
+                gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_model 2>/dev/null");
+                if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/devices/platform/soc/soc:qcom,kgsl-3d0/devfreq/soc:qcom,kgsl-3d0/gpu_model 2>/dev/null");
+                if(!gpu.isEmpty()) gpuFound = true;
+            }
+
+            // Fallback Logic if Root Read Fails or returns empty
+            if (!gpuFound) {
+                if (platform.contains("qcom") || platform.contains("msm")) {
+                    gpu = "Adreno GPU";
+                } else if (platform.contains("mt") || hardware.contains("mt")) {
+                    gpu = "Mali GPU";
+                } else if (platform.contains("exynos")) {
+                    gpu = "Exynos GPU";
+                } else if (platform.contains("intel")) {
+                    gpu = "Intel GPU";
+                } else {
+                    gpu = "Generic GPU (" + platform.toUpperCase() + ")";
+                }
             }
             
             String gl = runSuReturn("getprop ro.opengles.version");
@@ -388,7 +362,7 @@ public class MainActivity extends AppCompatActivity {
 
             runOnUiThread(() -> {
                 if(tvCpuVendor != null) tvCpuVendor.setText(finalVendor);
-                if(tvKernel != null) -> tvKernel.setText(finalKernel);
+                if(tvKernel != null) tvKernel.setText(finalKernel);
                 if(tvDevice != null) tvDevice.setText(finalDevice);
                 if(tvGpuRenderer != null) tvGpuRenderer.setText(finalGpu);
                 if(tvGpuVersion != null) tvGpuVersion.setText(finalGl);
@@ -399,153 +373,167 @@ public class MainActivity extends AppCompatActivity {
     private void startLoop() {
         handler.post(new Runnable() {
             @Override public void run() {
-                if(!isUpdating) {
-                    isUpdating = true;
-                    new Thread(() -> {
-                        String ramStr = "...";
-                        String batStr = "...";
-                        String govStr = "...";
-                        String zramStr = "0 MB";
+                new Thread(() -> {
+                    String ramStr = "...";
+                    String batStr = "...";
+                    String govStr = "...";
+                    String zramStr = "0 MB";
+                    
+                    try {
+                        ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+                        ((ActivityManager)getSystemService(ACTIVITY_SERVICE)).getMemoryInfo(mi);
+                        ramStr = (mi.availMem / 1048576) + " MB";
+
+                        BatteryManager bm = (BatteryManager) getSystemService(BATTERY_SERVICE);
+                        int level = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
+                        int status = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS);
+                        String statusText = (status == BatteryManager.BATTERY_STATUS_CHARGING) ? "Charging" : "Discharging";
+                        batStr = level + "% (" + statusText + ")";
+
+                        govStr = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor");
+                        if(govStr.isEmpty()) govStr = "Unknown";
+
+                        String z = runSuReturn("cat /sys/block/zram0/disksize");
+                        if(!z.isEmpty()) zramStr = (Long.parseLong(z)/1048576) + " MB";
+                    } catch (Exception e) { e.printStackTrace(); }
+
+                    String curFreq = "N/A";
+                    String maxFreqVal = "N/A";
+                    String little = "N/A";
+                    String big = "N/A";
+                    String temp = "N/A";
+                    String maxTools = "N/A";
+
+                    try {
+                        String max = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
+                        String scalingMax = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq");
+                        String cur = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq");
+
+                        if(!max.isEmpty()) maxFreqKhz = Integer.parseInt(max);
+                        if(!cur.isEmpty()) curFreq = (Integer.parseInt(cur)/1000) + " MHz";
                         
-                        try {
-                            ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
-                            ((ActivityManager)getSystemService(ACTIVITY_SERVICE)).getMemoryInfo(mi);
-                            ramStr = (mi.availMem / 1048576) + " MB";
+                        int currentMaxVal = 0;
+                        if(!scalingMax.isEmpty()) currentMaxVal = Integer.parseInt(scalingMax);
+                        else if (!max.isEmpty()) currentMaxVal = maxFreqKhz;
 
-                            BatteryManager bm = (BatteryManager) getSystemService(BATTERY_SERVICE);
-                            int level = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
-                            int status = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS);
-                            String statusText = (status == BatteryManager.BATTERY_STATUS_CHARGING) ? "Charging" : "Discharging");
-                            batStr = level + "% (" + statusText + ")";
+                        maxFreqVal = (currentMaxVal/1000) + " MHz";
+                        maxTools = maxFreqVal;
 
-                            govStr = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor");
-                            if(govStr.isEmpty()) govStr = "Unknown";
+                        String cpuCount = runSuReturn("cat /proc/cpuinfo | grep 'processor' | wc -l");
+                        int cores = cpuCount.isEmpty() ? 4 : Integer.parseInt(cpuCount.trim());
+                        int lastCore = Math.max(0, cores - 1);
+                        
+                        String lit = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
+                        String bigVal = runSuReturn("cat /sys/devices/system/cpu/cpu"+lastCore+"/cpufreq/cpuinfo_max_freq");
+                        if(bigVal.isEmpty()) bigVal = lit;
 
-                            String z = runSuReturn("cat /sys/block/zram0/disksize");
-                            if(!z.isEmpty()) zramStr = (Long.parseLong(z)/1048576) + " MB";
-                        } catch (Exception e) {}
+                        little = (lit.isEmpty() ? "N/A" : (Integer.parseInt(lit)/1000) + " MHz");
+                        big = (bigVal.isEmpty() ? "N/A" : (Integer.parseInt(bigVal)/1000) + " MHz");
 
-                        String curFreq = "N/A";
-                        String maxFreqVal = "N/A";
-                        String little = "N/A";
-                        String big = "N/A";
-                        String temp = "N/A"; 
-
-                        try {
-                            String max = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
-                            String cur = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq");
-                            if(!max.isEmpty()) maxFreqKhz = Integer.parseInt(max);
-                            if(!cur.isEmpty()) curFreq = (Integer.parseInt(cur)/1000) + " MHz";
-                            
-                            String scalingMax = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq");
-                            int currentMaxVal = !scalingMax.isEmpty() ? Integer.parseInt(scalingMax) : maxFreqKhz;
-                            maxFreqVal = (currentMaxVal/1000) + " MHz";
-
-                            String cpuCount = runSuReturn("cat /proc/cpuinfo | grep 'processor' | wc -l");
-                            int cores = cpuCount.isEmpty() ? 4 : Integer.parseInt(cpuCount.trim());
-                            int lastCore = Math.max(0, cores - 1);
-                            String lit = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
-                            String bigVal = runSuReturn("cat /sys/devices/system/cpu/cpu"+lastCore+"/cpufreq/cpuinfo_max_freq");
-                            if(bigVal.isEmpty()) bigVal = lit;
-                            little = (lit.isEmpty() ? "N/A" : (Integer.parseInt(lit)/1000) + " MHz");
-                            big = (bigVal.isEmpty() ? "N/A" : (Integer.parseInt(bigVal)/1000) + " MHz");
-
-                            // --- ACCURATE TEMP FIX (Fokus Battery) ---
-                            String t = "";
-                            // Cari thermal zone battery
-                            for(int i=0; i<25; i++) { 
-                                String type = runSuReturn("cat /sys/class/thermal/thermal_zone"+i+"/type 2>/dev/null");
-                                if(type.toLowerCase().contains("batt") || type.toLowerCase().contains("battery")) {
-                                    t = runSuReturn("cat /sys/class/thermal/thermal_zone"+i+"/temp 2>/dev/null");
-                                    if(!t.isEmpty()) break; 
-                                }
-                            }
-                            if(t.isEmpty()) t = runSuReturn("cat /sys/class/power_supply/battery/temp 2>/dev/null");
-                            
-                            if(!t.isEmpty()) {
+                        String tempScript = "for f in /sys/class/thermal/thermal_zone*/type; do t=$(cat $f 2>/dev/null); if [[ \"$t\" == *\"batt\"* ]] || [[ \"$t\" == *\"tsens\"* ]]; then cat ${f%type}/temp 2>/dev/null; break; fi; done";
+                        String t = runSuReturn(tempScript);
+                        if(!t.isEmpty()) {
+                            try {
+                                int tempVal = Integer.parseInt(t.trim());
+                                if(tempVal > 1000) tempVal = tempVal / 1000;
+                                if(tempVal > 0) temp = tempVal + "°C";
+                            } catch (Exception e) { temp = "N/A"; }
+                        } else {
+                            t = runSuReturn("cat /sys/class/power_supply/battery/temp 2>/dev/null");
+                             if(!t.isEmpty()) {
                                 try {
                                     int tempVal = Integer.parseInt(t.trim());
-                                    if(tempVal > 1000) tempVal = tempVal / 1000; 
-                                    if(tempVal > 0) temp = tempVal + "°C";
-                                } catch (Exception e) { temp = "N/A"; }
+                                    if(tempVal > 1000) tempVal = tempVal / 1000;
+                                    temp = tempVal + "°C";
+                                } catch (Exception e) {}
                             }
+                        }
 
-                        } catch (Exception e) {}
+                    } catch (Exception e) { e.printStackTrace(); }
 
-                        final String fRam = ramStr, fBat = batStr, fGov = govStr, fZram = zramStr;
-                        final String fCurFreq = curFreq, fMaxFreq = maxFreqVal, fLittle = little, fBig = big, fTemp = temp;
+                    final String fRam = ramStr;
+                    final String fBat = batStr;
+                    final String fGov = govStr;
+                    final String fZram = zramStr;
+                    final String fCurFreq = curFreq;
+                    final String fMaxFreq = maxFreqVal;
+                    final String fLittle = little;
+                    final String fBig = big;
+                    final String fTemp = temp;
+                    final String fMaxTools = maxTools;
 
-                        runOnUiThread(() -> {
-                            if(tvRam != null) tvRam.setText(fRam);
-                            if(tvBattery != null) tvBattery.setText(fBat);
-                            if(tvCpu != null) tvCpu.setText(fGov.toUpperCase());
-                            if(tvZram != null) tvZram.setText(fZram);
-                            if(tvCurrentFreq != null) tvCurrentFreq.setText(fCurFreq);
-                            if(tvMaxFreq != null) tvMaxFreq.setText(fMaxFreq);
-                            if(tvMaxFreqTools != null) tvMaxFreqTools.setText(fMaxFreq);
-                            if(tvLittleCluster != null) tvLittleCluster.setText(fLittle);
-                            if(tvBigCluster != null) tvBigCluster.setText(fBig);
-                            if(tvTemp != null) tvTemp.setText(fTemp);
-                            isUpdating = false; 
-                        });
+                    runOnUiThread(() -> {
+                        if(tvRam != null) tvRam.setText(fRam);
+                        if(tvBattery != null) tvBattery.setText(fBat);
+                        if(tvCpu != null) tvCpu.setText(fGov.toUpperCase());
+                        if(tvZram != null) tvZram.setText(fZram);
+                        
+                        if(tvCurrentFreq != null) tvCurrentFreq.setText(fCurFreq);
+                        if(tvMaxFreq != null) tvMaxFreq.setText(fMaxFreq);
+                        if(tvMaxFreqTools != null) tvMaxFreqTools.setText(fMaxTools);
+                        if(tvLittleCluster != null) tvLittleCluster.setText(fLittle);
+                        if(tvBigCluster != null) tvBigCluster.setText(fBig);
+                        if(tvTemp != null) tvTemp.setText(fTemp);
+                    });
 
-                    }).start(); 
-                }
+                }).start(); 
+
                 handler.postDelayed(this, 2000); 
             }
         });
     }
 
-    // --- THEME LOGIC (Simplified) ---
+    // --- THEME & GLASS LOGIC ---
 
     private void setBackgroundMode(int mode) {
         int bgCol, cardCol, textCol;
         boolean isDark = true;
         
-        if(mode == 0) {
+        if(mode == 0) { // Black
             bgCol = Color.parseColor("#121212");
             cardCol = Color.parseColor("#1E1E1E");
             textCol = Color.WHITE;
-        } else if (mode == 1) {
+        } else if (mode == 1) { // White
             bgCol = Color.parseColor("#F0F0F0");
             cardCol = Color.parseColor("#FFFFFF");
             textCol = Color.BLACK;
             isDark = false;
-        } else if (mode == 3) {
-            bgCol = Color.TRANSPARENT; 
-            cardCol = Color.parseColor("#DD000000"); 
+        } else if (mode == 3) { // Transparent (NEW)
+            bgCol = Color.parseColor("#00000000"); // Fully Transparent
+            cardCol = Color.parseColor("#DD000000"); // Semi-transparent dark for cards
             textCol = Color.WHITE;
             isDark = true;
-        } else {
+        } else { // Gray (Fallback)
             bgCol = Color.parseColor("#808080");
             cardCol = Color.parseColor("#909090");
             textCol = Color.WHITE;
         }
 
+        // --- REAL GLASS EFFECT ---
         if(isGlassTheme) {
-            cardCol = Color.parseColor("#88000000"); 
-            if(!isDark) cardCol = Color.parseColor("#88FFFFFF");
+            // Card becomes Glassy: Semi-transparent + Border
+            if (isDark) {
+                cardCol = Color.parseColor("#80000000"); // 50% Black Glass
+            } else {
+                cardCol = Color.parseColor("#80FFFFFF"); // 50% White Glass
+            }
         }
 
         prefs.edit().putInt("bg_mode", mode).apply();
 
-        if(mode == 3) {
-             String customBg = prefs.getString("custom_bg_path", "");
-             if(customBg.isEmpty() && rootLayout != null) {
-                 rootLayout.setBackgroundColor(bgCol);
-             }
-        } else {
-             String customBg = prefs.getString("custom_bg_path", "");
-             if(customBg.isEmpty() && rootLayout != null) {
-                 rootLayout.setBackgroundColor(bgCol);
-             }
-        }
+        if(rootLayout != null) rootLayout.setBackgroundColor(bgCol);
         
         GradientDrawable gd = new GradientDrawable();
         gd.setShape(GradientDrawable.RECTANGLE);
         gd.setColor(cardCol);
         gd.setCornerRadius(20);
-        gd.setStroke(0, Color.TRANSPARENT);
+        
+        // Add Stroke if Glass is active to create the "Glass Edge" look
+        if(isGlassTheme) {
+            gd.setStroke(2, Color.parseColor("#33FFFFFF")); // Thin white border
+        } else {
+            gd.setStroke(0, Color.TRANSPARENT);
+        }
         
         if(cardRam != null) cardRam.setBackground(gd);
         if(cardBat != null) cardBat.setBackground(gd);
@@ -564,12 +552,21 @@ public class MainActivity extends AppCompatActivity {
 
     private void applyIconColor() {
         int color = Color.GRAY; 
+        
+        // Cycle Colors
         switch(iconColorMode) {
-            case 1: color = Color.parseColor("#FF4081"); break;
-            case 2: color = Color.parseColor("#00E5FF"); break;
-            case 3: color = Color.parseColor("#FF9100"); break;
-            case 4: color = Color.parseColor("#D500F9"); break;
+            case 1: color = Color.parseColor("#FF4081"); // Rainbow Pink
+                break;
+            case 2: color = Color.parseColor("#00E5FF"); // Cyan
+                break;
+            case 3: color = Color.parseColor("#FF9100"); // Orange
+                break;
+            case 4: color = Color.parseColor("#D500F9"); // Purple
+                break;
+            default: color = Color.parseColor("#AAAAAA"); // Default Gray
+                break;
         }
+        
         if(navSystem != null) tintCompoundDrawables(navSystem.getChildAt(0), color);
         if(navTools != null) tintCompoundDrawables(navTools.getChildAt(0), color);
         if(navSettings != null) tintCompoundDrawables(navSettings.getChildAt(0), color);
@@ -588,6 +585,31 @@ public class MainActivity extends AppCompatActivity {
         Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
         intent.setType("image/*");
         pickImageLauncher.launch(intent);
+    }
+
+    private void copyImageToInternal(Uri uri) {
+        try {
+            InputStream inputStream = getContentResolver().openInputStream(uri);
+            String fileName = "custom_banner.jpg";
+            File outFile = new File(getFilesDir(), fileName);
+            OutputStream outputStream = new FileOutputStream(outFile);
+            
+            byte[] buffer = new byte[1024];
+            int len;
+            while ((len = inputStream.read(buffer)) > 0) {
+                outputStream.write(buffer, 0, len);
+            }
+            outputStream.close();
+            inputStream.close();
+
+            String path = outFile.getAbsolutePath();
+            prefs.edit().putString("custom_banner_path", path).apply();
+            loadCustomBanner();
+            Toast.makeText(this, "Banner Applied", Toast.LENGTH_SHORT).show();
+
+        } catch (Exception e) {
+            Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show();
+        }
     }
 
     private void openUrl(String url) {
@@ -623,13 +645,16 @@ public class MainActivity extends AppCompatActivity {
 
     private void updateNavUI(int activeIndex) {
         int colorActive = Color.parseColor("#4CAF50");
-        int colorInactive = Color.GRAY; 
+        int colorInactive = Color.GRAY; // Default inactive
+
+        // Get Active Color based on mode
         switch(iconColorMode) {
             case 1: colorInactive = Color.parseColor("#FF4081"); break;
             case 2: colorInactive = Color.parseColor("#00E5FF"); break;
             case 3: colorInactive = Color.parseColor("#FF9100"); break;
             case 4: colorInactive = Color.parseColor("#D500F9"); break;
         }
+
         ((TextView)navSystem.getChildAt(0)).setTextColor(activeIndex == 0 ? colorActive : colorInactive);
         ((TextView)navTools.getChildAt(0)).setTextColor(activeIndex == 1 ? colorActive : colorInactive);
         ((TextView)navSettings.getChildAt(0)).setTextColor(activeIndex == 2 ? colorActive : colorInactive);

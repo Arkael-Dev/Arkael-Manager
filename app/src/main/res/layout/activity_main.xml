@@ -4,9 +4,8 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
     android:background="#121212"
-    android:id="@+id/root_layout"
-    android:clipToPadding="false"
-    android:fitsSystemWindows="true">
+    android:fitsSystemWindows="true"
+    android:id="@+id/root_layout">
 
     <!-- HEADER BANNER -->
     <LinearLayout
@@ -15,8 +14,7 @@
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:background="@drawable/bg_card_rounded"
-        android:layout_margin="16dp"
-        android:layout_marginTop="8dp"
+        android:layout_margin="12dp"
         android:padding="4dp"
         android:visibility="gone">
         
@@ -55,7 +53,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="12dp">
 
                 <!-- Header Status -->
                 <LinearLayout
@@ -63,9 +61,8 @@
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
                     android:gravity="center_vertical"
-                    android:layout_marginBottom="20dp"
-                    android:background="@drawable/bg_card_rounded"
-                    android:padding="16dp">
+                    android:layout_marginBottom="15dp"
+                    android:background="@drawable/bg_card_rounded">
                     
                     <TextView
                         android:layout_width="0dp"
@@ -84,7 +81,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
-                    android:layout_marginBottom="20dp">
+                    android:layout_marginBottom="12dp">
                     <LinearLayout 
                         android:id="@+id/card_ram" 
                         android:layout_width="0dp" 
@@ -92,25 +89,25 @@
                         android:layout_weight="1" 
                         android:orientation="vertical" 
                         android:background="@drawable/bg_card_rounded" 
-                        android:layout_marginEnd="10dp"
-                        android:padding="16dp">
+                        android:layout_marginEnd="6dp"
+                        android:padding="10dp">
                         <TextView 
                             android:layout_width="wrap_content" 
                             android:layout_height="wrap_content" 
                             android:text="RAM" 
                             android:textColor="#AAAAAA" 
-                            android:textSize="12sp" 
+                            android:textSize="11sp" 
                             android:drawableLeft="@android:drawable/ic_menu_sort_alphabetically" 
-                            android:drawablePadding="8dp"/>
+                            android:drawablePadding="5dp"/>
                         <TextView 
                             android:id="@+id/tv_ram" 
                             android:layout_width="wrap_content" 
                             android:layout_height="wrap_content" 
                             android:text="..." 
                             android:textColor="#FFFFFF" 
-                            android:textSize="22sp" 
+                            android:textSize="20sp" 
                             android:textStyle="bold" 
-                            android:layout_marginTop="8dp"/>
+                            android:layout_marginTop="5dp"/>
                     </LinearLayout>
                     <LinearLayout 
                         android:id="@+id/card_bat" 
@@ -119,25 +116,25 @@
                         android:layout_weight="1" 
                         android:orientation="vertical" 
                         android:background="@drawable/bg_card_rounded" 
-                        android:layout_marginStart="10dp"
-                        android:padding="16dp">
+                        android:layout_marginStart="6dp"
+                        android:padding="10dp">
                         <TextView 
                             android:layout_width="wrap_content" 
                             android:layout_height="wrap_content" 
                             android:text="BATTERY" 
                             android:textColor="#AAAAAA" 
-                            android:textSize="12sp" 
+                            android:textSize="11sp" 
                             android:drawableLeft="@android:drawable/ic_lock_idle_lock" 
-                            android:drawablePadding="8dp"/>
+                            android:drawablePadding="5dp"/>
                         <TextView 
                             android:id="@+id/tv_battery" 
                             android:layout_width="wrap_content" 
                             android:layout_height="wrap_content" 
                             android:text="..." 
                             android:textColor="#FFFFFF" 
-                            android:textSize="22sp" 
+                            android:textSize="20sp" 
                             android:textStyle="bold" 
-                            android:layout_marginTop="8dp"/>
+                            android:layout_marginTop="5dp"/>
                     </LinearLayout>
                 </LinearLayout>
 
@@ -147,8 +144,8 @@
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:background="@drawable/bg_card_rounded"
-                    android:padding="16dp"
-                    android:layout_marginBottom="20dp">
+                    android:padding="10dp"
+                    android:layout_marginBottom="12dp">
                     <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
@@ -156,18 +153,18 @@
                         android:textColor="#4CAF50" 
                         android:textSize="12sp" 
                         android:textStyle="bold" 
-                        android:layout_marginBottom="12dp"/>
+                        android:layout_marginBottom="10dp"/>
                     <LinearLayout 
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
                         android:orientation="horizontal" 
-                        android:layout_marginBottom="10dp">
+                        android:layout_marginBottom="8dp">
                         <TextView 
                             android:layout_width="90dp" 
                             android:layout_height="wrap_content" 
                             android:text="Governor" 
                             android:textColor="#AAAAAA" 
-                            android:textSize="13sp"/>
+                            android:textSize="12sp"/>
                         <TextView 
                             android:id="@+id/tv_cpu" 
                             android:layout_width="0dp" 
@@ -175,7 +172,7 @@
                             android:layout_weight="1" 
                             android:text="..." 
                             android:textColor="#FFFFFF" 
-                            android:textSize="14sp" 
+                            android:textSize="13sp" 
                             android:gravity="end"/>
                     </LinearLayout>
                     <LinearLayout 
@@ -187,7 +184,7 @@
                             android:layout_height="wrap_content" 
                             android:text="ZRAM" 
                             android:textColor="#AAAAAA" 
-                            android:textSize="13sp"/>
+                            android:textSize="12sp"/>
                         <TextView 
                             android:id="@+id/tv_zram" 
                             android:layout_width="0dp" 
@@ -195,7 +192,7 @@
                             android:layout_weight="1" 
                             android:text="..." 
                             android:textColor="#FFFFFF" 
-                            android:textSize="14sp" 
+                            android:textSize="13sp" 
                             android:gravity="end"/>
                     </LinearLayout>
                 </LinearLayout>
@@ -206,31 +203,31 @@
                     android:layout_height="wrap_content" 
                     android:text="CPU ARCHITECTURE" 
                     android:textColor="#888888" 
-                    android:textSize="11sp" 
+                    android:textSize="10sp" 
                     android:layout_marginTop="10dp" 
-                    android:layout_marginBottom="8dp"/>
+                    android:layout_marginBottom="5dp"/>
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:background="@drawable/bg_card_rounded"
-                    android:padding="16dp"
-                    android:layout_marginBottom="20dp">
+                    android:padding="10dp"
+                    android:layout_marginBottom="12dp">
 
                     <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="Vendor / Model" 
                         android:textColor="#666666" 
-                        android:textSize="12sp"/>
+                        android:textSize="11sp"/>
                     <TextView 
                         android:id="@+id/tv_cpu_vendor" 
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
                         android:text="Detecting..." 
                         android:textColor="#FFFFFF" 
-                        android:textSize="15sp" 
-                        android:layout_marginBottom="10dp" 
+                        android:textSize="14sp" 
+                        android:layout_marginBottom="8dp" 
                         android:textStyle="bold"/>
 
                     <TextView 
@@ -238,36 +235,36 @@
                         android:layout_height="wrap_content" 
                         android:text="Little Cluster" 
                         android:textColor="#666666" 
-                        android:textSize="12sp"/>
+                        android:textSize="11sp"/>
                     <TextView 
                         android:id="@+id/tv_little_cluster" 
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
                         android:text="..." 
                         android:textColor="#FFFFFF" 
-                        android:textSize="14sp" 
-                        android:layout_marginBottom="10dp"/>
+                        android:textSize="13sp" 
+                        android:layout_marginBottom="8dp"/>
 
                     <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="Big Cluster" 
                         android:textColor="#666666" 
-                        android:textSize="12sp"/>
+                        android:textSize="11sp"/>
                     <TextView 
                         android:id="@+id/tv_big_cluster" 
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
                         android:text="..." 
                         android:textColor="#FFFFFF" 
-                        android:textSize="14sp" 
-                        android:layout_marginBottom="10dp"/>
+                        android:textSize="13sp" 
+                        android:layout_marginBottom="8dp"/>
 
                     <LinearLayout 
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
                         android:orientation="horizontal" 
-                        android:layout_marginBottom="8dp" 
+                        android:layout_marginBottom="5dp" 
                         android:gravity="center_vertical">
                         <TextView 
                             android:layout_width="0dp" 
@@ -275,7 +272,7 @@
                             android:layout_weight="1" 
                             android:text="Current Freq:" 
                             android:textColor="#AAAAAA" 
-                            android:textSize="12sp"/>
+                            android:textSize="11sp"/>
                         <TextView 
                             android:id="@+id/tv_current_freq" 
                             android:layout_width="0dp" 
@@ -283,7 +280,7 @@
                             android:layout_weight="1" 
                             android:text="Loading..." 
                             android:textColor="#4CAF50" 
-                            android:textSize="14sp" 
+                            android:textSize="13sp" 
                             android:gravity="end" 
                             android:textStyle="bold"/>
                     </LinearLayout>
@@ -291,7 +288,7 @@
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
                         android:orientation="horizontal" 
-                        android:layout_marginBottom="12dp" 
+                        android:layout_marginBottom="10dp" 
                         android:gravity="center_vertical">
                         <TextView 
                             android:layout_width="0dp" 
@@ -299,7 +296,7 @@
                             android:layout_weight="1" 
                             android:text="Max Freq Limit:" 
                             android:textColor="#AAAAAA" 
-                            android:textSize="12sp"/>
+                            android:textSize="11sp"/>
                         <TextView 
                             android:id="@+id/tv_max_freq" 
                             android:layout_width="0dp" 
@@ -307,7 +304,7 @@
                             android:layout_weight="1" 
                             android:text="Loading..." 
                             android:textColor="#FFFFFF" 
-                            android:textSize="14sp" 
+                            android:textSize="13sp" 
                             android:gravity="end" 
                             android:textStyle="bold"/>
                     </LinearLayout>
@@ -317,15 +314,15 @@
                         android:layout_height="wrap_content" 
                         android:text="Temperature (Battery)" 
                         android:textColor="#666666" 
-                        android:textSize="12sp" 
-                        android:layout_marginTop="18dp"/>
+                        android:textSize="11sp" 
+                        android:layout_marginTop="15dp"/>
                     <TextView 
                         android:id="@+id/tv_temp" 
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
                         android:text="..." 
                         android:textColor="#FF5252" 
-                        android:textSize="18sp" 
+                        android:textSize="16sp" 
                         android:textStyle="bold"/>
                 </LinearLayout>
 
@@ -335,44 +332,44 @@
                     android:layout_height="wrap_content" 
                     android:text="GPU RENDERER" 
                     android:textColor="#888888" 
-                    android:textSize="11sp" 
+                    android:textSize="10sp" 
                     android:layout_marginTop="10dp" 
-                    android:layout_marginBottom="8dp"/>
+                    android:layout_marginBottom="5dp"/>
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:background="@drawable/bg_card_rounded"
-                    android:padding="16dp"
-                    android:layout_marginBottom="20dp">
+                    android:padding="10dp"
+                    android:layout_marginBottom="12dp">
                     <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="Renderer" 
                         android:textColor="#666666" 
-                        android:textSize="12sp"/>
+                        android:textSize="11sp"/>
                     <TextView 
                         android:id="@+id/tv_gpu_renderer" 
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
                         android:text="Detecting..." 
                         android:textColor="#FFFFFF" 
-                        android:textSize="15sp" 
-                        android:layout_marginBottom="10dp" 
+                        android:textSize="14sp" 
+                        android:layout_marginBottom="8dp" 
                         android:textStyle="bold"/>
                     <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="OpenGL Version" 
                         android:textColor="#666666" 
-                        android:textSize="12sp"/>
+                        android:textSize="11sp"/>
                     <TextView 
                         android:id="@+id/tv_gpu_version" 
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
                         android:text="..." 
                         android:textColor="#AAAAAA" 
-                        android:textSize="12sp"/>
+                        android:textSize="11sp"/>
                 </LinearLayout>
 
                 <!-- SYSTEM INFO -->
@@ -381,24 +378,24 @@
                     android:layout_height="wrap_content" 
                     android:text="SYSTEM INFO" 
                     android:textColor="#888888" 
-                    android:textSize="11sp" 
+                    android:textSize="10sp" 
                     android:layout_marginTop="10dp" 
-                    android:layout_marginBottom="8dp"/>
+                    android:layout_marginBottom="5dp"/>
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:background="@drawable/bg_card_rounded"
-                    android:padding="16dp"
-                    android:layout_marginBottom="20dp">
+                    android:padding="10dp"
+                    android:layout_marginBottom="12dp">
                     <TextView 
                         android:id="@+id/tv_device" 
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
                         android:text="..." 
                         android:textColor="#FFFFFF" 
-                        android:textSize="14sp" 
-                        android:layout_marginBottom="10dp" 
+                        android:textSize="13sp" 
+                        android:layout_marginBottom="8dp" 
                         android:textStyle="bold"/>
                     <TextView 
                         android:id="@+id/tv_kernel" 
@@ -406,7 +403,7 @@
                         android:layout_height="wrap_content" 
                         android:text="..." 
                         android:textColor="#AAAAAA" 
-                        android:textSize="11sp" 
+                        android:textSize="10sp" 
                         android:fontFamily="monospace" 
                         android:maxLines="5" 
                         android:ellipsize="none"/>
@@ -418,16 +415,16 @@
                     android:layout_height="wrap_content" 
                     android:text="TERMINAL LOG" 
                     android:textColor="#888888" 
-                    android:textSize="11sp" 
+                    android:textSize="10sp" 
                     android:layout_marginTop="10dp" 
-                    android:layout_marginBottom="8dp"/>
+                    android:layout_marginBottom="5dp"/>
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:background="#000000"
-                    android:padding="12dp"
-                    android:layout_marginBottom="30dp">
+                    android:padding="10dp"
+                    android:layout_marginBottom="20dp">
                     <ScrollView 
                         android:layout_width="match_parent" 
                         android:layout_height="120dp">
@@ -437,7 +434,7 @@
                             android:layout_height="wrap_content" 
                             android:text="> Ready" 
                             android:textColor="#00E676" 
-                            android:textSize="11sp" 
+                            android:textSize="10sp" 
                             android:fontFamily="monospace"/>
                     </ScrollView>
                 </LinearLayout>
@@ -452,27 +449,27 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="15dp">
                 <TextView 
                     android:layout_width="wrap_content" 
                     android:layout_height="wrap_content" 
                     android:text="POWER TOOLS" 
                     android:textColor="#888888" 
                     android:textSize="12sp" 
-                    android:layout_marginBottom="20dp" 
+                    android:layout_marginBottom="15dp" 
                     android:textStyle="bold"/>
                 
-                <!-- BUTTONS TOOLS -->
+                <!-- GOV -->
                 <LinearLayout 
                     android:id="@+id/btn_cpu_gov" 
                     android:layout_width="match_parent" 
-                    android:layout_height="70dp" 
+                    android:layout_height="60dp" 
                     android:orientation="horizontal" 
                     android:gravity="center_vertical" 
                     android:background="@drawable/bg_card_rounded" 
-                    android:paddingStart="20dp" 
-                    android:paddingEnd="20dp" 
-                    android:layout_marginBottom="15dp" 
+                    android:paddingStart="15dp" 
+                    android:paddingEnd="15dp" 
+                    android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
                     <TextView 
@@ -480,34 +477,35 @@
                         android:layout_height="wrap_content" 
                         android:text="Gov" 
                         android:drawableLeft="@android:drawable/ic_menu_manage" 
-                        android:drawablePadding="20dp"/>
+                        android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
                         android:layout_height="wrap_content" 
                         android:layout_weight="1" 
                         android:text="GOVERNOR" 
                         android:textColor="#FFFFFF" 
-                        android:textSize="16sp" 
+                        android:textSize="15sp" 
                         android:textStyle="bold" 
-                        android:layout_marginStart="10dp"/>
+                        android:layout_marginStart="5dp"/>
                     <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text=">" 
                         android:textColor="#555555" 
-                        android:textSize="20sp"/>
+                        android:textSize="18sp"/>
                 </LinearLayout>
 
+                <!-- ZRAM -->
                 <LinearLayout 
                     android:id="@+id/btn_set_zram" 
                     android:layout_width="match_parent" 
-                    android:layout_height="70dp" 
+                    android:layout_height="60dp" 
                     android:orientation="horizontal" 
                     android:gravity="center_vertical" 
                     android:background="@drawable/bg_card_rounded" 
-                    android:paddingStart="20dp" 
-                    android:paddingEnd="20dp" 
-                    android:layout_marginBottom="15dp" 
+                    android:paddingStart="15dp" 
+                    android:paddingEnd="15dp" 
+                    android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
                     <TextView 
@@ -515,34 +513,35 @@
                         android:layout_height="wrap_content" 
                         android:text="Zram" 
                         android:drawableLeft="@android:drawable/ic_menu_save" 
-                        android:drawablePadding="20dp"/>
+                        android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
                         android:layout_height="wrap_content" 
                         android:layout_weight="1" 
                         android:text="ZRAM" 
                         android:textColor="#FFFFFF" 
-                        android:textSize="16sp" 
+                        android:textSize="15sp" 
                         android:textStyle="bold" 
-                        android:layout_marginStart="10dp"/>
+                        android:layout_marginStart="5dp"/>
                     <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text=">" 
                         android:textColor="#555555" 
-                        android:textSize="20sp"/>
+                        android:textSize="18sp"/>
                 </LinearLayout>
 
+                <!-- THERMAL -->
                 <LinearLayout 
                     android:id="@+id/btn_thermal" 
                     android:layout_width="match_parent" 
-                    android:layout_height="70dp" 
+                    android:layout_height="60dp" 
                     android:orientation="horizontal" 
                     android:gravity="center_vertical" 
                     android:background="@drawable/bg_card_rounded" 
-                    android:paddingStart="20dp" 
-                    android:paddingEnd="20dp" 
-                    android:layout_marginBottom="15dp" 
+                    android:paddingStart="15dp" 
+                    android:paddingEnd="15dp" 
+                    android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
                     <TextView 
@@ -550,34 +549,35 @@
                         android:layout_height="wrap_content" 
                         android:text="Heat" 
                         android:drawableLeft="@android:drawable/ic_menu_sort_by_size" 
-                        android:drawablePadding="20dp"/>
+                        android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
                         android:layout_height="wrap_content" 
                         android:layout_weight="1" 
                         android:text="THERMAL" 
                         android:textColor="#FFFFFF" 
-                        android:textSize="16sp" 
+                        android:textSize="15sp" 
                         android:textStyle="bold" 
-                        android:layout_marginStart="10dp"/>
+                        android:layout_marginStart="5dp"/>
                     <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text=">" 
                         android:textColor="#555555" 
-                        android:textSize="20sp"/>
+                        android:textSize="18sp"/>
                 </LinearLayout>
 
+                <!-- CLEAN CACHE -->
                 <LinearLayout 
                     android:id="@+id/btn_clean_ram" 
                     android:layout_width="match_parent" 
-                    android:layout_height="70dp" 
+                    android:layout_height="60dp" 
                     android:orientation="horizontal" 
                     android:gravity="center_vertical" 
                     android:background="@drawable/bg_card_rounded" 
-                    android:paddingStart="20dp" 
-                    android:paddingEnd="20dp" 
-                    android:layout_marginBottom="30dp" 
+                    android:paddingStart="15dp" 
+                    android:paddingEnd="15dp" 
+                    android:layout_marginBottom="20dp" 
                     android:clickable="true" 
                     android:focusable="true">
                     <TextView 
@@ -585,22 +585,22 @@
                         android:layout_height="wrap_content" 
                         android:text="Del" 
                         android:drawableLeft="@android:drawable/ic_menu_delete" 
-                        android:drawablePadding="20dp"/>
+                        android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
                         android:layout_height="wrap_content" 
                         android:layout_weight="1" 
                         android:text="CLEAN CACHE" 
                         android:textColor="#FF5252" 
-                        android:textSize="16sp" 
+                        android:textSize="15sp" 
                         android:textStyle="bold" 
-                        android:layout_marginStart="10dp"/>
+                        android:layout_marginStart="5dp"/>
                     <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text=">" 
                         android:textColor="#555555" 
-                        android:textSize="20sp"/>
+                        android:textSize="18sp"/>
                 </LinearLayout>
 
                 <!-- SLIDER MAX FREQ -->
@@ -610,14 +610,14 @@
                     android:text="CPU CONTROL" 
                     android:textColor="#888888" 
                     android:textSize="12sp" 
-                    android:layout_marginBottom="15dp" 
+                    android:layout_marginBottom="10dp" 
                     android:textStyle="bold"/>
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
                     android:background="@drawable/bg_card_rounded"
-                    android:padding="20dp">
+                    android:padding="15dp">
                     
                     <TextView 
                         android:id="@+id/tv_max_freq_tools" 
@@ -625,8 +625,8 @@
                         android:layout_height="wrap_content" 
                         android:text="Current Max: ..." 
                         android:textColor="#FFFFFF" 
-                        android:textSize="15sp" 
-                        android:layout_marginBottom="15dp" 
+                        android:textSize="14sp" 
+                        android:layout_marginBottom="10dp" 
                         android:textStyle="bold"/>
                     
                     <SeekBar
@@ -643,8 +643,8 @@
                         android:layout_height="wrap_content" 
                         android:text="Slide to adjust CPU Max Frequency (Manual)" 
                         android:textColor="#666666" 
-                        android:textSize="11sp" 
-                        android:layout_marginTop="8dp"/>
+                        android:textSize="10sp" 
+                        android:layout_marginTop="5dp"/>
                 </LinearLayout>
 
             </LinearLayout>
@@ -658,7 +658,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:padding="16dp">
+                android:padding="15dp">
                 
                 <TextView 
                     android:layout_width="wrap_content" 
@@ -666,170 +666,130 @@
                     android:text="SETTINGS" 
                     android:textColor="#888888" 
                     android:textSize="12sp" 
-                    android:layout_marginBottom="20dp" 
+                    android:layout_marginBottom="15dp" 
                     android:textStyle="bold"/>
 
-                <!-- BACKGROUND SETTINGS -->
+                <!-- BANNER (Clickable Area) -->
                 <TextView 
                     android:layout_width="wrap_content" 
                     android:layout_height="wrap_content" 
-                    android:text="APP BACKGROUND" 
+                    android:text="CUSTOM BANNER" 
                     android:textColor="#555555" 
-                    android:textSize="11sp" 
-                    android:layout_marginBottom="8dp"/>
-                <LinearLayout 
-                    android:id="@+id/bg_click_area" 
-                    android:layout_width="match_parent" 
-                    android:layout_height="wrap_content" 
-                    android:orientation="vertical" 
-                    android:background="@drawable/bg_card_rounded" 
-                    android:padding="20dp" 
-                    android:layout_marginBottom="20dp" 
-                    android:clickable="true" 
-                    android:focusable="true">
-                    <TextView 
-                        android:id="@+id/btn_change_bg_image" 
-                        android:layout_width="match_parent" 
-                        android:layout_height="wrap_content" 
-                        android:text="Change Background Image (Wallpaper)" 
-                        android:textColor="#4CAF50" 
-                        android:textSize="15sp" 
-                        android:layout_marginBottom="12dp" 
-                        android:drawableLeft="@android:drawable/ic_menu_gallery" 
-                        android:drawablePadding="12dp"/>
-                    <TextView 
-                        android:id="@+id/btn_reset_bg_image" 
-                        android:layout_width="match_parent" 
-                        android:layout_height="wrap_content" 
-                        android:text="Reset Background" 
-                        android:textColor="#AAAAAA" 
-                        android:textSize="13sp" 
-                        android:drawableLeft="@android:drawable/ic_menu_revert" 
-                        android:drawablePadding="12dp" 
-                        android:visibility="gone"/>
-                </LinearLayout>
-
-                <!-- BANNER -->
-                <TextView 
-                    android:layout_width="wrap_content" 
-                    android:layout_height="wrap_content" 
-                    android:text="HEADER BANNER" 
-                    android:textColor="#555555" 
-                    android:textSize="11sp" 
-                    android:layout_marginBottom="8dp"/>
+                    android:textSize="10sp" 
+                    android:layout_marginBottom="5dp"/>
                 <LinearLayout 
                     android:id="@+id/banner_click_area" 
                     android:layout_width="match_parent" 
                     android:layout_height="wrap_content" 
                     android:orientation="vertical" 
                     android:background="@drawable/bg_card_rounded" 
-                    android:padding="20dp" 
-                    android:layout_marginBottom="20dp" 
+                    android:padding="15dp" 
+                    android:layout_marginBottom="15dp" 
                     android:clickable="true" 
                     android:focusable="true">
                     <TextView 
                         android:id="@+id/btn_change_banner" 
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
-                        android:text="Change Header Banner (GIF/JPG)" 
+                        android:text="Change Banner (JPG/PNG/GIF)" 
                         android:textColor="#4CAF50" 
-                        android:textSize="15sp" 
-                        android:layout_marginBottom="12dp" 
+                        android:textSize="14sp" 
+                        android:layout_marginBottom="10dp" 
                         android:drawableLeft="@android:drawable/ic_menu_gallery" 
-                        android:drawablePadding="12dp"/>
+                        android:drawablePadding="10dp"/>
                     <TextView 
                         android:id="@+id/btn_reset_banner" 
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
                         android:text="Reset Banner to Default" 
                         android:textColor="#AAAAAA" 
-                        android:textSize="13sp" 
+                        android:textSize="12sp" 
                         android:drawableLeft="@android:drawable/ic_menu_revert" 
-                        android:drawablePadding="12dp" 
+                        android:drawablePadding="10dp" 
                         android:visibility="gone"/>
                 </LinearLayout>
 
-                <!-- THEME PRO -->
+                <!-- PRO THEME -->
                 <TextView 
                     android:layout_width="wrap_content" 
                     android:layout_height="wrap_content" 
-                    android:text="APP THEME" 
+                    android:text="APP THEME PRO" 
                     android:textColor="#555555" 
-                    android:textSize="11sp" 
-                    android:layout_marginBottom="8dp"/>
+                    android:textSize="10sp" 
+                    android:layout_marginBottom="5dp"/>
                 <LinearLayout 
                     android:layout_width="match_parent" 
                     android:layout_height="wrap_content" 
                     android:orientation="vertical" 
                     android:background="@drawable/bg_card_rounded" 
-                    android:padding="20dp" 
-                    android:layout_marginBottom="20dp">
+                    android:padding="15dp" 
+                    android:layout_marginBottom="15dp">
                     
                     <TextView 
                         android:id="@+id/btn_theme_glass" 
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
-                        android:text="Style: Glass Dashboard (Toggle)" 
+                        android:text="Style: Glass Soft Effect (Toggle)" 
                         android:textColor="#FFFFFF" 
-                        android:textSize="15sp" 
-                        android:layout_marginBottom="15dp" 
+                        android:textSize="14sp" 
+                        android:layout_marginBottom="10dp" 
                         android:clickable="true" 
                         android:focusable="true" 
                         android:drawableLeft="@android:drawable/ic_menu_gallery" 
-                        android:drawablePadding="12dp"/>
+                        android:drawablePadding="10dp"/>
                     
                     <TextView 
                         android:id="@+id/btn_theme_color" 
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
-                        android:text="Icon Color (Click to Change)" 
+                        android:text="Icons: Color Theme (Click to Change)" 
                         android:textColor="#FFFFFF" 
-                        android:textSize="15sp" 
-                        android:layout_marginBottom="15dp" 
+                        android:textSize="14sp" 
+                        android:layout_marginBottom="10dp" 
                         android:clickable="true" 
                         android:focusable="true" 
                         android:drawableLeft="@android:drawable/ic_menu_edit" 
-                        android:drawablePadding="12dp"/>
+                        android:drawablePadding="10dp"/>
                     
                     <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="Background Color:" 
                         android:textColor="#AAAAAA" 
-                        android:textSize="12sp"/>
+                        android:textSize="11sp"/>
                     <LinearLayout 
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
                         android:orientation="horizontal" 
-                        android:layout_marginTop="8dp">
+                        android:layout_marginTop="5dp">
                         <TextView 
                             android:id="@+id/btn_bg_black" 
                             android:layout_width="0dp" 
-                            android:layout_height="45dp" 
+                            android:layout_height="40dp" 
                             android:layout_weight="1" 
                             android:text="Black" 
                             android:gravity="center" 
                             android:background="#000000" 
-                            android:layout_marginEnd="8dp" 
+                            android:layout_marginEnd="5dp" 
                             android:textColor="#FFF" 
                             android:clickable="true" 
                             android:focusable="true"/>
                         <TextView 
                             android:id="@+id/btn_bg_white" 
                             android:layout_width="0dp" 
-                            android:layout_height="45dp" 
+                            android:layout_height="40dp" 
                             android:layout_weight="1" 
                             android:text="White" 
                             android:gravity="center" 
                             android:background="#FFFFFF" 
-                            android:layout_marginEnd="8dp" 
+                            android:layout_marginEnd="5dp" 
                             android:textColor="#000" 
                             android:clickable="true" 
                             android:focusable="true"/>
                         <TextView 
                             android:id="@+id/btn_bg_transparent" 
                             android:layout_width="0dp" 
-                            android:layout_height="45dp" 
+                            android:layout_height="40dp" 
                             android:layout_weight="1" 
                             android:text="Trans" 
                             android:gravity="center" 
@@ -846,38 +806,38 @@
                     android:layout_height="wrap_content" 
                     android:text="DEVELOPER" 
                     android:textColor="#555555" 
-                    android:textSize="11sp" 
-                    android:layout_marginBottom="8dp"/>
+                    android:textSize="10sp" 
+                    android:layout_marginBottom="5dp"/>
                 <LinearLayout 
                     android:layout_width="match_parent" 
                     android:layout_height="wrap_content" 
                     android:orientation="vertical" 
                     android:background="@drawable/bg_card_rounded" 
-                    android:padding="20dp">
+                    android:padding="15dp">
                     <TextView 
                         android:id="@+id/tv_dev_link" 
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
                         android:text="@VortexSU_Dev (Click to Telegram)" 
                         android:textColor="#4CAF50" 
-                        android:textSize="15sp" 
+                        android:textSize="14sp" 
                         android:textStyle="bold" 
-                        android:layout_marginBottom="8dp" 
+                        android:layout_marginBottom="5dp" 
                         android:clickable="true" 
                         android:focusable="true" 
                         android:drawableLeft="@android:drawable/ic_menu_send" 
-                        android:drawablePadding="12dp"/>
+                        android:drawablePadding="10dp"/>
                     <TextView 
                         android:id="@+id/tv_channel_link" 
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
                         android:text="Channel: t.me/vortexgki (Click to Join)" 
                         android:textColor="#AAAAAA" 
-                        android:textSize="13sp" 
+                        android:textSize="12sp" 
                         android:clickable="true" 
                         android:focusable="true" 
                         android:drawableLeft="@android:drawable/ic_menu_view" 
-                        android:drawablePadding="12dp"/>
+                        android:drawablePadding="10dp"/>
                 </LinearLayout>
 
             </LinearLayout>
@@ -887,7 +847,7 @@
     <!-- NAVIGATION -->
     <LinearLayout 
         android:layout_width="match_parent" 
-        android:layout_height="70dp" 
+        android:layout_height="60dp" 
         android:orientation="horizontal" 
         android:background="#1E1E1E" 
         android:elevation="10dp">
@@ -905,10 +865,10 @@
                 android:layout_height="wrap_content" 
                 android:text="MONITOR" 
                 android:textColor="#4CAF50" 
-                android:textSize="13sp" 
+                android:textSize="12sp" 
                 android:textStyle="bold" 
                 android:drawableTop="@android:drawable/ic_menu_info_details" 
-                android:drawablePadding="4dp"/>
+                android:drawablePadding="2dp"/>
         </LinearLayout>
         <LinearLayout 
             android:id="@+id/nav_tools" 
@@ -924,14 +884,14 @@
                 android:layout_height="wrap_content" 
                 android:text="TOOLS" 
                 android:textColor="#888888" 
-                android:textSize="13sp" 
+                android:textSize="12sp" 
                 android:drawableTop="@android:drawable/ic_menu_manage" 
-                android:drawablePadding="4dp"/>
+                android:drawablePadding="2dp"/>
         </LinearLayout>
         <LinearLayout 
             android:id="@+id/nav_settings" 
             android:layout_width="0dp" 
-            android:android:layout_height="match_parent" 
+            android:layout_height="match_parent" 
             android:layout_weight="1" 
             android:orientation="vertical" 
             android:gravity="center" 
@@ -942,9 +902,9 @@
                 android:layout_height="wrap_content" 
                 android:text="SETTINGS" 
                 android:textColor="#888888" 
-                android:textSize="13sp" 
+                android:textSize="12sp" 
                 android:drawableTop="@android:drawable/ic_menu_preferences" 
-                android:drawablePadding="4dp"/>
+                android:drawablePadding="2dp"/>
         </LinearLayout>
     </LinearLayout>
 
@@ -984,7 +944,7 @@
             android:text="UNLOCK" 
             android:backgroundTint="#4CAF50" 
             android:textColor="#FFFFFF" 
-            android:paddingLeft="50dp" 
-            android:paddingRight="50dp"/>
+            android:paddingLeft="40dp" 
+            android:paddingRight="40dp"/>
     </LinearLayout>
 </LinearLayout>
