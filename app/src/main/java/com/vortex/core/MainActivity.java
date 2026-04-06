@@ -206,10 +206,12 @@ public class MainActivity extends AppCompatActivity {
 
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
 
-        // --- FIX 1: RAM TEXT DROPPING (POLISH) ---
+        // --- SOLUTION 1: FIX RAM TEXT TRUNCATED (MANDATORY) ---
         if(tvRam != null) {
             tvRam.setMaxLines(1);
-            tvRam.setEllipsize(TextUtils.TruncateAt.END);
+            tvRam.setSingleLine(true);
+            tvRam.setEllipsize(null); // Remove "..." truncation
+            tvRam.setHorizontallyScrolling(true);
             tvRam.setGravity(Gravity.CENTER_VERTICAL);
             tvRam.setIncludeFontPadding(false);
         }
@@ -573,10 +575,11 @@ public class MainActivity extends AppCompatActivity {
                     try {
                         ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
                         ((ActivityManager)getSystemService(ACTIVITY_SERVICE)).getMemoryInfo(mi);
-                        long availMem = mi.availMem;
-                        String availRamStr = (availMem / 1048576) + " MB";
-                        if (totalRamStr == null) totalRamStr = "Unknown";
-                        ramStr = availRamStr + " / " + totalRamStr;
+                        
+                        // --- SOLUTION 2: FORMAT RAM AS USED / TOTAL GB ---
+                        double totalGB = mi.totalMem / (1024.0 * 1024.0 * 1024.0);
+                        double usedGB = (mi.totalMem - mi.availMem) / (1024.0 * 1024.0 * 1024.0);
+                        ramStr = String.format("%.1f / %.1f GB", usedGB, totalGB);
 
                         IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
                         Intent batteryStatus = registerReceiver(null, ifilter);
