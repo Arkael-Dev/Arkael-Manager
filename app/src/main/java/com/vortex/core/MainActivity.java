@@ -61,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
     private SharedPreferences prefs;
     private Handler handler = new Handler(Looper.getMainLooper());
     
-    // CPU Control Data (Separated from GPU)
+    // CPU Control Data
     private int cpuMaxFreqKhz = 0;
     private int cpuMinFreqKhz = 0;
     private int staticCoreCount = 4;
@@ -121,6 +121,20 @@ public class MainActivity extends AppCompatActivity {
         setupClickListeners();
         refreshUI();
         loadCustomBanner();
+    }
+
+    // --- HELPER: SAFE INT PARSING (Regex) ---
+    // Mencegah crash saat core offline / value kosong
+    private int parseIntSafe(String s) {
+        if (s == null) return -1;
+        String trimmed = s.trim();
+        // Hanya izinkan digit (angka)
+        if (!trimmed.matches("\\d+")) return -1;
+        try {
+            return Integer.parseInt(trimmed);
+        } catch (NumberFormatException e) {
+            return -1;
+        }
     }
 
     private String getPasskeyFromAssets() {
@@ -276,25 +290,18 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.tv_dev_link).setOnClickListener(v -> openUrl("https://t.me/VorteXSU_Dev"));
         findViewById(R.id.tv_channel_link).setOnClickListener(v -> openUrl("https://t.me/vortexgki"));
 
-        // --- CPU MAX FREQ SLIDER (FIXED) ---
         seekBarMaxFreq.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (fromUser && cpuMaxFreqKhz > 0 && cpuMinFreqKhz > 0) {
-                    // Calculate target CPU Frequency
                     int range = cpuMaxFreqKhz - cpuMinFreqKhz;
                     int targetFreq = cpuMinFreqKhz + ((range * progress) / 100);
-                    
-                    // Apply to CPU (All Cores)
                     setCpuMaxFreq(targetFreq);
-                    
-                    // Immediate UI Feedback
                     if(tvMaxFreqTools != null) tvMaxFreqTools.setText((targetFreq/1000) + " MHz");
                 }
             }
             @Override public void onStartTrackingTouch(SeekBar seekBar) {}
             @Override public void onStopTrackingTouch(SeekBar seekBar) {
-                // Validation: Re-read to ensure kernel accepted the change
-                validateCpuFreqLimit();
+                validateCpuFreqLimit(); // Validasi semua core
             }
         });
     }
@@ -352,30 +359,45 @@ public class MainActivity extends AppCompatActivity {
             } catch (Exception e) { zramDisplay = "Error"; }
             final String fZram = zramDisplay;
 
-            // --- CPU CONTROL SETUP (STRICTLY CPU) ---
-            // Read Absolute Max from cpu0 (usually the highest cluster or reference)
-            String sMax = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
-            String sMin = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_min_freq");
-            
-            if(!sMax.isEmpty()) {
-                cpuMaxFreqKhz = Integer.parseInt(sMax.trim());
-                // Set safe default min if read fails
-                cpuMinFreqKhz = (!sMin.isEmpty()) ? Integer.parseInt(sMin.trim()) : 300000; 
+            // --- FIX 1: SCAN ALL CORES FOR MAX/MIN FREQ (UNIVERSAL) ---
+            // Scan cpuinfo_max_freq across all cores
+            String rawMaxFreqs = runSuReturnAll("cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_max_freq");
+            String[] maxLines = rawMaxFreqs.split("\\s+");
+            int detectedMax = 0;
+            for (String line : maxLines) {
+                int val = parseIntSafe(line);
+                if (val > detectedMax) detectedMax = val;
             }
 
+            // Scan cpuinfo_min_freq across all cores
+            String rawMinFreqs = runSuReturnAll("cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_min_freq");
+            String[] minLines = rawMinFreqs.split("\\s+");
+            int detectedMin = Integer.MAX_VALUE;
+            for (String line : minLines) {
+                int val = parseIntSafe(line);
+                if (val > 0 && val < detectedMin) detectedMin = val;
+            }
+
+            if (detectedMax > 0) cpuMaxFreqKhz = detectedMax;
+            if (detectedMin != Integer.MAX_VALUE) cpuMinFreqKhz = detectedMin;
+            else cpuMinFreqKhz = 300000; // Fallback
+
             // Read CURRENT LIMIT to set Slider Position (Balanced Start)
+            // Ambil dari cpu0 sebagai referensi posisi awal (biasanya sama di semua core saat boot)
             String sCurLimit = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq");
             if(!sCurLimit.isEmpty()) {
-                int curLimit = Integer.parseInt(sCurLimit.trim());
-                int range = cpuMaxFreqKhz - cpuMinFreqKhz;
-                if(range > 0) {
-                    int progress = (int) (((curLimit - cpuMinFreqKhz) / (float) range) * 100);
-                    final int fProgress = Math.min(100, Math.max(0, progress));
-                    final int fLimit = curLimit;
-                    runOnUiThread(() -> {
-                        if(seekBarMaxFreq != null) seekBarMaxFreq.setProgress(fProgress);
-                        if(tvMaxFreqTools != null) tvMaxFreqTools.setText((fLimit/1000) + " MHz");
-                    });
+                int curLimit = parseIntSafe(sCurLimit);
+                if(curLimit > 0) {
+                    int range = cpuMaxFreqKhz - cpuMinFreqKhz;
+                    if(range > 0) {
+                        int progress = (int) (((curLimit - cpuMinFreqKhz) / (float) range) * 100);
+                        final int fProgress = Math.min(100, Math.max(0, progress));
+                        final int fLimit = curLimit;
+                        runOnUiThread(() -> {
+                            if(seekBarMaxFreq != null) seekBarMaxFreq.setProgress(fProgress);
+                            if(tvMaxFreqTools != null) tvMaxFreqTools.setText((fLimit/1000) + " MHz");
+                        });
+                    }
                 }
             }
 
@@ -397,7 +419,7 @@ public class MainActivity extends AppCompatActivity {
             else if (platform.contains("exynos")) gpu = "Exynos GPU";
             else gpu = "Generic GPU (" + platform.toUpperCase() + ")";
 
-            // CPU Clusters Info
+            // CPU Clusters Info (For Info Tab)
             String cpuCount = runSuReturn("cat /proc/cpuinfo | grep 'processor' | wc -l");
             if(!cpuCount.isEmpty()) staticCoreCount = Integer.parseInt(cpuCount.trim());
             int lastCore = Math.max(0, staticCoreCount - 1);
@@ -411,7 +433,6 @@ public class MainActivity extends AppCompatActivity {
             final String finalDevice = brand.toUpperCase() + " " + model;
             final String finalGpu = gpu;
             final String finalArchDisplay = archDisplay;
-            // Use CPU Max for the Max Freq label
             final int fMaxFreq = cpuMaxFreqKhz;
 
             runOnUiThread(() -> {
@@ -461,30 +482,27 @@ public class MainActivity extends AppCompatActivity {
                         }
                     } catch (Exception e) { e.printStackTrace(); }
 
-                    // --- CPU REALTIME MONITOR (ALL CORES) ---
+                    // --- CPU REALTIME MONITOR (ALL CORES + SAFE PARSING) ---
                     try {
                         // 1. Get Governor
                         govStr = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor");
 
-                        // 2. Get Max Limit (To verify slider changes)
+                        // 2. Get Max Limit from cpu0 (for display)
                         String valMax = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq");
-                        if(!valMax.isEmpty()) {
-                            maxTools = (Integer.parseInt(valMax.trim())/1000) + " MHz";
+                        int maxVal = parseIntSafe(valMax);
+                        if(maxVal > 0) {
+                            maxTools = (maxVal/1000) + " MHz";
                         }
 
-                        // 3. Get Current Frequency from ALL CORES
-                        // cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq
+                        // 3. Get Current Frequency from ALL CORES (Max Value)
                         String cpuFreqsRaw = runSuReturnAll("cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq");
                         if(!cpuFreqsRaw.isEmpty()) {
                             String[] lines = cpuFreqsRaw.split("\\s+");
                             int maxCurFreqVal = 0;
                             
-                            // Loop to find highest frequency among all cores
                             for(String line : lines) {
-                                try {
-                                    int val = Integer.parseInt(line.trim());
-                                    if(val > maxCurFreqVal) maxCurFreqVal = val;
-                                } catch (Exception e) {}
+                                int val = parseIntSafe(line);
+                                if(val > maxCurFreqVal) maxCurFreqVal = val;
                             }
                             
                             if(maxCurFreqVal > 0) {
@@ -512,7 +530,7 @@ public class MainActivity extends AppCompatActivity {
                         if(tvTemp != null) tvTemp.setText(fTemp);
                     });
                 }).start(); 
-                handler.postDelayed(this, 1000); // Faster update (1s) for realtime feel
+                handler.postDelayed(this, 1000); 
             }
         });
     }
@@ -605,25 +623,50 @@ public class MainActivity extends AppCompatActivity {
         applyIconColor();
     }
     
-    // --- CPU CONTROL METHOD (FIXED & VALIDATED) ---
+    // --- CPU CONTROL & VALIDATION (FIXED) ---
     private void setCpuMaxFreq(int khz) {
         new Thread(() -> {
-            // Write to ALL cores
             String cmd = "for c in /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq; do echo " + khz + " > $c; done";
             runSu(cmd);
         }).start();
     }
 
+    // --- FIX 2: VALIDATE WRITE CONSISTENCY (ALL CORES) ---
     private void validateCpuFreqLimit() {
         new Thread(() -> {
-            // Read back to verify
-            String sVal = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq");
-            if(!sVal.isEmpty()) {
-                final int val = Integer.parseInt(sVal.trim());
-                runOnUiThread(() -> {
-                    if(tvMaxFreqTools != null) tvMaxFreqTools.setText((val/1000) + " MHz");
-                });
+            // Baca semua core
+            String sVal = runSuReturnAll("cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq");
+            String[] lines = sVal.split("\\s+");
+            
+            int referenceVal = -1;
+            boolean isConsistent = true;
+            
+            for(String line : lines) {
+                int val = parseIntSafe(line);
+                if(val > 0) {
+                    if(referenceVal == -1) {
+                        referenceVal = val;
+                    } else if (val != referenceVal) {
+                        isConsistent = false; // Ada perbedaan
+                        break;
+                    }
+                }
             }
+
+            final int finalVal = referenceVal;
+            final boolean finalConsistent = isConsistent;
+
+            runOnUiThread(() -> {
+                if(tvMaxFreqTools != null) {
+                    String text = (finalVal > 0) ? (finalVal/1000) + " MHz" : "Error";
+                    if (!finalConsistent) {
+                        text += " (Warn)";
+                        // Optional: Toast jika inkonsisten
+                        // Toast.makeText(this, "Freq Mismatch detected", Toast.LENGTH_SHORT).show();
+                    }
+                    tvMaxFreqTools.setText(text);
+                }
+            });
         }).start();
     }
 
