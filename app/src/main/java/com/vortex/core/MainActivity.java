@@ -184,24 +184,17 @@ public class MainActivity extends AppCompatActivity {
 
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
 
-        // --- SETTING ICON APLIKASI ---
         if (navSystem != null && navSystem.getChildCount() > 0) {
             View child = navSystem.getChildAt(0);
-            if(child instanceof TextView) {
-                ((TextView) child).setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_info_details, 0, 0, 0);
-            }
+            if(child instanceof TextView) ((TextView) child).setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_info_details, 0, 0, 0);
         }
         if (navTools != null && navTools.getChildCount() > 0) {
             View child = navTools.getChildAt(0);
-            if(child instanceof TextView) {
-                ((TextView) child).setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_manage, 0, 0, 0);
-            }
+            if(child instanceof TextView) ((TextView) child).setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_manage, 0, 0, 0);
         }
         if (navSettings != null && navSettings.getChildCount() > 0) {
             View child = navSettings.getChildAt(0);
-            if(child instanceof TextView) {
-                ((TextView) child).setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_preferences, 0, 0, 0);
-            }
+            if(child instanceof TextView) ((TextView) child).setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_preferences, 0, 0, 0);
         }
     }
 
@@ -218,7 +211,6 @@ public class MainActivity extends AppCompatActivity {
                 if(inputCode == null) inputCode = findViewById(R.id.input_code);
                 String userInput = inputCode.getText().toString().trim();
                 String validKey = getPasskeyFromAssets(); 
-                
                 if (userInput.equals(validKey)) {
                     prefs.edit().putBoolean("is_unlocked", true).apply();
                     refreshUI();
@@ -289,13 +281,14 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.tv_dev_link).setOnClickListener(v -> openUrl("https://t.me/VorteXSU_Dev"));
         findViewById(R.id.tv_channel_link).setOnClickListener(v -> openUrl("https://t.me/vortexgki"));
 
-        // --- GPU MAX FREQ SLIDER LISTENER ---
+        // --- GPU SLIDER LISTENER ---
         seekBarMaxFreq.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (fromUser && maxFreqKhz > 0 && minFreqKhz > 0 && isGpuControlReady) {
                     int range = maxFreqKhz - minFreqKhz;
                     int targetFreq = minFreqKhz + ((range * progress) / 100);
                     setGpuMaxFreq(targetFreq);
+                    // Immediate feedback on slider drag
                     if(tvMaxFreqTools != null) tvMaxFreqTools.setText((targetFreq/1000) + " MHz");
                 }
             }
@@ -332,7 +325,7 @@ public class MainActivity extends AppCompatActivity {
                 totalRamStr = (totalMemBytes / 1048576) + " MB";
             }
 
-            // 2. System Properties & Platform
+            // 2. System Properties
             String brand = Build.BRAND;
             String model = Build.MODEL;
             String kernelFull = runSuReturn("uname -r");
@@ -343,7 +336,7 @@ public class MainActivity extends AppCompatActivity {
             String socModel = runSuReturn("getprop ro.soc.model"); 
             String socMan = runSuReturn("getprop ro.soc.manufacturer").toLowerCase();
 
-            // --- ZRAM SIZE CALCULATION ---
+            // --- ZRAM SIZE ---
             String zramDisplay = "Disabled";
             try {
                 String zramRaw = runSuReturn("cat /sys/block/zram0/disksize 2>/dev/null");
@@ -357,36 +350,36 @@ public class MainActivity extends AppCompatActivity {
             } catch (Exception e) { zramDisplay = "Error"; }
             final String fZram = zramDisplay;
 
-            // --- GPU CONTROL SETUP (Robust Path Detection) ---
-            // Default paths
+            // --- GPU CONTROL SETUP (CRITICAL FIX FOR STUCK 1958MHz) ---
             String maxPath = "";
-            String curPath = "";
             String minPath = "";
-            
-            // Adreno (Qualcomm) Paths
+            String curPath = "";
+            int detectedMaxGpu = 0;
+            int detectedMinGpu = 0;
+
+            // Detect Adreno (Qualcomm)
             if (platform.contains("qcom") || platform.contains("msm")) {
-                String adrenoDev = "/sys/class/kgsl/kgsl-3d0/devfreq/soc:qcom,kgsl-3d0";
-                // Check newer GKI path first
-                if (new File("/sys/class/kgsl/kgsl-3d0/devfreq/soc:qcom,kgsl-3d0/max_freq").exists()) {
-                    maxPath = adrenoDev + "/max_freq";
-                    minPath = adrenoDev + "/min_freq";
-                    curPath = adrenoDev + "/cur_freq";
+                String gkiPath = "/sys/class/kgsl/kgsl-3d0/devfreq/soc:qcom,kgsl-3d0";
+                // Try GKI path first (Android 10+)
+                if (new File(gkiPath + "/max_freq").exists()) {
+                    maxPath = gkiPath + "/max_freq";
+                    minPath = gkiPath + "/min_freq";
+                    curPath = gkiPath + "/cur_freq";
                 } 
-                // Fallback to older paths
+                // Fallback to legacy path
                 else if (new File("/sys/class/kgsl/kgsl-3d0/max_gpuclk").exists()) {
                     maxPath = "/sys/class/kgsl/kgsl-3d0/max_gpuclk";
-                    // Adreno often uses different logic for min/cur on older nodes, simplified here:
-                    minPath = "/sys/class/kgsl/kgsl-3d0/min_gpuclk"; 
+                    minPath = "/sys/class/kgsl/kgsl-3d0/min_gpuclk";
                     curPath = "/sys/class/kgsl/kgsl-3d0/gpu_clock";
                 }
             }
-            // Mali (MediaTek/Exynos) Paths
+            // Detect Mali (MediaTek/Exynos)
             else if (platform.contains("mt") || platform.contains("exynos") || hardware.contains("mt")) {
                 if (new File("/sys/class/devfreq/mali0/max_freq").exists()) {
                     maxPath = "/sys/class/devfreq/mali0/max_freq";
                     minPath = "/sys/class/devfreq/mali0/min_freq";
                     curPath = "/sys/class/devfreq/mali0/cur_freq";
-                } else if (new File("/sys/class/misc/mali0/device/gpu_clock").exists()) {
+                } else if (new File("/sys/class/misc/mali0/device/max_gpuclk").exists()) {
                     maxPath = "/sys/class/misc/mali0/device/max_gpuclk";
                     minPath = "/sys/class/misc/mali0/device/min_gpuclk";
                     curPath = "/sys/class/misc/mali0/device/gpu_clock";
@@ -397,46 +390,56 @@ public class MainActivity extends AppCompatActivity {
             gpuCurFreqPath = curPath;
             isGpuControlReady = !maxPath.isEmpty();
 
-            // Read GPU Limits for Slider Range
-            if(isGpuControlReady) {
+            // READ GPU LIMITS
+            if (isGpuControlReady) {
                 try {
-                    String maxStr = runSuReturn("cat " + maxPath);
-                    String minStr = runSuReturn("cat " + minPath);
-                    if(!maxStr.isEmpty()) maxFreqKhz = Integer.parseInt(maxStr.trim());
-                    if(!minStr.isEmpty()) minFreqKhz = Integer.parseInt(minStr.trim());
-                    
-                    // READ CURRENT LIMIT TO SET BALANCED SLIDER (Not forced to Max)
-                    String currentLimitStr = runSuReturn("cat " + maxPath);
-                    if(!currentLimitStr.isEmpty()) {
-                        int currentLimit = Integer.parseInt(currentLimitStr.trim());
-                        // Calculate progress percentage based on current system limit
+                    String sMax = runSuReturn("cat " + maxPath);
+                    String sMin = runSuReturn("cat " + minPath);
+                    if(!sMax.isEmpty()) detectedMaxGpu = Integer.parseInt(sMax.trim());
+                    if(!sMin.isEmpty()) detectedMinGpu = Integer.parseInt(sMin.trim());
+
+                    // IMPORTANT: Set global maxFreqKhz to GPU Max for Slider calculation
+                    // This prevents the "1958MHz CPU Stuck" issue
+                    maxFreqKhz = detectedMaxGpu;
+                    minFreqKhz = detectedMinGpu;
+
+                    // READ CURRENT MAX LIMIT TO SET SLIDER POSITION (Balanced Start)
+                    String sCurLimit = runSuReturn("cat " + maxPath);
+                    if(!sCurLimit.isEmpty()) {
+                        int curLimit = Integer.parseInt(sCurLimit.trim());
                         int range = maxFreqKhz - minFreqKhz;
                         if(range > 0) {
-                            int progress = (int) (((currentLimit - minFreqKhz) / (float) range) * 100);
-                            final int finalProgress = Math.min(100, Math.max(0, progress));
-                            // Update UI on main thread
+                            int progress = (int) (((curLimit - minFreqKhz) / (float) range) * 100);
+                            final int fProgress = Math.min(100, Math.max(0, progress));
+                            final int fLimit = curLimit;
                             runOnUiThread(() -> {
-                                if(seekBarMaxFreq != null) seekBarMaxFreq.setProgress(finalProgress);
-                                if(tvMaxFreqTools != null) tvMaxFreqTools.setText((currentLimit/1000) + " MHz");
+                                if(seekBarMaxFreq != null) seekBarMaxFreq.setProgress(fProgress);
+                                if(tvMaxFreqTools != null) tvMaxFreqTools.setText((fLimit/1000) + " MHz");
                             });
                         }
                     }
-                } catch (Exception e) {
-                    isGpuControlReady = false;
+                } catch (Exception e) { 
+                    isGpuControlReady = false; // Fallback to CPU if GPU fails
                 }
             }
 
-            // --- CPU & STATIC INFO (Keep for Info Tab) ---
-            String vendor = "Unknown";
-            if (!socMan.isEmpty()) {
-                vendor = socMan.substring(0, 1).toUpperCase() + socMan.substring(1).toLowerCase();
-            } else {
-                if (platform.contains("mt") || hardware.contains("mt")) vendor = "Mediatek";
-                else if (platform.contains("qcom") || platform.contains("msm")) vendor = "Qualcomm";
-                else if (platform.contains("exynos")) vendor = "Exynos";
-                else if (platform.contains("intel")) vendor = "Intel";
-                else vendor = platform.toUpperCase();
+            // FALLBACK: If GPU control failed, use CPU
+            if (!isGpuControlReady) {
+                try {
+                    String max = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
+                    if(!max.isEmpty()) {
+                        maxFreqKhz = Integer.parseInt(max);
+                        minFreqKhz = 300000; // Safe default
+                    }
+                } catch(Exception e) {}
             }
+
+            // --- CPU & STATIC INFO (For Info Tab Only) ---
+            String vendor = "Unknown";
+            if (!socMan.isEmpty()) vendor = socMan.substring(0, 1).toUpperCase() + socMan.substring(1).toLowerCase();
+            else if (platform.contains("mt") || hardware.contains("mt")) vendor = "Mediatek";
+            else if (platform.contains("qcom") || platform.contains("msm")) vendor = "Qualcomm";
+            else vendor = platform.toUpperCase();
 
             String cpuArch = Build.SUPPORTED_ABIS[0]; 
             String archDisplay = cpuArch.toUpperCase();
@@ -449,8 +452,7 @@ public class MainActivity extends AppCompatActivity {
             else if (platform.contains("exynos")) gpu = "Exynos GPU";
             else gpu = "Generic GPU (" + platform.toUpperCase() + ")";
 
-            // CPU Static Info
-            String max = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
+            // CPU Clusters Info
             String cpuCount = runSuReturn("cat /proc/cpuinfo | grep 'processor' | wc -l");
             if(!cpuCount.isEmpty()) staticCoreCount = Integer.parseInt(cpuCount.trim());
             int lastCore = Math.max(0, staticCoreCount - 1);
@@ -464,14 +466,14 @@ public class MainActivity extends AppCompatActivity {
             final String finalDevice = brand.toUpperCase() + " " + model;
             final String finalGpu = gpu;
             final String finalArchDisplay = archDisplay;
-            final int finalMaxFreqKhz = maxFreqKhz; // Capture for UI update if needed
+            // Use maxFreqKhz (which is now GPU if ready) for the Max Freq label
 
             runOnUiThread(() -> {
                 if(tvCpuVendor != null) tvCpuVendor.setText(finalArchDisplay);
                 if(tvKernel != null) tvKernel.setText(finalKernel);
                 if(tvDevice != null) tvDevice.setText(finalDevice);
                 if(tvGpuRenderer != null) tvGpuRenderer.setText(finalGpu);
-                if(tvMaxFreq != null) tvMaxFreq.setText((finalMaxFreqKhz/1000) + " MHz");
+                if(tvMaxFreq != null) tvMaxFreq.setText((maxFreqKhz/1000) + " MHz"); // Shows GPU Max
                 if(tvLittleCluster != null) tvLittleCluster.setText(staticLittleFreq);
                 if(tvBigCluster != null) tvBigCluster.setText(staticBigFreq);
                 if(tvZram != null) tvZram.setText(fZram);
@@ -486,6 +488,9 @@ public class MainActivity extends AppCompatActivity {
                     String ramStr = "...";
                     String batStr = "...";
                     String tempStr = "N/A";
+                    String curFreq = "N/A";
+                    String maxTools = "N/A";
+                    String govStr = "Unknown";
 
                     try {
                         ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
@@ -510,42 +515,38 @@ public class MainActivity extends AppCompatActivity {
                         }
                     } catch (Exception e) { e.printStackTrace(); }
 
-                    String curFreq = "N/A";
-                    String govStr = "Unknown";
-                    String maxTools = "N/A";
-                    
-                    // --- MODIFIED LOOP FOR GPU CONTROL ---
-                    if (isGpuControlReady && !gpuCurFreqPath.isEmpty() && !gpuMaxFreqPath.isEmpty()) {
+                    // --- REALTIME GPU/CPU MONITOR ---
+                    if (isGpuControlReady && !gpuMaxFreqPath.isEmpty()) {
                         try {
-                            // Read GPU Current and Limit
-                            String script = "cat " + gpuCurFreqPath + "\necho ---SEPARATOR---\ncat " + gpuMaxFreqPath;
-                            String output = runSuReturnAll(script);
-                            String[] parts = output.split("---SEPARATOR---");
+                            // READ GPU CURRENT FREQ
+                            String valCur = runSuReturn("cat " + gpuCurFreqPath);
+                            if(!valCur.isEmpty()) {
+                                long hz = Long.parseLong(valCur.trim());
+                                curFreq = (hz/1000) + " MHz";
+                            }
+
+                            // READ GPU MAX FREQ LIMIT (To see slider changes)
+                            String valMax = runSuReturn("cat " + gpuMaxFreqPath);
+                            if(!valMax.isEmpty()) {
+                                long hz = Long.parseLong(valMax.trim());
+                                maxTools = (hz/1000) + " MHz";
+                            }
                             
-                            if(parts.length >= 1 && !parts[0].trim().isEmpty()) {
-                                int cur = Integer.parseInt(parts[0].trim());
-                                curFreq = (cur/1000) + " MHz";
-                            }
-                            if(parts.length >= 2 && !parts[1].trim().isEmpty()) {
-                                int lim = Integer.parseInt(parts[1].trim());
-                                maxTools = (lim/1000) + " MHz";
-                            } else {
-                                maxTools = (maxFreqKhz/1000) + " MHz";
-                            }
-                            govStr = "GPU User"; // Placeholder for GPU
+                            govStr = "GPU Manual"; // Indicate GPU mode
                         } catch (Exception e) {
-                            curFreq = "Error"; 
+                            curFreq = "Err";
+                            govStr = "Err";
                         }
                     } else {
-                        // Fallback to CPU if GPU not ready (Legacy behavior)
-                         try {
+                        // FALLBACK CPU MONITOR
+                        try {
                             String script = "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq\necho ---SEPARATOR---\ncat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor\necho ---SEPARATOR---\ncat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq";
                             String output = runSuReturnAll(script);
                             String[] parts = output.split("---SEPARATOR---");
                             if(parts.length >= 1 && !parts[0].trim().isEmpty()) curFreq = (Integer.parseInt(parts[0].trim())/1000) + " MHz";
                             if(parts.length >= 2 && !parts[1].trim().isEmpty()) govStr = parts[1].trim();
                             if(parts.length >= 3 && !parts[2].trim().isEmpty()) maxTools = (Integer.parseInt(parts[2].trim())/1000) + " MHz";
-                        } catch (Exception e) { curFreq = "Error"; }
+                        } catch (Exception e) { curFreq = "Err"; }
                     }
 
                     final String fRam = ramStr;
@@ -558,7 +559,7 @@ public class MainActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         if(tvRam != null) tvRam.setText(fRam);
                         if(tvBattery != null) tvBattery.setText(fBat);
-                        if(tvCpu != null) tvCpu.setText(fGov.toUpperCase()); // Still shows Gov or "GPU User"
+                        if(tvCpu != null) tvCpu.setText(fGov.toUpperCase());
                         if(tvCurrentFreq != null) tvCurrentFreq.setText(fCurFreq);
                         if(tvMaxFreqTools != null) tvMaxFreqTools.setText(fMaxTools);
                         if(tvTemp != null) tvTemp.setText(fTemp);
@@ -657,7 +658,7 @@ public class MainActivity extends AppCompatActivity {
         applyIconColor();
     }
     
-    // --- UPDATED GPU CONTROL METHOD ---
+    // --- GPU CONTROL METHOD ---
     private void setGpuMaxFreq(int khz) {
         new Thread(() -> {
             if(isGpuControlReady && !gpuMaxFreqPath.isEmpty()) {
@@ -667,13 +668,7 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
     
-    // Renamed from setMaxFreq to setGpuMaxFreq to be clear, 
-    // but kept logic internal. 
-    // If you want to keep old name for compatibility, just rename method back.
-    private void setMaxFreq(int khz) {
-        setGpuMaxFreq(khz);
-    }
-
+    // CPU Governor Selector
     private void pickGov() {
         new Thread(() -> {
             String raw = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors");
