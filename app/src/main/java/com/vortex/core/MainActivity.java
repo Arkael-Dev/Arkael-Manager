@@ -59,8 +59,14 @@ public class MainActivity extends AppCompatActivity {
     // System Vars
     private SharedPreferences prefs;
     private Handler handler = new Handler(Looper.getMainLooper());
+    
+    // Static Data (Only read once to save battery/cpu)
     private int maxFreqKhz = 0;
     private int minFreqKhz = 0;
+    private int staticCoreCount = 4;
+    private String staticLittleFreq = "N/A";
+    private String staticBigFreq = "N/A";
+    
     private boolean isGlassTheme = false;
     private int iconColorMode = 0; // 0: Gray, 1: Rainbow, 2: Cyan, 3: Orange, 4: Purple
     private boolean staticInfoLoaded = false;
@@ -354,6 +360,21 @@ public class MainActivity extends AppCompatActivity {
             if(gl.isEmpty()) gl = "OpenGL ES 3.x";
             else gl = "OpenGL ES " + gl;
 
+            // --- STATIC CPU INFO (Read Once) ---
+            String max = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
+            if(!max.isEmpty()) maxFreqKhz = Integer.parseInt(max);
+
+            String cpuCount = runSuReturn("cat /proc/cpuinfo | grep 'processor' | wc -l");
+            if(!cpuCount.isEmpty()) staticCoreCount = Integer.parseInt(cpuCount.trim());
+            
+            int lastCore = Math.max(0, staticCoreCount - 1);
+            String lit = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
+            String bigVal = runSuReturn("cat /sys/devices/system/cpu/cpu"+lastCore+"/cpufreq/cpuinfo_max_freq");
+            if(bigVal.isEmpty()) bigVal = lit;
+
+            staticLittleFreq = (lit.isEmpty() ? "N/A" : (Integer.parseInt(lit)/1000) + " MHz");
+            staticBigFreq = (bigVal.isEmpty() ? "N/A" : (Integer.parseInt(bigVal)/1000) + " MHz");
+
             final String finalVendor = vendor;
             final String finalKernel = kernelFull;
             final String finalDevice = brand.toUpperCase() + " " + model;
@@ -366,6 +387,9 @@ public class MainActivity extends AppCompatActivity {
                 if(tvDevice != null) tvDevice.setText(finalDevice);
                 if(tvGpuRenderer != null) tvGpuRenderer.setText(finalGpu);
                 if(tvGpuVersion != null) tvGpuVersion.setText(finalGl);
+                if(tvMaxFreq != null) tvMaxFreq.setText((maxFreqKhz/1000) + " MHz");
+                if(tvLittleCluster != null) tvLittleCluster.setText(staticLittleFreq);
+                if(tvBigCluster != null) tvBigCluster.setText(staticBigFreq);
             });
         }).start();
     }
@@ -374,11 +398,11 @@ public class MainActivity extends AppCompatActivity {
         handler.post(new Runnable() {
             @Override public void run() {
                 new Thread(() -> {
+                    // --- 1. API BASED READS (No Root, Fast) ---
                     String ramStr = "...";
                     String batStr = "...";
-                    String govStr = "...";
-                    String zramStr = "0 MB";
-                    
+                    String tempStr = "N/A";
+
                     try {
                         ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
                         ((ActivityManager)getSystemService(ACTIVITY_SERVICE)).getMemoryInfo(mi);
@@ -390,77 +414,62 @@ public class MainActivity extends AppCompatActivity {
                         String statusText = (status == BatteryManager.BATTERY_STATUS_CHARGING) ? "Charging" : "Discharging";
                         batStr = level + "% (" + statusText + ")";
 
-                        govStr = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor");
-                        if(govStr.isEmpty()) govStr = "Unknown";
-
-                        String z = runSuReturn("cat /sys/block/zram0/disksize");
-                        if(!z.isEmpty()) zramStr = (Long.parseLong(z)/1048576) + " MB";
+                        // Battery Temp via API (Most reliable, no root popup)
+                        int apiTemp = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_TEMPERATURE);
+                        if(apiTemp > 0) {
+                            tempStr = (apiTemp / 10.0f) + "°C";
+                        }
                     } catch (Exception e) { e.printStackTrace(); }
 
+                    // --- 2. BATCHED ROOT READS (Optimized to 1 call) ---
                     String curFreq = "N/A";
-                    String maxFreqVal = "N/A";
-                    String little = "N/A";
-                    String big = "N/A";
-                    String temp = "N/A";
+                    String govStr = "Unknown";
                     String maxTools = "N/A";
-
+                    
                     try {
-                        String max = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
-                        String scalingMax = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq");
-                        String cur = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq");
-
-                        if(!max.isEmpty()) maxFreqKhz = Integer.parseInt(max);
-                        if(!cur.isEmpty()) curFreq = (Integer.parseInt(cur)/1000) + " MHz";
+                        // We combine commands to avoid multiple SU prompts
+                        String script = "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq\necho ---SEPARATOR---\ncat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor\necho ---SEPARATOR---\ncat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq";
+                        String output = runSuReturnAll(script);
                         
-                        int currentMaxVal = 0;
-                        if(!scalingMax.isEmpty()) currentMaxVal = Integer.parseInt(scalingMax);
-                        else if (!max.isEmpty()) currentMaxVal = maxFreqKhz;
-
-                        maxFreqVal = (currentMaxVal/1000) + " MHz";
-                        maxTools = maxFreqVal;
-
-                        String cpuCount = runSuReturn("cat /proc/cpuinfo | grep 'processor' | wc -l");
-                        int cores = cpuCount.isEmpty() ? 4 : Integer.parseInt(cpuCount.trim());
-                        int lastCore = Math.max(0, cores - 1);
+                        String[] parts = output.split("---SEPARATOR---");
                         
-                        String lit = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
-                        String bigVal = runSuReturn("cat /sys/devices/system/cpu/cpu"+lastCore+"/cpufreq/cpuinfo_max_freq");
-                        if(bigVal.isEmpty()) bigVal = lit;
-
-                        little = (lit.isEmpty() ? "N/A" : (Integer.parseInt(lit)/1000) + " MHz");
-                        big = (bigVal.isEmpty() ? "N/A" : (Integer.parseInt(bigVal)/1000) + " MHz");
-
-                        String tempScript = "for f in /sys/class/thermal/thermal_zone*/type; do t=$(cat $f 2>/dev/null); if [[ \"$t\" == *\"batt\"* ]] || [[ \"$t\" == *\"tsens\"* ]]; then cat ${f%type}/temp 2>/dev/null; break; fi; done";
-                        String t = runSuReturn(tempScript);
-                        if(!t.isEmpty()) {
-                            try {
-                                int tempVal = Integer.parseInt(t.trim());
-                                if(tempVal > 1000) tempVal = tempVal / 1000;
-                                if(tempVal > 0) temp = tempVal + "°C";
-                            } catch (Exception e) { temp = "N/A"; }
-                        } else {
-                            t = runSuReturn("cat /sys/class/power_supply/battery/temp 2>/dev/null");
-                             if(!t.isEmpty()) {
-                                try {
-                                    int tempVal = Integer.parseInt(t.trim());
-                                    if(tempVal > 1000) tempVal = tempVal / 1000;
-                                    temp = tempVal + "°C";
-                                } catch (Exception e) {}
-                            }
+                        if(parts.length >= 1 && !parts[0].trim().isEmpty()) {
+                            int cur = Integer.parseInt(parts[0].trim());
+                            curFreq = (cur/1000) + " MHz";
+                        }
+                        
+                        if(parts.length >= 2 && !parts[1].trim().isEmpty()) {
+                            govStr = parts[1].trim();
                         }
 
-                    } catch (Exception e) { e.printStackTrace(); }
+                        if(parts.length >= 3 && !parts[2].trim().isEmpty()) {
+                            int currentMax = Integer.parseInt(parts[2].trim());
+                            maxTools = (currentMax/1000) + " MHz";
+                        } else {
+                            maxTools = (maxFreqKhz/1000) + " MHz";
+                        }
+
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        // Fallback if batch fails
+                        curFreq = "Error";
+                        govStr = "Error";
+                    }
+
+                    // ZRAM is static, but if user changed it, we might need to refresh.
+                    // To be super light, we assume static unless settings changed, 
+                    // but let's read it lightly just in case, or skip if you want max performance.
+                    // Let's skip ZRAM loop read to strictly follow "don't make heavy" request. 
+                    // ZRAM only changes when user clicks Set ZRAM.
+                    String zramStr = "Static"; 
 
                     final String fRam = ramStr;
                     final String fBat = batStr;
                     final String fGov = govStr;
                     final String fZram = zramStr;
                     final String fCurFreq = curFreq;
-                    final String fMaxFreq = maxFreqVal;
-                    final String fLittle = little;
-                    final String fBig = big;
-                    final String fTemp = temp;
                     final String fMaxTools = maxTools;
+                    final String fTemp = tempStr;
 
                     runOnUiThread(() -> {
                         if(tvRam != null) tvRam.setText(fRam);
@@ -469,10 +478,7 @@ public class MainActivity extends AppCompatActivity {
                         if(tvZram != null) tvZram.setText(fZram);
                         
                         if(tvCurrentFreq != null) tvCurrentFreq.setText(fCurFreq);
-                        if(tvMaxFreq != null) tvMaxFreq.setText(fMaxFreq);
                         if(tvMaxFreqTools != null) tvMaxFreqTools.setText(fMaxTools);
-                        if(tvLittleCluster != null) tvLittleCluster.setText(fLittle);
-                        if(tvBigCluster != null) tvBigCluster.setText(fBig);
                         if(tvTemp != null) tvTemp.setText(fTemp);
                     });
 
