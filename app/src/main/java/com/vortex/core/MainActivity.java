@@ -179,7 +179,7 @@ public class MainActivity extends AppCompatActivity {
 
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
 
-        // --- SETTING ICON APLIKASI (Target Child TextView) ---
+        // --- SETTING ICON APLIKASI ---
         if (navSystem != null && navSystem.getChildCount() > 0) {
             View child = navSystem.getChildAt(0);
             if(child instanceof TextView) {
@@ -314,7 +314,7 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadStaticHardwareInfo() {
         new Thread(() -> {
-            // 1. GET ACCURATE TOTAL RAM
+            // 1. RAM Calculation
             ActivityManager memInfo = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
             ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
             memInfo.getMemoryInfo(mi);
@@ -326,67 +326,80 @@ public class MainActivity extends AppCompatActivity {
                 totalRamStr = (totalMemBytes / 1048576) + " MB";
             }
 
+            // 2. System Properties
             String brand = Build.BRAND;
             String model = Build.MODEL;
             String kernelFull = runSuReturn("uname -r");
             if(kernelFull.isEmpty()) kernelFull = "Unknown Kernel";
             
+            // Get Props
             String platform = runSuReturn("getprop ro.board.platform").toLowerCase();
             String hardware = runSuReturn("getprop ro.hardware").toLowerCase();
             String socModel = runSuReturn("getprop ro.soc.model"); 
             String socMan = runSuReturn("getprop ro.soc.manufacturer").toLowerCase();
 
-            // --- IMPROVED VENDOR DETECTION (Fix for PARROT) ---
-            String vendor = socMan;
-            if(vendor.isEmpty()) {
-                // Check "parrot" explicitly
-                if (platform.contains("qcom") || platform.contains("msm") || platform.contains("parrot")) {
-                    vendor = "Qualcomm";
-                } 
-                else if (platform.contains("mt") || hardware.contains("mt")) {
+            // --- ROBUST CPU VENDOR DETECTION ---
+            String vendor = "Unknown";
+            
+            // Prioritas 1: Manufacturer Prop (Paling Akurat)
+            if (!socMan.isEmpty()) {
+                vendor = socMan.substring(0, 1).toUpperCase() + socMan.substring(1).toLowerCase();
+            } 
+            // Prioritas 2: Platform String Detection
+            else {
+                if (platform.contains("mt") || hardware.contains("mt")) {
+                    // Cek Mediatek dulu biar gak tertukar
                     vendor = "Mediatek";
+                } else if (platform.contains("qcom") || platform.contains("msm")) {
+                    vendor = "Qualcomm";
+                } else if (platform.contains("parrot")) {
+                    // Parrot adalah codename POCO F5 (Snapdragon)
+                    // Masuk sini berarti bukan Mediatek (karena else if)
+                    vendor = "Qualcomm"; 
+                } else if (platform.contains("exynos")) {
+                    vendor = "Exynos";
+                } else if (platform.contains("universal") || platform.contains("sp98")) {
+                    vendor = "Unisoc";
+                } else {
+                    vendor = platform.toUpperCase();
                 }
-                else if (platform.contains("exynos")) vendor = "Exynos";
-                else if (platform.contains("universal") || platform.contains("sp98")) vendor = "Unisoc";
-                else vendor = platform.toUpperCase();
             }
 
-            // --- FIX CPU ARCHITECTURE TEXT (Show ABI + SoC, NOT Platform Name) ---
+            // --- CPU ARCHITECTURE DISPLAY ---
             String cpuArch = Build.SUPPORTED_ABIS[0]; // e.g. arm64-v8a
             String archDisplay = cpuArch.toUpperCase();
             
+            // Tampilkan SoC Model jika ada (Contoh: ARM64-V8A (SM7325))
             if(!socModel.isEmpty() && !socModel.equals("unknown")) {
                 archDisplay += " (" + socModel + ")";
             } else {
+                // Jika tidak ada model, tampilkan Brand (Qualcomm/Mediatek)
                 archDisplay += " (" + vendor + ")";
             }
 
-            // --- IMPROVED GPU LOGIC ---
+            // --- ROBUST GPU DETECTION ---
             String gpu = "Unknown GPU";
             boolean gpuFound = false;
             
+            // Cek Mediatek (Mali)
             if (platform.contains("mt") || hardware.contains("mt")) {
                 gpu = runSuReturn("cat /sys/class/misc/mali0/device/gpu_model 2>/dev/null");
                 if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/kernel/debug/mali0/gpu_id 2>/dev/null");
                 if(!gpu.isEmpty()) gpuFound = true;
             } 
+            // Cek Qualcomm (Adreno) - Termasuk Parrot
             else if (platform.contains("qcom") || platform.contains("msm") || platform.contains("parrot")) {
                 gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_model 2>/dev/null");
                 if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/devices/platform/soc/soc:qcom,kgsl-3d0/devfreq/soc:qcom,kgsl-3d0/gpu_model 2>/dev/null");
                 if(!gpu.isEmpty()) gpuFound = true;
-                
-                // Specific fix for Parrot (Adreno 725) if root read fails
-                if(!gpuFound && platform.contains("parrot")) {
-                    gpu = "Adreno 725"; 
-                    gpuFound = true;
-                }
             }
 
+            // Fallback Otomatis
             if (!gpuFound) {
-                if (platform.contains("qcom") || platform.contains("msm") || platform.contains("parrot")) {
-                    gpu = "Adreno GPU";
-                } else if (platform.contains("mt") || hardware.contains("mt")) {
+                if (platform.contains("mt") || hardware.contains("mt")) {
                     gpu = "Mali GPU";
+                } else if (platform.contains("qcom") || platform.contains("msm") || platform.contains("parrot")) {
+                    gpu = "Adreno GPU";
                 } else if (platform.contains("exynos")) {
                     gpu = "Exynos GPU";
                 } else if (platform.contains("intel")) {
@@ -421,22 +434,19 @@ public class MainActivity extends AppCompatActivity {
             final String finalArchDisplay = archDisplay;
 
             runOnUiThread(() -> {
-                // PERBAIKAN: HANYA SET TEXT, TANPA UBAH WARNA (WARNA IKUT XML)
+                // PERBAIKAN: HANYA SET TEXT, WARNA MENGIKUT XML (PUTIH)
+                // TIDAK ADA setTextColor(...) DI SINI
                 if(tvCpuVendor != null) {
                     tvCpuVendor.setText(finalArchDisplay);
-                    // HAPUS: tvCpuVendor.setTextColor(...)
                 }
                 if(tvKernel != null) {
                     tvKernel.setText(finalKernel);
-                    // HAPUS: tvKernel.setTextColor(...)
                 }
                 if(tvDevice != null) {
                     tvDevice.setText(finalDevice);
-                    // HAPUS: tvDevice.setTextColor(...)
                 }
                 if(tvGpuRenderer != null) {
                     tvGpuRenderer.setText(finalGpu);
-                    // HAPUS: tvGpuRenderer.setTextColor(...)
                 }
                 if(tvGpuVersion != null) tvGpuVersion.setText(finalGl);
                 if(tvMaxFreq != null) tvMaxFreq.setText((maxFreqKhz/1000) + " MHz");
