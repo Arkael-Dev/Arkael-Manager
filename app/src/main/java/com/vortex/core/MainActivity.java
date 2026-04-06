@@ -3,6 +3,7 @@ package com.vortex.core;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.res.AssetManager;
 import android.graphics.Color;
@@ -408,16 +409,27 @@ public class MainActivity extends AppCompatActivity {
                         ((ActivityManager)getSystemService(ACTIVITY_SERVICE)).getMemoryInfo(mi);
                         ramStr = (mi.availMem / 1048576) + " MB";
 
-                        BatteryManager bm = (BatteryManager) getSystemService(BATTERY_SERVICE);
-                        int level = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY);
-                        int status = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS);
-                        String statusText = (status == BatteryManager.BATTERY_STATUS_CHARGING) ? "Charging" : "Discharging";
-                        batStr = level + "% (" + statusText + ")";
+                        // FIXED: Use Intent for Battery Status (Compatible with old SDK)
+                        IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
+                        Intent batteryStatus = registerReceiver(null, ifilter);
+                        
+                        if(batteryStatus != null) {
+                            int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                            int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
+                            float batteryPct = level * 100 / (float)scale;
+                            
+                            int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+                            boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
+                                                 status == BatteryManager.BATTERY_STATUS_FULL;
+                            String statusText = isCharging ? "Charging" : "Discharging";
+                            
+                            batStr = (int)batteryPct + "% (" + statusText + ")";
 
-                        // Battery Temp via API (Most reliable, no root popup)
-                        int apiTemp = bm.getIntProperty(BatteryManager.BATTERY_PROPERTY_TEMPERATURE);
-                        if(apiTemp > 0) {
-                            tempStr = (apiTemp / 10.0f) + "°C";
+                            // FIXED: Get Temperature via Intent (No Root, Compatible)
+                            int temp = batteryStatus.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1);
+                            if(temp != -1) {
+                                tempStr = (temp / 10.0f) + "°C";
+                            }
                         }
                     } catch (Exception e) { e.printStackTrace(); }
 
@@ -456,11 +468,7 @@ public class MainActivity extends AppCompatActivity {
                         govStr = "Error";
                     }
 
-                    // ZRAM is static, but if user changed it, we might need to refresh.
-                    // To be super light, we assume static unless settings changed, 
-                    // but let's read it lightly just in case, or skip if you want max performance.
-                    // Let's skip ZRAM loop read to strictly follow "don't make heavy" request. 
-                    // ZRAM only changes when user clicks Set ZRAM.
+                    // ZRAM is static
                     String zramStr = "Static"; 
 
                     final String fRam = ramStr;
