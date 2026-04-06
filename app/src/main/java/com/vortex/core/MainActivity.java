@@ -18,8 +18,10 @@ import android.os.Environment;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.MediaStore;
+import android.text.TextUtils;
 import android.text.method.ScrollingMovementMethod;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
@@ -78,6 +80,9 @@ public class MainActivity extends AppCompatActivity {
     private String gpuAvailFreqPath = "";
     private boolean isGpuControlReady = false;
     private boolean isGpuModeActive = false;
+    
+    // Animation Helper
+    private boolean batteryBlinkState = false;
 
     private boolean isGlassTheme = false;
     private int iconColorMode = 0; 
@@ -201,6 +206,14 @@ public class MainActivity extends AppCompatActivity {
 
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
 
+        // --- FIX 1: RAM TEXT DROPPING (POLISH) ---
+        if(tvRam != null) {
+            tvRam.setMaxLines(1);
+            tvRam.setEllipsize(TextUtils.TruncateAt.END);
+            tvRam.setGravity(Gravity.CENTER_VERTICAL);
+            tvRam.setIncludeFontPadding(false);
+        }
+
         if (navSystem != null && navSystem.getChildCount() > 0) {
             View child = navSystem.getChildAt(0);
             if(child instanceof TextView) ((TextView) child).setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_info_details, 0, 0, 0);
@@ -238,7 +251,7 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        findViewById(R.id.btn_cpu_gov).setOnClickListener(v -> pickGov()); // Dual purpose: CPU or GPU Gov
+        findViewById(R.id.btn_cpu_gov).setOnClickListener(v -> pickGov()); 
         findViewById(R.id.btn_set_zram).setOnClickListener(v -> showZramMenu());
         findViewById(R.id.btn_thermal).setOnClickListener(v -> showThermalMenu());
         findViewById(R.id.btn_clean_ram).setOnClickListener(v -> {
@@ -298,7 +311,6 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.tv_dev_link).setOnClickListener(v -> openUrl("https://t.me/VorteXSU_Dev"));
         findViewById(R.id.tv_channel_link).setOnClickListener(v -> openUrl("https://t.me/vortexgki"));
 
-        // --- MODE TOGGLE (Long Press) ---
         if(tvMaxFreq != null) {
             tvMaxFreq.setOnLongClickListener(v -> {
                 if(!isGpuControlReady) {
@@ -320,14 +332,12 @@ public class MainActivity extends AppCompatActivity {
                     if (isGpuModeActive && isGpuControlReady) {
                         int range = gpuMaxFreqKhz - gpuMinFreqKhz;
                         targetFreq = gpuMinFreqKhz + ((range * progress) / 100);
-                        // CLAMP FIX
                         targetFreq = Math.max(gpuMinFreqKhz, Math.min(gpuMaxFreqKhz, targetFreq));
                         setGpuMaxFreq(targetFreq);
                         if(tvMaxFreqTools != null) tvMaxFreqTools.setText((targetFreq/1000) + " MHz");
                     } else if (!isGpuModeActive && cpuMaxFreqKhz > 0 && cpuMinFreqKhz > 0) {
                         int range = cpuMaxFreqKhz - cpuMinFreqKhz;
                         targetFreq = cpuMinFreqKhz + ((range * progress) / 100);
-                        // CLAMP FIX
                         targetFreq = Math.max(cpuMinFreqKhz, Math.min(cpuMaxFreqKhz, targetFreq));
                         setCpuMaxFreq(targetFreq);
                         if(tvMaxFreqTools != null) tvMaxFreqTools.setText((targetFreq/1000) + " MHz");
@@ -351,7 +361,6 @@ public class MainActivity extends AppCompatActivity {
             if (isGpuModeActive && isGpuControlReady) {
                  currentLimit = parseIntSafe(runSuReturn("cat " + gpuMaxFreqPath));
             } else {
-                 // FIX 3: REMOVE cpu0 -> Take Highest
                  String rawMax = runSuReturnAll("cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq");
                  String[] lines = rawMax.split("\\s+");
                  int highest = 0;
@@ -362,12 +371,10 @@ public class MainActivity extends AppCompatActivity {
                  currentLimit = highest;
             }
 
-            if (max == 0 || min < 0) return; // Invalid data safety
+            if (max == 0 || min < 0) return; 
 
-            // FIX 1: DIVISION BY ZERO
             int range = max - min;
             if (range <= 0) {
-                // If range is 0, progress is effectively 100% (at max)
                 runOnUiThread(() -> {
                     if(seekBarMaxFreq != null) seekBarMaxFreq.setProgress(100);
                     if(tvMaxFreqTools != null) tvMaxFreqTools.setText((max/1000) + " MHz " + (isGpuModeActive ? "(GPU)" : "(CPU)"));
@@ -557,6 +564,12 @@ public class MainActivity extends AppCompatActivity {
                     String maxTools = "N/A";
                     String govStr = "Unknown";
 
+                    // Battery State
+                    int level = -1;
+                    boolean isCharging = false;
+                    int iconId = android.R.drawable.ic_menu_info_details; // Default
+                    int batColor = Color.WHITE;
+
                     try {
                         ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
                         ((ActivityManager)getSystemService(ACTIVITY_SERVICE)).getMemoryInfo(mi);
@@ -568,13 +581,30 @@ public class MainActivity extends AppCompatActivity {
                         IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
                         Intent batteryStatus = registerReceiver(null, ifilter);
                         if(batteryStatus != null) {
-                            int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
+                            level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
                             int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
                             float batteryPct = level * 100 / (float)scale;
+                            
                             int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
-                            boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL;
+                            isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL;
                             String statusText = isCharging ? "Charging" : "Discharging";
                             batStr = (int)batteryPct + "% (" + statusText + ")";
+
+                            // --- FIX 2: DYNAMIC BATTERY ICON & COLOR ---
+                            if(isCharging) {
+                                iconId = android.R.drawable.ic_menu_upload; // Charging Icon
+                                batColor = Color.CYAN;
+                            } else if(level <= 20) {
+                                iconId = android.R.drawable.ic_dialog_alert; // Low Battery Icon
+                                batColor = Color.RED;
+                            } else if(level <= 50) {
+                                iconId = android.R.drawable.ic_menu_sort_by_size; // Medium Icon
+                                batColor = Color.parseColor("#FFD700"); // Gold/Yellow
+                            } else {
+                                iconId = android.R.drawable.ic_menu_info_details; // Full/Normal Icon
+                                batColor = Color.parseColor("#00E676"); // Green
+                            }
+
                             int temp = batteryStatus.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1);
                             if(temp != -1) tempStr = (temp / 10.0f) + "°C";
                         }
@@ -596,10 +626,8 @@ public class MainActivity extends AppCompatActivity {
                             else govStr = "N/A";
 
                         } else {
-                            // CPU Monitor
                             govStr = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor");
                             
-                            // FIX 3: REMOVE cpu0 READ (Take Highest)
                             String maxFreqsRaw = runSuReturnAll("cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq");
                             String[] maxLines = maxFreqsRaw.split("\\s+");
                             int systemMaxVal = 0;
@@ -630,10 +658,28 @@ public class MainActivity extends AppCompatActivity {
                     final String fCurFreq = curFreq;
                     final String fMaxTools = maxTools;
                     final String fTemp = tempStr;
+                    final int fIcon = iconId;
+                    final int fBatColor = batColor;
+                    final boolean fIsCharging = isCharging;
 
                     runOnUiThread(() -> {
                         if(tvRam != null) tvRam.setText(fRam);
-                        if(tvBattery != null) tvBattery.setText(fBat);
+                        if(tvBattery != null) {
+                            tvBattery.setText(fBat);
+                            tvBattery.setTextColor(fBatColor);
+                            // Set Icon Left
+                            tvBattery.setCompoundDrawablesRelativeWithIntrinsicBounds(fIcon, 0, 0, 0);
+                            // --- FIX 3: CHARGING ANIMATION ---
+                            if(fIsCharging) {
+                                batteryBlinkState = !batteryBlinkState;
+                                Drawable icon = getDrawable(fIcon);
+                                if(icon != null) {
+                                    icon.mutate(); // Don't affect other instances
+                                    icon.setAlpha(batteryBlinkState ? 255 : 80); // Blink effect
+                                }
+                                tvBattery.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0);
+                            }
+                        }
                         if(tvCpu != null) tvCpu.setText(fGov.toUpperCase());
                         if(tvCurrentFreq != null) tvCurrentFreq.setText(fCurFreq);
                         if(tvMaxFreqTools != null) tvMaxFreqTools.setText(fMaxTools);
@@ -786,7 +832,6 @@ public class MainActivity extends AppCompatActivity {
     // --- GOVERNOR PICKER ---
     private void pickGov() {
         new Thread(() -> {
-            // FIX 2: CHECK NULL PATH
             if (isGpuModeActive && gpuGovPath.isEmpty()) {
                 runOnUiThread(() -> Toast.makeText(this, "GPU Governor Not Supported", Toast.LENGTH_SHORT).show());
                 return;
