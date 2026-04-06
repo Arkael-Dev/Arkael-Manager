@@ -67,7 +67,7 @@ public class MainActivity extends AppCompatActivity {
     private int staticCoreCount = 4;
     private String staticLittleFreq = "N/A";
     private String staticBigFreq = "N/A";
-    private String totalRamStr = "Unknown"; // Menyimpan Total RAM Hardware
+    private String totalRamStr = "Unknown"; 
     
     private boolean isGlassTheme = false;
     private int iconColorMode = 0; 
@@ -179,8 +179,7 @@ public class MainActivity extends AppCompatActivity {
 
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
 
-        // --- PERBAIKAN: SETTING ICON APLIKASI ---
-        // Karena nav adalah LinearLayout, kita ambil anak (child) ke-0 yang merupakan TextView
+        // --- SETTING ICON APLIKASI (Target Child TextView) ---
         if (navSystem != null && navSystem.getChildCount() > 0) {
             View child = navSystem.getChildAt(0);
             if(child instanceof TextView) {
@@ -315,12 +314,11 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadStaticHardwareInfo() {
         new Thread(() -> {
-            // 1. GET ACCURATE TOTAL RAM (Hardware Specific)
+            // 1. GET ACCURATE TOTAL RAM
             ActivityManager memInfo = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
             ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
             memInfo.getMemoryInfo(mi);
             long totalMemBytes = mi.totalMem;
-            // Format RAM: 8.0 GB, 12.0 GB, etc.
             if (totalMemBytes >= 1073741824) {
                 double gb = totalMemBytes / (1024.0 * 1024.0 * 1024.0);
                 totalRamStr = String.format("%.1f GB", gb);
@@ -336,38 +334,66 @@ public class MainActivity extends AppCompatActivity {
             String platform = runSuReturn("getprop ro.board.platform").toLowerCase();
             String hardware = runSuReturn("getprop ro.hardware").toLowerCase();
             String socModel = runSuReturn("getprop ro.soc.model"); 
-            String vendor = "Unknown Device";
-            String gpu = "Unknown GPU";
+            String socMan = runSuReturn("getprop ro.soc.manufacturer").toLowerCase();
 
-            if (platform.contains("qcom") || platform.contains("msm")) {
-                vendor = "Qualcomm";
-                if(!socModel.isEmpty()) vendor += " (" + socModel + ")";
-            } 
-            else if (platform.contains("mt") || hardware.contains("mt")) {
-                vendor = "Mediatek";
-                if(!socModel.isEmpty()) vendor += " (" + socModel + ")";
+            // --- IMPROVED VENDOR DETECTION (Fix for PARROT) ---
+            String vendor = socMan;
+            if(vendor.isEmpty()) {
+                // Check "parrot" explicitly
+                if (platform.contains("qcom") || platform.contains("msm") || platform.contains("parrot")) {
+                    vendor = "Qualcomm";
+                } 
+                else if (platform.contains("mt") || hardware.contains("mt")) {
+                    vendor = "Mediatek";
+                }
+                else if (platform.contains("exynos")) vendor = "Exynos";
+                else if (platform.contains("universal") || platform.contains("sp98")) vendor = "Unisoc";
+                else vendor = platform.toUpperCase();
             }
-            else if (platform.contains("exynos")) vendor = "Exynos";
-            else if (platform.contains("universal") || platform.contains("sp98")) vendor = "Unisoc";
-            else vendor = platform.toUpperCase();
 
+            // --- FIX CPU ARCHITECTURE TEXT (Show ABI + SoC, NOT Platform Name) ---
+            String cpuArch = Build.SUPPORTED_ABIS[0]; // e.g. arm64-v8a
+            String archDisplay = cpuArch.toUpperCase();
+            
+            if(!socModel.isEmpty() && !socModel.equals("unknown")) {
+                archDisplay += " (" + socModel + ")";
+            } else {
+                archDisplay += " (" + vendor + ")";
+            }
+
+            // --- IMPROVED GPU LOGIC ---
+            String gpu = "Unknown GPU";
             boolean gpuFound = false;
+            
             if (platform.contains("mt") || hardware.contains("mt")) {
                 gpu = runSuReturn("cat /sys/class/misc/mali0/device/gpu_model 2>/dev/null");
                 if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/kernel/debug/mali0/gpu_id 2>/dev/null");
                 if(!gpu.isEmpty()) gpuFound = true;
-            } else if (platform.contains("qcom") || platform.contains("msm")) {
+            } 
+            else if (platform.contains("qcom") || platform.contains("msm") || platform.contains("parrot")) {
                 gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_model 2>/dev/null");
                 if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/devices/platform/soc/soc:qcom,kgsl-3d0/devfreq/soc:qcom,kgsl-3d0/gpu_model 2>/dev/null");
                 if(!gpu.isEmpty()) gpuFound = true;
+                
+                // Specific fix for Parrot (Adreno 725) if root read fails
+                if(!gpuFound && platform.contains("parrot")) {
+                    gpu = "Adreno 725"; 
+                    gpuFound = true;
+                }
             }
 
             if (!gpuFound) {
-                if (platform.contains("qcom") || platform.contains("msm")) gpu = "Adreno GPU";
-                else if (platform.contains("mt") || hardware.contains("mt")) gpu = "Mali GPU";
-                else if (platform.contains("exynos")) gpu = "Exynos GPU";
-                else if (platform.contains("intel")) gpu = "Intel GPU";
-                else gpu = "Generic GPU (" + platform.toUpperCase() + ")";
+                if (platform.contains("qcom") || platform.contains("msm") || platform.contains("parrot")) {
+                    gpu = "Adreno GPU";
+                } else if (platform.contains("mt") || hardware.contains("mt")) {
+                    gpu = "Mali GPU";
+                } else if (platform.contains("exynos")) {
+                    gpu = "Exynos GPU";
+                } else if (platform.contains("intel")) {
+                    gpu = "Intel GPU";
+                } else {
+                    gpu = "Generic GPU (" + platform.toUpperCase() + ")";
+                }
             }
             
             String gl = runSuReturn("getprop ro.opengles.version");
@@ -388,28 +414,29 @@ public class MainActivity extends AppCompatActivity {
             staticLittleFreq = (lit.isEmpty() ? "N/A" : (Integer.parseInt(lit)/1000) + " MHz");
             staticBigFreq = (bigVal.isEmpty() ? "N/A" : (Integer.parseInt(bigVal)/1000) + " MHz");
 
-            final String finalVendor = vendor;
             final String finalKernel = kernelFull;
             final String finalDevice = brand.toUpperCase() + " " + model;
             final String finalGpu = gpu;
             final String finalGl = gl;
+            final String finalArchDisplay = archDisplay;
 
             runOnUiThread(() -> {
+                // PERBAIKAN: HANYA SET TEXT, TANPA UBAH WARNA (WARNA IKUT XML)
                 if(tvCpuVendor != null) {
-                    tvCpuVendor.setText(finalVendor);
-                    tvCpuVendor.setTextColor(Color.parseColor("#4CAF50")); // GREEN
+                    tvCpuVendor.setText(finalArchDisplay);
+                    // HAPUS: tvCpuVendor.setTextColor(...)
                 }
                 if(tvKernel != null) {
                     tvKernel.setText(finalKernel);
-                    tvKernel.setTextColor(Color.parseColor("#4CAF50")); // GREEN
+                    // HAPUS: tvKernel.setTextColor(...)
                 }
                 if(tvDevice != null) {
                     tvDevice.setText(finalDevice);
-                    tvDevice.setTextColor(Color.parseColor("#4CAF50")); // GREEN
+                    // HAPUS: tvDevice.setTextColor(...)
                 }
                 if(tvGpuRenderer != null) {
                     tvGpuRenderer.setText(finalGpu);
-                    tvGpuRenderer.setTextColor(Color.parseColor("#4CAF50")); // GREEN
+                    // HAPUS: tvGpuRenderer.setTextColor(...)
                 }
                 if(tvGpuVersion != null) tvGpuVersion.setText(finalGl);
                 if(tvMaxFreq != null) tvMaxFreq.setText((maxFreqKhz/1000) + " MHz");
@@ -430,14 +457,11 @@ public class MainActivity extends AppCompatActivity {
                     try {
                         ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
                         ((ActivityManager)getSystemService(ACTIVITY_SERVICE)).getMemoryInfo(mi);
-                        
-                        // RAM Display: Available / Total Hardware
                         long availMem = mi.availMem;
                         String availRamStr = (availMem / 1048576) + " MB";
                         if (totalRamStr == null) totalRamStr = "Unknown";
                         ramStr = availRamStr + " / " + totalRamStr;
 
-                        // Battery via Intent (Compatible & No Root Popup)
                         IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
                         Intent batteryStatus = registerReceiver(null, ifilter);
                         
@@ -465,7 +489,6 @@ public class MainActivity extends AppCompatActivity {
                     String maxTools = "N/A";
                     
                     try {
-                        // Batch Root Commands
                         String script = "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq\necho ---SEPARATOR---\ncat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor\necho ---SEPARATOR---\ncat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq";
                         String output = runSuReturnAll(script);
                         String[] parts = output.split("---SEPARATOR---");
@@ -572,7 +595,6 @@ public class MainActivity extends AppCompatActivity {
             default: color = Color.parseColor("#AAAAAA"); break;
         }
         
-        // Apply color to icons we set in initViews (child of LinearLayout)
         if(navSystem != null && navSystem.getChildCount() > 0) {
             tintCompoundDrawables(navSystem.getChildAt(0), color);
         }
@@ -638,7 +660,7 @@ public class MainActivity extends AppCompatActivity {
                 headerBanner.setVisibility(View.VISIBLE);
                 bannerContainer.setVisibility(View.VISIBLE);
                 findViewById(R.id.btn_reset_banner).setVisibility(View.VISIBLE);
-                applyBannerRadius(); // Apply rounded corners
+                applyBannerRadius();
                 return;
             }
         }
@@ -655,14 +677,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void applyBannerRadius() {
-        // Membuat Banner Rounded sesuai Card (20dp)
         if(headerBanner != null) {
             GradientDrawable shape = new GradientDrawable();
             shape.setShape(GradientDrawable.RECTANGLE);
-            shape.setCornerRadius(20); // Radius sesuai card
+            shape.setCornerRadius(20);
             shape.setColor(Color.TRANSPARENT); 
             headerBanner.setBackground(shape);
-            // Clip to outline agar gambar ikut terpotong rounded
             headerBanner.setClipToOutline(true);
         }
     }
