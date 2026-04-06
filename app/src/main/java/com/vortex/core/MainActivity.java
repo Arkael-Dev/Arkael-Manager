@@ -69,6 +69,11 @@ public class MainActivity extends AppCompatActivity {
     private String staticBigFreq = "N/A";
     private String totalRamStr = "Unknown"; 
     
+    // GPU Control Paths
+    private String gpuMaxFreqPath = "";
+    private String gpuCurFreqPath = "";
+    private boolean isGpuControlReady = false;
+
     private boolean isGlassTheme = false;
     private int iconColorMode = 0; 
     private boolean staticInfoLoaded = false;
@@ -284,12 +289,13 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.tv_dev_link).setOnClickListener(v -> openUrl("https://t.me/VorteXSU_Dev"));
         findViewById(R.id.tv_channel_link).setOnClickListener(v -> openUrl("https://t.me/vortexgki"));
 
+        // --- GPU MAX FREQ SLIDER LISTENER ---
         seekBarMaxFreq.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser && maxFreqKhz > 0 && minFreqKhz > 0) {
+                if (fromUser && maxFreqKhz > 0 && minFreqKhz > 0 && isGpuControlReady) {
                     int range = maxFreqKhz - minFreqKhz;
                     int targetFreq = minFreqKhz + ((range * progress) / 100);
-                    setMaxFreq(targetFreq);
+                    setGpuMaxFreq(targetFreq);
                     if(tvMaxFreqTools != null) tvMaxFreqTools.setText((targetFreq/1000) + " MHz");
                 }
             }
@@ -326,19 +332,18 @@ public class MainActivity extends AppCompatActivity {
                 totalRamStr = (totalMemBytes / 1048576) + " MB";
             }
 
-            // 2. System Properties
+            // 2. System Properties & Platform
             String brand = Build.BRAND;
             String model = Build.MODEL;
             String kernelFull = runSuReturn("uname -r");
             if(kernelFull.isEmpty()) kernelFull = "Unknown Kernel";
             
-            // Get Props
             String platform = runSuReturn("getprop ro.board.platform").toLowerCase();
             String hardware = runSuReturn("getprop ro.hardware").toLowerCase();
             String socModel = runSuReturn("getprop ro.soc.model"); 
             String socMan = runSuReturn("getprop ro.soc.manufacturer").toLowerCase();
 
-            // --- ZRAM SIZE CALCULATION (Fix untuk tampilan ...) ---
+            // --- ZRAM SIZE CALCULATION ---
             String zramDisplay = "Disabled";
             try {
                 String zramRaw = runSuReturn("cat /sys/block/zram0/disksize 2>/dev/null");
@@ -349,115 +354,126 @@ public class MainActivity extends AppCompatActivity {
                         zramDisplay = String.format("%.1f GB", zramGB);
                     }
                 }
-            } catch (Exception e) {
-                zramDisplay = "Error";
-            }
+            } catch (Exception e) { zramDisplay = "Error"; }
             final String fZram = zramDisplay;
 
-            // --- ROBUST CPU VENDOR DETECTION ---
-            String vendor = "Unknown";
+            // --- GPU CONTROL SETUP (Robust Path Detection) ---
+            // Default paths
+            String maxPath = "";
+            String curPath = "";
+            String minPath = "";
             
+            // Adreno (Qualcomm) Paths
+            if (platform.contains("qcom") || platform.contains("msm")) {
+                String adrenoDev = "/sys/class/kgsl/kgsl-3d0/devfreq/soc:qcom,kgsl-3d0";
+                // Check newer GKI path first
+                if (new File("/sys/class/kgsl/kgsl-3d0/devfreq/soc:qcom,kgsl-3d0/max_freq").exists()) {
+                    maxPath = adrenoDev + "/max_freq";
+                    minPath = adrenoDev + "/min_freq";
+                    curPath = adrenoDev + "/cur_freq";
+                } 
+                // Fallback to older paths
+                else if (new File("/sys/class/kgsl/kgsl-3d0/max_gpuclk").exists()) {
+                    maxPath = "/sys/class/kgsl/kgsl-3d0/max_gpuclk";
+                    // Adreno often uses different logic for min/cur on older nodes, simplified here:
+                    minPath = "/sys/class/kgsl/kgsl-3d0/min_gpuclk"; 
+                    curPath = "/sys/class/kgsl/kgsl-3d0/gpu_clock";
+                }
+            }
+            // Mali (MediaTek/Exynos) Paths
+            else if (platform.contains("mt") || platform.contains("exynos") || hardware.contains("mt")) {
+                if (new File("/sys/class/devfreq/mali0/max_freq").exists()) {
+                    maxPath = "/sys/class/devfreq/mali0/max_freq";
+                    minPath = "/sys/class/devfreq/mali0/min_freq";
+                    curPath = "/sys/class/devfreq/mali0/cur_freq";
+                } else if (new File("/sys/class/misc/mali0/device/gpu_clock").exists()) {
+                    maxPath = "/sys/class/misc/mali0/device/max_gpuclk";
+                    minPath = "/sys/class/misc/mali0/device/min_gpuclk";
+                    curPath = "/sys/class/misc/mali0/device/gpu_clock";
+                }
+            }
+
+            gpuMaxFreqPath = maxPath;
+            gpuCurFreqPath = curPath;
+            isGpuControlReady = !maxPath.isEmpty();
+
+            // Read GPU Limits for Slider Range
+            if(isGpuControlReady) {
+                try {
+                    String maxStr = runSuReturn("cat " + maxPath);
+                    String minStr = runSuReturn("cat " + minPath);
+                    if(!maxStr.isEmpty()) maxFreqKhz = Integer.parseInt(maxStr.trim());
+                    if(!minStr.isEmpty()) minFreqKhz = Integer.parseInt(minStr.trim());
+                    
+                    // READ CURRENT LIMIT TO SET BALANCED SLIDER (Not forced to Max)
+                    String currentLimitStr = runSuReturn("cat " + maxPath);
+                    if(!currentLimitStr.isEmpty()) {
+                        int currentLimit = Integer.parseInt(currentLimitStr.trim());
+                        // Calculate progress percentage based on current system limit
+                        int range = maxFreqKhz - minFreqKhz;
+                        if(range > 0) {
+                            int progress = (int) (((currentLimit - minFreqKhz) / (float) range) * 100);
+                            final int finalProgress = Math.min(100, Math.max(0, progress));
+                            // Update UI on main thread
+                            runOnUiThread(() -> {
+                                if(seekBarMaxFreq != null) seekBarMaxFreq.setProgress(finalProgress);
+                                if(tvMaxFreqTools != null) tvMaxFreqTools.setText((currentLimit/1000) + " MHz");
+                            });
+                        }
+                    }
+                } catch (Exception e) {
+                    isGpuControlReady = false;
+                }
+            }
+
+            // --- CPU & STATIC INFO (Keep for Info Tab) ---
+            String vendor = "Unknown";
             if (!socMan.isEmpty()) {
                 vendor = socMan.substring(0, 1).toUpperCase() + socMan.substring(1).toLowerCase();
-            } 
-            else {
-                if (platform.contains("mt") || hardware.contains("mt")) {
-                    vendor = "Mediatek";
-                } else if (platform.contains("qcom") || platform.contains("msm")) {
-                    vendor = "Qualcomm";
-                } else if (platform.contains("parrot")) {
-                    vendor = "Qualcomm"; 
-                } else if (platform.contains("exynos")) {
-                    vendor = "Exynos";
-                } else if (platform.contains("universal") || platform.contains("sp98")) {
-                    vendor = "Unisoc";
-                } else {
-                    vendor = platform.toUpperCase();
-                }
+            } else {
+                if (platform.contains("mt") || hardware.contains("mt")) vendor = "Mediatek";
+                else if (platform.contains("qcom") || platform.contains("msm")) vendor = "Qualcomm";
+                else if (platform.contains("exynos")) vendor = "Exynos";
+                else if (platform.contains("intel")) vendor = "Intel";
+                else vendor = platform.toUpperCase();
             }
 
-            // --- CPU ARCHITECTURE DISPLAY ---
             String cpuArch = Build.SUPPORTED_ABIS[0]; 
             String archDisplay = cpuArch.toUpperCase();
-            
-            if(!socModel.isEmpty() && !socModel.equals("unknown")) {
-                archDisplay += " (" + socModel + ")";
-            } else {
-                archDisplay += " (" + vendor + ")";
-            }
+            if(!socModel.isEmpty() && !socModel.equals("unknown")) archDisplay += " (" + socModel + ")";
+            else archDisplay += " (" + vendor + ")";
 
-            // --- ROBUST GPU DETECTION ---
             String gpu = "Unknown GPU";
-            boolean gpuFound = false;
-            
-            if (platform.contains("mt") || hardware.contains("mt")) {
-                gpu = runSuReturn("cat /sys/class/misc/mali0/device/gpu_model 2>/dev/null");
-                if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/kernel/debug/mali0/gpu_id 2>/dev/null");
-                if(!gpu.isEmpty()) gpuFound = true;
-            } 
-            else if (platform.contains("qcom") || platform.contains("msm") || platform.contains("parrot")) {
-                gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_model 2>/dev/null");
-                if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/devices/platform/soc/soc:qcom,kgsl-3d0/devfreq/soc:qcom,kgsl-3d0/gpu_model 2>/dev/null");
-                if(!gpu.isEmpty()) gpuFound = true;
-            }
+            if (platform.contains("mt") || hardware.contains("mt")) gpu = "Mali GPU";
+            else if (platform.contains("qcom") || platform.contains("msm")) gpu = "Adreno GPU";
+            else if (platform.contains("exynos")) gpu = "Exynos GPU";
+            else gpu = "Generic GPU (" + platform.toUpperCase() + ")";
 
-            if (!gpuFound) {
-                if (platform.contains("mt") || hardware.contains("mt")) {
-                    gpu = "Mali GPU";
-                } else if (platform.contains("qcom") || platform.contains("msm") || platform.contains("parrot")) {
-                    gpu = "Adreno GPU";
-                } else if (platform.contains("exynos")) {
-                    gpu = "Exynos GPU";
-                } else if (platform.contains("intel")) {
-                    gpu = "Intel GPU";
-                } else {
-                    gpu = "Generic GPU (" + platform.toUpperCase() + ")";
-                }
-            }
-            
-            String gl = runSuReturn("getprop ro.opengles.version");
-            if(gl.isEmpty()) gl = "OpenGL ES 3.x";
-            else gl = "OpenGL ES " + gl;
-
+            // CPU Static Info
             String max = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
-            if(!max.isEmpty()) maxFreqKhz = Integer.parseInt(max);
-
             String cpuCount = runSuReturn("cat /proc/cpuinfo | grep 'processor' | wc -l");
             if(!cpuCount.isEmpty()) staticCoreCount = Integer.parseInt(cpuCount.trim());
-            
             int lastCore = Math.max(0, staticCoreCount - 1);
             String lit = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
             String bigVal = runSuReturn("cat /sys/devices/system/cpu/cpu"+lastCore+"/cpufreq/cpuinfo_max_freq");
             if(bigVal.isEmpty()) bigVal = lit;
-
             staticLittleFreq = (lit.isEmpty() ? "N/A" : (Integer.parseInt(lit)/1000) + " MHz");
             staticBigFreq = (bigVal.isEmpty() ? "N/A" : (Integer.parseInt(bigVal)/1000) + " MHz");
 
             final String finalKernel = kernelFull;
             final String finalDevice = brand.toUpperCase() + " " + model;
             final String finalGpu = gpu;
-            final String finalGl = gl;
             final String finalArchDisplay = archDisplay;
+            final int finalMaxFreqKhz = maxFreqKhz; // Capture for UI update if needed
 
             runOnUiThread(() -> {
-                if(tvCpuVendor != null) {
-                    tvCpuVendor.setText(finalArchDisplay);
-                }
-                if(tvKernel != null) {
-                    tvKernel.setText(finalKernel);
-                }
-                if(tvDevice != null) {
-                    tvDevice.setText(finalDevice);
-                }
-                if(tvGpuRenderer != null) {
-                    tvGpuRenderer.setText(finalGpu);
-                }
-                if(tvGpuVersion != null) tvGpuVersion.setText(finalGl);
-                if(tvMaxFreq != null) tvMaxFreq.setText((maxFreqKhz/1000) + " MHz");
+                if(tvCpuVendor != null) tvCpuVendor.setText(finalArchDisplay);
+                if(tvKernel != null) tvKernel.setText(finalKernel);
+                if(tvDevice != null) tvDevice.setText(finalDevice);
+                if(tvGpuRenderer != null) tvGpuRenderer.setText(finalGpu);
+                if(tvMaxFreq != null) tvMaxFreq.setText((finalMaxFreqKhz/1000) + " MHz");
                 if(tvLittleCluster != null) tvLittleCluster.setText(staticLittleFreq);
                 if(tvBigCluster != null) tvBigCluster.setText(staticBigFreq);
-                
-                // UPDATE ZRAM TEXT DI SINI (SAAT AWAL)
                 if(tvZram != null) tvZram.setText(fZram);
             });
         }).start();
@@ -481,23 +497,16 @@ public class MainActivity extends AppCompatActivity {
 
                         IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
                         Intent batteryStatus = registerReceiver(null, ifilter);
-                        
                         if(batteryStatus != null) {
                             int level = batteryStatus.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
                             int scale = batteryStatus.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
                             float batteryPct = level * 100 / (float)scale;
-                            
                             int status = batteryStatus.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
-                            boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING ||
-                                                 status == BatteryManager.BATTERY_STATUS_FULL;
+                            boolean isCharging = status == BatteryManager.BATTERY_STATUS_CHARGING || status == BatteryManager.BATTERY_STATUS_FULL;
                             String statusText = isCharging ? "Charging" : "Discharging";
-                            
                             batStr = (int)batteryPct + "% (" + statusText + ")";
-
                             int temp = batteryStatus.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1);
-                            if(temp != -1) {
-                                tempStr = (temp / 10.0f) + "°C";
-                            }
+                            if(temp != -1) tempStr = (temp / 10.0f) + "°C";
                         }
                     } catch (Exception e) { e.printStackTrace(); }
 
@@ -505,24 +514,38 @@ public class MainActivity extends AppCompatActivity {
                     String govStr = "Unknown";
                     String maxTools = "N/A";
                     
-                    try {
-                        String script = "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq\necho ---SEPARATOR---\ncat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor\necho ---SEPARATOR---\ncat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq";
-                        String output = runSuReturnAll(script);
-                        String[] parts = output.split("---SEPARATOR---");
-                        
-                        if(parts.length >= 1 && !parts[0].trim().isEmpty()) {
-                            int cur = Integer.parseInt(parts[0].trim());
-                            curFreq = (cur/1000) + " MHz";
+                    // --- MODIFIED LOOP FOR GPU CONTROL ---
+                    if (isGpuControlReady && !gpuCurFreqPath.isEmpty() && !gpuMaxFreqPath.isEmpty()) {
+                        try {
+                            // Read GPU Current and Limit
+                            String script = "cat " + gpuCurFreqPath + "\necho ---SEPARATOR---\ncat " + gpuMaxFreqPath;
+                            String output = runSuReturnAll(script);
+                            String[] parts = output.split("---SEPARATOR---");
+                            
+                            if(parts.length >= 1 && !parts[0].trim().isEmpty()) {
+                                int cur = Integer.parseInt(parts[0].trim());
+                                curFreq = (cur/1000) + " MHz";
+                            }
+                            if(parts.length >= 2 && !parts[1].trim().isEmpty()) {
+                                int lim = Integer.parseInt(parts[1].trim());
+                                maxTools = (lim/1000) + " MHz";
+                            } else {
+                                maxTools = (maxFreqKhz/1000) + " MHz";
+                            }
+                            govStr = "GPU User"; // Placeholder for GPU
+                        } catch (Exception e) {
+                            curFreq = "Error"; 
                         }
-                        if(parts.length >= 2 && !parts[1].trim().isEmpty()) govStr = parts[1].trim();
-                        if(parts.length >= 3 && !parts[2].trim().isEmpty()) {
-                            int currentMax = Integer.parseInt(parts[2].trim());
-                            maxTools = (currentMax/1000) + " MHz";
-                        } else {
-                            maxTools = (maxFreqKhz/1000) + " MHz";
-                        }
-                    } catch (Exception e) {
-                        curFreq = "Error"; govStr = "Error";
+                    } else {
+                        // Fallback to CPU if GPU not ready (Legacy behavior)
+                         try {
+                            String script = "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq\necho ---SEPARATOR---\ncat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor\necho ---SEPARATOR---\ncat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq";
+                            String output = runSuReturnAll(script);
+                            String[] parts = output.split("---SEPARATOR---");
+                            if(parts.length >= 1 && !parts[0].trim().isEmpty()) curFreq = (Integer.parseInt(parts[0].trim())/1000) + " MHz";
+                            if(parts.length >= 2 && !parts[1].trim().isEmpty()) govStr = parts[1].trim();
+                            if(parts.length >= 3 && !parts[2].trim().isEmpty()) maxTools = (Integer.parseInt(parts[2].trim())/1000) + " MHz";
+                        } catch (Exception e) { curFreq = "Error"; }
                     }
 
                     final String fRam = ramStr;
@@ -535,11 +558,10 @@ public class MainActivity extends AppCompatActivity {
                     runOnUiThread(() -> {
                         if(tvRam != null) tvRam.setText(fRam);
                         if(tvBattery != null) tvBattery.setText(fBat);
-                        if(tvCpu != null) tvCpu.setText(fGov.toUpperCase());
+                        if(tvCpu != null) tvCpu.setText(fGov.toUpperCase()); // Still shows Gov or "GPU User"
                         if(tvCurrentFreq != null) tvCurrentFreq.setText(fCurFreq);
                         if(tvMaxFreqTools != null) tvMaxFreqTools.setText(fMaxTools);
                         if(tvTemp != null) tvTemp.setText(fTemp);
-                        // ZRAM DIHAPUS DARI LOOP AGAR TIDAK TIMPA JADI ... / Static
                     });
                 }).start(); 
                 handler.postDelayed(this, 2000); 
@@ -548,189 +570,108 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // --- THEME & UI LOGIC ---
-
     private void setBackgroundMode(int mode) {
         int bgCol, cardCol, textCol;
         boolean isDark = true;
-        
-        if(mode == 0) { // Black
-            bgCol = Color.parseColor("#121212");
-            cardCol = Color.parseColor("#1E1E1E");
-            textCol = Color.WHITE;
-        } else if (mode == 1) { // White
-            bgCol = Color.parseColor("#F0F0F0");
-            cardCol = Color.parseColor("#FFFFFF");
-            textCol = Color.BLACK;
-            isDark = false;
-        } else if (mode == 3) { // Transparent
-            bgCol = Color.parseColor("#00000000");
-            cardCol = Color.parseColor("#DD000000");
-            textCol = Color.WHITE;
-            isDark = true;
-        } else { // Gray
-            bgCol = Color.parseColor("#808080");
-            cardCol = Color.parseColor("#909090");
-            textCol = Color.WHITE;
-        }
-
-        if(isGlassTheme) {
-            if (isDark) cardCol = Color.parseColor("#80000000");
-            else cardCol = Color.parseColor("#80FFFFFF");
-        }
-
+        if(mode == 0) { bgCol = Color.parseColor("#121212"); cardCol = Color.parseColor("#1E1E1E"); textCol = Color.WHITE; }
+        else if (mode == 1) { bgCol = Color.parseColor("#F0F0F0"); cardCol = Color.parseColor("#FFFFFF"); textCol = Color.BLACK; isDark = false; }
+        else if (mode == 3) { bgCol = Color.parseColor("#00000000"); cardCol = Color.parseColor("#DD000000"); textCol = Color.WHITE; isDark = true; }
+        else { bgCol = Color.parseColor("#808080"); cardCol = Color.parseColor("#909090"); textCol = Color.WHITE; }
+        if(isGlassTheme) { if (isDark) cardCol = Color.parseColor("#80000000"); else cardCol = Color.parseColor("#80FFFFFF"); }
         prefs.edit().putInt("bg_mode", mode).apply();
         if(rootLayout != null) rootLayout.setBackgroundColor(bgCol);
-        
         GradientDrawable gd = new GradientDrawable();
-        gd.setShape(GradientDrawable.RECTANGLE);
-        gd.setColor(cardCol);
-        gd.setCornerRadius(20);
-        if(isGlassTheme) gd.setStroke(2, Color.parseColor("#33FFFFFF"));
-        else gd.setStroke(0, Color.TRANSPARENT);
-        
-        if(cardRam != null) cardRam.setBackground(gd);
-        if(cardBat != null) cardBat.setBackground(gd);
-        
+        gd.setShape(GradientDrawable.RECTANGLE); gd.setColor(cardCol); gd.setCornerRadius(20);
+        if(isGlassTheme) gd.setStroke(2, Color.parseColor("#33FFFFFF")); else gd.setStroke(0, Color.TRANSPARENT);
+        if(cardRam != null) cardRam.setBackground(gd); if(cardBat != null) cardBat.setBackground(gd);
         int finalText = isDark ? Color.WHITE : Color.BLACK;
-        if(tvRam != null) tvRam.setTextColor(finalText);
-        if(tvBattery != null) tvBattery.setTextColor(finalText);
-
+        if(tvRam != null) tvRam.setTextColor(finalText); if(tvBattery != null) tvBattery.setTextColor(finalText);
         applyIconColor();
     }
-
-    private void applyThemeSettings() {
-        int savedMode = prefs.getInt("bg_mode", 0);
-        setBackgroundMode(savedMode);
-    }
-
+    private void applyThemeSettings() { int savedMode = prefs.getInt("bg_mode", 0); setBackgroundMode(savedMode); }
     private void applyIconColor() {
         int color = Color.GRAY; 
         switch(iconColorMode) {
-            case 1: color = Color.parseColor("#FF4081"); break;
-            case 2: color = Color.parseColor("#00E5FF"); break;
-            case 3: color = Color.parseColor("#FF9100"); break;
-            case 4: color = Color.parseColor("#D500F9"); break;
+            case 1: color = Color.parseColor("#FF4081"); break; case 2: color = Color.parseColor("#00E5FF"); break;
+            case 3: color = Color.parseColor("#FF9100"); break; case 4: color = Color.parseColor("#D500F9"); break;
             default: color = Color.parseColor("#AAAAAA"); break;
         }
-        
-        if(navSystem != null && navSystem.getChildCount() > 0) {
-            tintCompoundDrawables(navSystem.getChildAt(0), color);
-        }
-        if(navTools != null && navTools.getChildCount() > 0) {
-            tintCompoundDrawables(navTools.getChildAt(0), color);
-        }
-        if(navSettings != null && navSettings.getChildCount() > 0) {
-            tintCompoundDrawables(navSettings.getChildAt(0), color);
-        }
+        if(navSystem != null && navSystem.getChildCount() > 0) tintCompoundDrawables(navSystem.getChildAt(0), color);
+        if(navTools != null && navTools.getChildCount() > 0) tintCompoundDrawables(navTools.getChildAt(0), color);
+        if(navSettings != null && navSettings.getChildCount() > 0) tintCompoundDrawables(navSettings.getChildAt(0), color);
     }
-
     private void tintCompoundDrawables(View view, int color) {
         if(view instanceof TextView) {
             TextView tv = (TextView) view;
-            for(Drawable d : tv.getCompoundDrawables()) {
-                if(d != null) d.setColorFilter(color, PorterDuff.Mode.SRC_IN);
-            }
+            for(Drawable d : tv.getCompoundDrawables()) { if(d != null) d.setColorFilter(color, PorterDuff.Mode.SRC_IN); }
         }
     }
-
     private void openGallery() {
         Intent intent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-        intent.setType("image/*");
-        pickImageLauncher.launch(intent);
+        intent.setType("image/*"); pickImageLauncher.launch(intent);
     }
-
     private void copyImageToInternal(Uri uri) {
         try {
             InputStream inputStream = getContentResolver().openInputStream(uri);
-            String fileName = "custom_banner.jpg";
-            File outFile = new File(getFilesDir(), fileName);
-            OutputStream outputStream = new FileOutputStream(outFile);
-            byte[] buffer = new byte[1024];
-            int len;
-            while ((len = inputStream.read(buffer)) > 0) {
-                outputStream.write(buffer, 0, len);
-            }
-            outputStream.close();
-            inputStream.close();
+            String fileName = "custom_banner.jpg"; File outFile = new File(getFilesDir(), fileName);
+            OutputStream outputStream = new FileOutputStream(outFile); byte[] buffer = new byte[1024]; int len;
+            while ((len = inputStream.read(buffer)) > 0) { outputStream.write(buffer, 0, len); }
+            outputStream.close(); inputStream.close();
             String path = outFile.getAbsolutePath();
             prefs.edit().putString("custom_banner_path", path).apply();
-            loadCustomBanner();
-            Toast.makeText(this, "Banner Applied", Toast.LENGTH_SHORT).show();
-        } catch (Exception e) {
-            Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show();
-        }
+            loadCustomBanner(); Toast.makeText(this, "Banner Applied", Toast.LENGTH_SHORT).show();
+        } catch (Exception e) { Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show(); }
     }
-
     private void openUrl(String url) {
-        try {
-            Intent i = new Intent(Intent.ACTION_VIEW);
-            i.setData(Uri.parse(url));
-            startActivity(i);
-        } catch (Exception e) {}
+        try { Intent i = new Intent(Intent.ACTION_VIEW); i.setData(Uri.parse(url)); startActivity(i); } catch (Exception e) {}
     }
-
     private void loadCustomBanner() {
         String customPath = prefs.getString("custom_banner_path", "");
         if (!customPath.isEmpty()) {
             File imgFile = new File(customPath);
             if (imgFile.exists()) {
                 Glide.with(this).load(imgFile).centerCrop().into(headerBanner);
-                headerBanner.setVisibility(View.VISIBLE);
-                bannerContainer.setVisibility(View.VISIBLE);
-                findViewById(R.id.btn_reset_banner).setVisibility(View.VISIBLE);
-                applyBannerRadius();
-                return;
+                headerBanner.setVisibility(View.VISIBLE); bannerContainer.setVisibility(View.VISIBLE);
+                findViewById(R.id.btn_reset_banner).setVisibility(View.VISIBLE); applyBannerRadius(); return;
             }
         }
         try {
             Glide.with(this).load(R.drawable.header_bg).centerCrop().into(headerBanner);
-            headerBanner.setVisibility(View.VISIBLE);
-            bannerContainer.setVisibility(View.VISIBLE);
-            applyBannerRadius();
-        } catch (Exception e) {
-            headerBanner.setVisibility(View.GONE);
-            bannerContainer.setVisibility(View.GONE);
-        }
+            headerBanner.setVisibility(View.VISIBLE); bannerContainer.setVisibility(View.VISIBLE); applyBannerRadius();
+        } catch (Exception e) { headerBanner.setVisibility(View.GONE); bannerContainer.setVisibility(View.GONE); }
         findViewById(R.id.btn_reset_banner).setVisibility(View.GONE);
     }
-
     private void applyBannerRadius() {
         if(headerBanner != null) {
             GradientDrawable shape = new GradientDrawable();
-            shape.setShape(GradientDrawable.RECTANGLE);
-            shape.setCornerRadius(20);
-            shape.setColor(Color.TRANSPARENT); 
-            headerBanner.setBackground(shape);
-            headerBanner.setClipToOutline(true);
+            shape.setShape(GradientDrawable.RECTANGLE); shape.setCornerRadius(20); shape.setColor(Color.TRANSPARENT);
+            headerBanner.setBackground(shape); headerBanner.setClipToOutline(true);
         }
     }
-
     private void updateNavUI(int activeIndex) {
-        int colorActive = Color.parseColor("#4CAF50");
-        int colorInactive = Color.GRAY;
-
-        switch(iconColorMode) {
-            case 1: colorInactive = Color.parseColor("#FF4081"); break;
-            case 2: colorInactive = Color.parseColor("#00E5FF"); break;
-            case 3: colorInactive = Color.parseColor("#FF9100"); break;
-            case 4: colorInactive = Color.parseColor("#D500F9"); break;
-        }
-
-        if(navSystem != null && navSystem.getChildCount() > 0) 
-            ((TextView)navSystem.getChildAt(0)).setTextColor(activeIndex == 0 ? colorActive : colorInactive);
-        if(navTools != null && navTools.getChildCount() > 0) 
-            ((TextView)navTools.getChildAt(0)).setTextColor(activeIndex == 1 ? colorActive : colorInactive);
-        if(navSettings != null && navSettings.getChildCount() > 0) 
-            ((TextView)navSettings.getChildAt(0)).setTextColor(activeIndex == 2 ? colorActive : colorInactive);
-        
-        applyIconColor(); 
+        int colorActive = Color.parseColor("#4CAF50"); int colorInactive = Color.GRAY;
+        switch(iconColorMode) { case 1: colorInactive = Color.parseColor("#FF4081"); break; case 2: colorInactive = Color.parseColor("#00E5FF"); break; case 3: colorInactive = Color.parseColor("#FF9100"); break; case 4: colorInactive = Color.parseColor("#D500F9"); break; }
+        if(navSystem != null && navSystem.getChildCount() > 0) ((TextView)navSystem.getChildAt(0)).setTextColor(activeIndex == 0 ? colorActive : colorInactive);
+        if(navTools != null && navTools.getChildCount() > 0) ((TextView)navTools.getChildAt(0)).setTextColor(activeIndex == 1 ? colorActive : colorInactive);
+        if(navSettings != null && navSettings.getChildCount() > 0) ((TextView)navSettings.getChildAt(0)).setTextColor(activeIndex == 2 ? colorActive : colorInactive);
+        applyIconColor();
     }
-
-    private void setMaxFreq(int khz) {
+    
+    // --- UPDATED GPU CONTROL METHOD ---
+    private void setGpuMaxFreq(int khz) {
         new Thread(() -> {
-            String cmd = "for c in /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq; do echo " + khz + " > $c; done";
-            runSu(cmd);
+            if(isGpuControlReady && !gpuMaxFreqPath.isEmpty()) {
+                String cmd = "echo " + khz + " > " + gpuMaxFreqPath;
+                runSu(cmd);
+            }
         }).start();
+    }
+    
+    // Renamed from setMaxFreq to setGpuMaxFreq to be clear, 
+    // but kept logic internal. 
+    // If you want to keep old name for compatibility, just rename method back.
+    private void setMaxFreq(int khz) {
+        setGpuMaxFreq(khz);
     }
 
     private void pickGov() {
@@ -739,8 +680,7 @@ public class MainActivity extends AppCompatActivity {
             String[] govs = raw.split("\\s+");
             if(govs.length > 0 && !govs[0].isEmpty()) {
                 runOnUiThread(() -> {
-                    new AlertDialog.Builder(this)
-                        .setTitle("CPU GOVERNOR")
+                    new AlertDialog.Builder(this).setTitle("CPU GOVERNOR")
                         .setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, govs), (d, w) -> {
                             new Thread(() -> {
                                 String cmd = "for c in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo " + govs[w] + " > $c; done";
@@ -749,9 +689,7 @@ public class MainActivity extends AppCompatActivity {
                             Toast.makeText(this, "Governor set to " + govs[w], Toast.LENGTH_SHORT).show();
                         }).show();
                 });
-            } else {
-                runOnUiThread(() -> Toast.makeText(this, "Failed to read governors", Toast.LENGTH_SHORT).show());
-            }
+            } else { runOnUiThread(() -> Toast.makeText(this, "Failed to read governors", Toast.LENGTH_SHORT).show()); }
         }).start();
     }
 
@@ -782,7 +720,6 @@ public class MainActivity extends AppCompatActivity {
                 }).start();
             } else {
                 applyZram(new int[]{4, 8, 12, 16}[which]);
-                // Update text immediately to match selection
                 runOnUiThread(() -> { if(tvZram != null) tvZram.setText(options[which]); });
             }
             Toast.makeText(this, "ZRAM " + options[which] + " Applied", Toast.LENGTH_SHORT).show();
@@ -798,22 +735,14 @@ public class MainActivity extends AppCompatActivity {
             if (which == 0) {
                 new Thread(() -> {
                     runOnUiThread(() -> tvTerminalLog.setText("> Disabling Thermal..."));
-                    runSu("stop thermald 2>/dev/null");
-                    runSu("stop thermal-engine 2>/dev/null");
-                    runOnUiThread(() -> { 
-                        tvTerminalLog.setText("Thermal Disabled\n(Unlocked Performance)");
-                        Toast.makeText(this, "Thermal DISABLED", Toast.LENGTH_SHORT).show(); 
-                    });
+                    runSu("stop thermald 2>/dev/null"); runSu("stop thermal-engine 2>/dev/null");
+                    runOnUiThread(() -> { tvTerminalLog.setText("Thermal Disabled\n(Unlocked Performance)"); Toast.makeText(this, "Thermal DISABLED", Toast.LENGTH_SHORT).show(); });
                 }).start();
             } else {
                 new Thread(() -> {
                     runOnUiThread(() -> tvTerminalLog.setText("> Enabling Thermal..."));
-                    runSu("start thermald 2>/dev/null");
-                    runSu("start thermal-engine 2>/dev/null");
-                    runOnUiThread(() -> { 
-                        tvTerminalLog.setText("Thermal Enabled\n(Safe Mode)");
-                        Toast.makeText(this, "Thermal ENABLED", Toast.LENGTH_SHORT).show(); 
-                    });
+                    runSu("start thermald 2>/dev/null"); runSu("start thermal-engine 2>/dev/null");
+                    runOnUiThread(() -> { tvTerminalLog.setText("Thermal Enabled\n(Safe Mode)"); Toast.makeText(this, "Thermal ENABLED", Toast.LENGTH_SHORT).show(); });
                 }).start();
             }
         });
@@ -823,49 +752,37 @@ public class MainActivity extends AppCompatActivity {
     private String runCmd(String c) {
         try { return new BufferedReader(new InputStreamReader(Runtime.getRuntime().exec(c).getInputStream())).readLine().trim(); } catch (Exception e) { return ""; }
     }
-
     private void runSu(String c) {
         try { Runtime.getRuntime().exec(new String[]{"su", "-c", c}).waitFor(); } catch (Exception ignored) {}
     }
-
     private String runSuReturn(String c) {
         try {
             Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", c});
             BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            String line = reader.readLine();
-            p.waitFor();
+            String line = reader.readLine(); p.waitFor();
             return (line == null) ? "" : line.trim();
         } catch (Exception e) { return ""; }
     }
-
     private String runSuReturnAll(String c) {
         try {
             Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", c});
             BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            StringBuilder output = new StringBuilder();
-            String line;
+            StringBuilder output = new StringBuilder(); String line;
             while ((line = reader.readLine()) != null) output.append(line).append("\n");
-            p.waitFor();
-            return output.toString().trim();
+            p.waitFor(); return output.toString().trim();
         } catch (Exception e) { return ""; }
     }
-
     private void cleanRam() {
         new Thread(() -> {
             String script = "cache_cleared=0\ncache_total_kb=0\nget_size() { du -sk \"$1\" 2>/dev/null | awk '{print $1}'; }\nshow_cleaning_progress() {\n    local duration=10\n    local i=1\n    local spinner=\"123456789\"\n    local spinner_len=10\n    while [ $i -le $duration ]; do\n        spinner_char=$(echo $spinner | cut -c $(( ( ($i-1) % spinner_len ) + 1 )) )\n        echo -ne \"🧹 [CLEANING CACHE] $i $spinner_char\\r\"\n        sleep 1\n        i=$((i+1))\n    done\n    echo -ne \"\\n\"\n}\nshow_cleaning_progress\napp_cache_dirs=(\n    \"/data/data/*/cache\"\n    \"/data/data/*/code_cache\"\n    \"/data/user_de/*/*/cache\"\n    \"/data/user_de/*/*/code_cache\"\n    \"/sdcard/Android/data/*/cache\"\n    \"/data/system/dropbox\"\n)\nstep=1\ntotal_steps=$(( ${#app_cache_dirs[@]} + 6 ))\nfor dir in \"${app_cache_dirs[@]}\"\ndo\n    size=$(du -cs $dir 2>/dev/null | grep total | cut -f 1)\n    [ -n \"$size\" ] && cache_total_kb=$((cache_total_kb + size))\n    echo -ne \" [$step/$total_steps] Cleaning: $dir ${size:-0} KB\\r\"\n    find $dir/* -delete &>/dev/null\n    sleep 1\n    echo -ne \"\\n\"\n    step=$((step+1))\ndone\nsystem_cache_dirs=(\n    \"/cache\"\n    \"/data/dalvik-cache\"\n    \"/data/system/gpu\"\n    \"/system/cache\"\n    \"/vendor/cache\"\n)\nfor sysdir in \"${system_cache_dirs[@]}\"\ndo\n    [ -d \"$sysdir\" ] && cache_total_kb=$((cache_total_kb + $(get_size \"$sysdir\")))\ndone\n[ -d /cache ] && rm -rf /cache/* && echo \"[$step/$total_steps]  Clearing /cache...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\n[ -d /data/dalvik-cache ] && rm -rf /data/dalvik-cache/* && echo \"[$step/$total_steps] Clearing /data/dalvik-cache...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\nsync; echo 3 > /proc/sys/vm/drop_caches && echo \"[$step/$total_steps] Dropping system caches...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\n[ -d /data/system/gpu ] && rm -rf /data/system/gpu/* && echo \"[$step/$total_steps] Clearing /data/system/gpu...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\n[ -d /system/cache ] && rm -rf /system/cache/* && echo \"[$step/$total_steps] Clearing /system/cache...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\n[ -d /vendor/cache ] && rm -rf /vendor/cache/* && echo \"[$step/$total_steps] Clearing /vendor/cache...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\ncache_total_mb=$(awk \"BEGIN {printf \\\"%.2f\\\", $cache_total_kb/1024}\")\necho \"[OK] Cache Cleanup: Cleared $cache_cleared cache directories.\"\necho \"[OK] Estimated cache cleaned: $cache_total_mb MB\"";
-
             runOnUiThread(() -> tvTerminalLog.setText("> Starting Advanced Clean..."));
-
             runSu("echo '" + script + "' > /data/local/tmp/vortex_clean.sh");
             runSu("chmod 755 /data/local/tmp/vortex_clean.sh");
-
             String output = runSuReturnAll("sh /data/local/tmp/vortex_clean.sh");
-
             runOnUiThread(() -> {
                 tvTerminalLog.setText(output);
                 Toast.makeText(this, "Clean Success", Toast.LENGTH_SHORT).show();
             });
-
             try { Thread.sleep(5000); } catch (Exception e){}
         }).start();
     }
