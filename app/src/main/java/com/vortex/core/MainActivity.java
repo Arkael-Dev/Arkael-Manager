@@ -68,7 +68,17 @@ public class MainActivity extends AppCompatActivity {
     private String staticLittleFreq = "N/A";
     private String staticBigFreq = "N/A";
     private String totalRamStr = "Unknown"; 
-    
+
+    // GPU Control Data
+    private int gpuMaxFreqKhz = 0;
+    private int gpuMinFreqKhz = 0;
+    private String gpuMaxFreqPath = "";
+    private String gpuCurFreqPath = "";
+    private String gpuGovPath = "";
+    private String gpuAvailFreqPath = "";
+    private boolean isGpuControlReady = false;
+    private boolean isGpuModeActive = false; // Toggle State
+
     private boolean isGlassTheme = false;
     private int iconColorMode = 0; 
     private boolean staticInfoLoaded = false;
@@ -123,12 +133,10 @@ public class MainActivity extends AppCompatActivity {
         loadCustomBanner();
     }
 
-    // --- HELPER: SAFE INT PARSING (Regex) ---
-    // Mencegah crash saat core offline / value kosong
+    // --- HELPER: SAFE INT PARSING ---
     private int parseIntSafe(String s) {
         if (s == null) return -1;
         String trimmed = s.trim();
-        // Hanya izinkan digit (angka)
         if (!trimmed.matches("\\d+")) return -1;
         try {
             return Integer.parseInt(trimmed);
@@ -230,7 +238,7 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        findViewById(R.id.btn_cpu_gov).setOnClickListener(v -> pickGov());
+        findViewById(R.id.btn_cpu_gov).setOnClickListener(v -> pickGov()); // Dual purpose: CPU or GPU Gov
         findViewById(R.id.btn_set_zram).setOnClickListener(v -> showZramMenu());
         findViewById(R.id.btn_thermal).setOnClickListener(v -> showThermalMenu());
         findViewById(R.id.btn_clean_ram).setOnClickListener(v -> {
@@ -290,20 +298,73 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.tv_dev_link).setOnClickListener(v -> openUrl("https://t.me/VorteXSU_Dev"));
         findViewById(R.id.tv_channel_link).setOnClickListener(v -> openUrl("https://t.me/vortexgki"));
 
+        // --- MODE TOGGLE (Long Press on Max Freq Text) ---
+        if(tvMaxFreq != null) {
+            tvMaxFreq.setOnLongClickListener(v -> {
+                if(!isGpuControlReady) {
+                    Toast.makeText(this, "GPU Control Not Supported", Toast.LENGTH_SHORT).show();
+                    return true;
+                }
+                isGpuModeActive = !isGpuModeActive;
+                String mode = isGpuModeActive ? "GPU CONTROL ACTIVE" : "CPU CONTROL ACTIVE";
+                Toast.makeText(this, mode, Toast.LENGTH_SHORT).show();
+                refreshControlMode(); // Reset slider bounds
+                return true;
+            });
+        }
+
         seekBarMaxFreq.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                if (fromUser && cpuMaxFreqKhz > 0 && cpuMinFreqKhz > 0) {
-                    int range = cpuMaxFreqKhz - cpuMinFreqKhz;
-                    int targetFreq = cpuMinFreqKhz + ((range * progress) / 100);
-                    setCpuMaxFreq(targetFreq);
-                    if(tvMaxFreqTools != null) tvMaxFreqTools.setText((targetFreq/1000) + " MHz");
+                if (fromUser) {
+                    int targetFreq = 0;
+                    if (isGpuModeActive && isGpuControlReady) {
+                        // GPU Logic
+                        int range = gpuMaxFreqKhz - gpuMinFreqKhz;
+                        targetFreq = gpuMinFreqKhz + ((range * progress) / 100);
+                        setGpuMaxFreq(targetFreq);
+                        if(tvMaxFreqTools != null) tvMaxFreqTools.setText((targetFreq/1000) + " MHz");
+                    } else if (!isGpuModeActive && cpuMaxFreqKhz > 0 && cpuMinFreqKhz > 0) {
+                        // CPU Logic
+                        int range = cpuMaxFreqKhz - cpuMinFreqKhz;
+                        targetFreq = cpuMinFreqKhz + ((range * progress) / 100);
+                        setCpuMaxFreq(targetFreq);
+                        if(tvMaxFreqTools != null) tvMaxFreqTools.setText((targetFreq/1000) + " MHz");
+                    }
                 }
             }
             @Override public void onStartTrackingTouch(SeekBar seekBar) {}
             @Override public void onStopTrackingTouch(SeekBar seekBar) {
-                validateCpuFreqLimit(); // Validasi semua core
+                if(isGpuModeActive) validateGpuFreqLimit();
+                else validateCpuFreqLimit();
             }
         });
+    }
+    
+    // Refresh Slider UI based on active mode
+    private void refreshControlMode() {
+        new Thread(() -> {
+            int currentLimit = 0;
+            int max = isGpuModeActive ? gpuMaxFreqKhz : cpuMaxFreqKhz;
+            int min = isGpuModeActive ? gpuMinFreqKhz : cpuMinFreqKhz;
+            
+            if (isGpuModeActive && isGpuControlReady) {
+                 currentLimit = parseIntSafe(runSuReturn("cat " + gpuMaxFreqPath));
+            } else {
+                 currentLimit = parseIntSafe(runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq"));
+            }
+
+            if (currentLimit > 0 && max > 0 && min >= 0) {
+                int range = max - min;
+                int progress = (int) (((currentLimit - min) / (float) range) * 100);
+                final int fProgress = Math.min(100, Math.max(0, progress));
+                final String text = (currentLimit/1000) + " MHz " + (isGpuModeActive ? "(GPU)" : "(CPU)");
+                
+                runOnUiThread(() -> {
+                    if(seekBarMaxFreq != null) seekBarMaxFreq.setProgress(fProgress);
+                    if(tvMaxFreqTools != null) tvMaxFreqTools.setText(text);
+                });
+            }
+        }).start();
     }
     
     private void refreshUI() {
@@ -359,8 +420,7 @@ public class MainActivity extends AppCompatActivity {
             } catch (Exception e) { zramDisplay = "Error"; }
             final String fZram = zramDisplay;
 
-            // --- FIX 1: SCAN ALL CORES FOR MAX/MIN FREQ (UNIVERSAL) ---
-            // Scan cpuinfo_max_freq across all cores
+            // --- CPU DETECTION (ALL CORES) ---
             String rawMaxFreqs = runSuReturnAll("cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_max_freq");
             String[] maxLines = rawMaxFreqs.split("\\s+");
             int detectedMax = 0;
@@ -369,7 +429,6 @@ public class MainActivity extends AppCompatActivity {
                 if (val > detectedMax) detectedMax = val;
             }
 
-            // Scan cpuinfo_min_freq across all cores
             String rawMinFreqs = runSuReturnAll("cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_min_freq");
             String[] minLines = rawMinFreqs.split("\\s+");
             int detectedMin = Integer.MAX_VALUE;
@@ -380,28 +439,53 @@ public class MainActivity extends AppCompatActivity {
 
             if (detectedMax > 0) cpuMaxFreqKhz = detectedMax;
             if (detectedMin != Integer.MAX_VALUE) cpuMinFreqKhz = detectedMin;
-            else cpuMinFreqKhz = 300000; // Fallback
+            else cpuMinFreqKhz = 300000;
 
-            // Read CURRENT LIMIT to set Slider Position (Balanced Start)
-            // Ambil dari cpu0 sebagai referensi posisi awal (biasanya sama di semua core saat boot)
-            String sCurLimit = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq");
-            if(!sCurLimit.isEmpty()) {
-                int curLimit = parseIntSafe(sCurLimit);
-                if(curLimit > 0) {
-                    int range = cpuMaxFreqKhz - cpuMinFreqKhz;
-                    if(range > 0) {
-                        int progress = (int) (((curLimit - cpuMinFreqKhz) / (float) range) * 100);
-                        final int fProgress = Math.min(100, Math.max(0, progress));
-                        final int fLimit = curLimit;
-                        runOnUiThread(() -> {
-                            if(seekBarMaxFreq != null) seekBarMaxFreq.setProgress(fProgress);
-                            if(tvMaxFreqTools != null) tvMaxFreqTools.setText((fLimit/1000) + " MHz");
-                        });
-                    }
+            // --- GPU DETECTION (UNIVERSAL) ---
+            // Try Adreno first
+            if (new File("/sys/class/kgsl/kgsl-3d0/gpuclk").exists()) {
+                gpuCurFreqPath = "/sys/class/kgsl/kgsl-3d0/gpuclk";
+                gpuMaxFreqPath = "/sys/class/kgsl/kgsl-3d0/max_gpuclk";
+                
+                // Determine Min
+                String minGpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/min_gpuclk");
+                if(minGpu.isEmpty()) {
+                    // Try available frequencies
+                    String avail = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/devfreq/available_frequencies");
+                    String[] freqs = avail.split("\\s+");
+                    if(freqs.length > 0) gpuMinFreqKhz = parseIntSafe(freqs[0]);
+                    else gpuMinFreqKhz = 0;
+                } else {
+                    gpuMinFreqKhz = parseIntSafe(minGpu);
                 }
+
+                // Governor Path
+                if(new File("/sys/class/kgsl/kgsl-3d0/devfreq/governor").exists()) {
+                    gpuGovPath = "/sys/class/kgsl/kgsl-3d0/devfreq/governor";
+                }
+                
+                // Read Max
+                String sGpuMax = runSuReturn("cat " + gpuMaxFreqPath);
+                gpuMaxFreqKhz = parseIntSafe(sGpuMax);
+                
+                if(gpuMaxFreqKhz > 0) isGpuControlReady = true;
+            }
+            // Try Mali Fallback
+            else if (new File("/sys/class/devfreq/mali0/cur_freq").exists()) {
+                gpuCurFreqPath = "/sys/class/devfreq/mali0/cur_freq";
+                gpuMaxFreqPath = "/sys/class/devfreq/mali0/max_freq";
+                gpuGovPath = "/sys/class/devfreq/mali0/governor";
+                
+                String sGpuMax = runSuReturn("cat " + gpuMaxFreqPath);
+                gpuMaxFreqKhz = parseIntSafe(sGpuMax);
+                
+                String sGpuMin = runSuReturn("cat /sys/class/devfreq/mali0/min_freq");
+                gpuMinFreqKhz = parseIntSafe(sGpuMin);
+                
+                if(gpuMaxFreqKhz > 0) isGpuControlReady = true;
             }
 
-            // --- STATIC INFO ---
+            // --- STATIC INFO & UI UPDATE ---
             String vendor = "Unknown";
             if (!socMan.isEmpty()) vendor = socMan.substring(0, 1).toUpperCase() + socMan.substring(1).toLowerCase();
             else if (platform.contains("mt") || hardware.contains("mt")) vendor = "Mediatek";
@@ -419,7 +503,6 @@ public class MainActivity extends AppCompatActivity {
             else if (platform.contains("exynos")) gpu = "Exynos GPU";
             else gpu = "Generic GPU (" + platform.toUpperCase() + ")";
 
-            // CPU Clusters Info (For Info Tab)
             String cpuCount = runSuReturn("cat /proc/cpuinfo | grep 'processor' | wc -l");
             if(!cpuCount.isEmpty()) staticCoreCount = Integer.parseInt(cpuCount.trim());
             int lastCore = Math.max(0, staticCoreCount - 1);
@@ -433,17 +516,19 @@ public class MainActivity extends AppCompatActivity {
             final String finalDevice = brand.toUpperCase() + " " + model;
             final String finalGpu = gpu;
             final String finalArchDisplay = archDisplay;
-            final int fMaxFreq = cpuMaxFreqKhz;
 
             runOnUiThread(() -> {
                 if(tvCpuVendor != null) tvCpuVendor.setText(finalArchDisplay);
                 if(tvKernel != null) tvKernel.setText(finalKernel);
                 if(tvDevice != null) tvDevice.setText(finalDevice);
                 if(tvGpuRenderer != null) tvGpuRenderer.setText(finalGpu);
-                if(tvMaxFreq != null) tvMaxFreq.setText((fMaxFreq/1000) + " MHz");
+                if(tvMaxFreq != null) tvMaxFreq.setText((cpuMaxFreqKhz/1000) + " MHz"); // Default to CPU label
                 if(tvLittleCluster != null) tvLittleCluster.setText(staticLittleFreq);
                 if(tvBigCluster != null) tvBigCluster.setText(staticBigFreq);
                 if(tvZram != null) tvZram.setText(fZram);
+                
+                // Initial Slider Pos
+                refreshControlMode();
             });
         }).start();
     }
@@ -482,34 +567,39 @@ public class MainActivity extends AppCompatActivity {
                         }
                     } catch (Exception e) { e.printStackTrace(); }
 
-                    // --- CPU REALTIME MONITOR (ALL CORES + SAFE PARSING) ---
+                    // --- DYNAMIC MONITOR (CPU OR GPU) ---
                     try {
-                        // 1. Get Governor
-                        govStr = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor");
-
-                        // 2. Get Max Limit from cpu0 (for display)
-                        String valMax = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq");
-                        int maxVal = parseIntSafe(valMax);
-                        if(maxVal > 0) {
-                            maxTools = (maxVal/1000) + " MHz";
-                        }
-
-                        // 3. Get Current Frequency from ALL CORES (Max Value)
-                        String cpuFreqsRaw = runSuReturnAll("cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq");
-                        if(!cpuFreqsRaw.isEmpty()) {
-                            String[] lines = cpuFreqsRaw.split("\\s+");
-                            int maxCurFreqVal = 0;
+                        if (isGpuModeActive && isGpuControlReady) {
+                            // GPU Monitor
+                            String valCur = runSuReturn("cat " + gpuCurFreqPath);
+                            String valMax = runSuReturn("cat " + gpuMaxFreqPath);
+                            String valGov = runSuReturn("cat " + gpuGovPath);
                             
-                            for(String line : lines) {
-                                int val = parseIntSafe(line);
-                                if(val > maxCurFreqVal) maxCurFreqVal = val;
-                            }
+                            int c = parseIntSafe(valCur);
+                            int m = parseIntSafe(valMax);
                             
-                            if(maxCurFreqVal > 0) {
-                                curFreq = (maxCurFreqVal/1000) + " MHz";
+                            if(c > 0) curFreq = (c/1000) + " MHz";
+                            if(m > 0) maxTools = (m/1000) + " MHz";
+                            if(!valGov.isEmpty()) govStr = valGov.trim();
+
+                        } else {
+                            // CPU Monitor
+                            govStr = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor");
+                            String valMax = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq");
+                            int maxVal = parseIntSafe(valMax);
+                            if(maxVal > 0) maxTools = (maxVal/1000) + " MHz";
+
+                            String cpuFreqsRaw = runSuReturnAll("cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq");
+                            if(!cpuFreqsRaw.isEmpty()) {
+                                String[] lines = cpuFreqsRaw.split("\\s+");
+                                int maxCurFreqVal = 0;
+                                for(String line : lines) {
+                                    int val = parseIntSafe(line);
+                                    if(val > maxCurFreqVal) maxCurFreqVal = val;
+                                }
+                                if(maxCurFreqVal > 0) curFreq = (maxCurFreqVal/1000) + " MHz";
                             }
                         }
-
                     } catch (Exception e) {
                         curFreq = "Err";
                     }
@@ -623,7 +713,7 @@ public class MainActivity extends AppCompatActivity {
         applyIconColor();
     }
     
-    // --- CPU CONTROL & VALIDATION (FIXED) ---
+    // --- CONTROL LOGIC ---
     private void setCpuMaxFreq(int khz) {
         new Thread(() -> {
             String cmd = "for c in /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq; do echo " + khz + " > $c; done";
@@ -631,56 +721,87 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    // --- FIX 2: VALIDATE WRITE CONSISTENCY (ALL CORES) ---
     private void validateCpuFreqLimit() {
+        // FIX: No false warning for Big.LITTLE. Only warn if value is 0 (Error).
         new Thread(() -> {
-            // Baca semua core
             String sVal = runSuReturnAll("cat /sys/devices/system/cpu/cpu*/cpufreq/scaling_max_freq");
             String[] lines = sVal.split("\\s+");
-            
-            int referenceVal = -1;
-            boolean isConsistent = true;
-            
+            boolean allValid = true;
+            int refVal = -1;
+
             for(String line : lines) {
                 int val = parseIntSafe(line);
-                if(val > 0) {
-                    if(referenceVal == -1) {
-                        referenceVal = val;
-                    } else if (val != referenceVal) {
-                        isConsistent = false; // Ada perbedaan
-                        break;
-                    }
-                }
+                if(val <= 0) { allValid = false; break; }
+                if(refVal == -1) refVal = val;
             }
 
-            final int finalVal = referenceVal;
-            final boolean finalConsistent = isConsistent;
-
+            final int finalVal = refVal;
             runOnUiThread(() -> {
                 if(tvMaxFreqTools != null) {
-                    String text = (finalVal > 0) ? (finalVal/1000) + " MHz" : "Error";
-                    if (!finalConsistent) {
-                        text += " (Warn)";
-                        // Optional: Toast jika inkonsisten
-                        // Toast.makeText(this, "Freq Mismatch detected", Toast.LENGTH_SHORT).show();
-                    }
-                    tvMaxFreqTools.setText(text);
+                    if(finalVal > 0) tvMaxFreqTools.setText((finalVal/1000) + " MHz");
+                    else tvMaxFreqTools.setText("Error");
                 }
             });
         }).start();
     }
 
-    // CPU Governor Selector
+    private void setGpuMaxFreq(int khz) {
+        new Thread(() -> {
+            if(!gpuMaxFreqPath.isEmpty()) {
+                runSu("echo " + khz + " > " + gpuMaxFreqPath);
+            }
+        }).start();
+    }
+
+    private void validateGpuFreqLimit() {
+        new Thread(() -> {
+            String sVal = runSuReturn("cat " + gpuMaxFreqPath);
+            int val = parseIntSafe(sVal);
+            final int fVal = val;
+            runOnUiThread(() -> {
+                if(tvMaxFreqTools != null && fVal > 0) {
+                    tvMaxFreqTools.setText((fVal/1000) + " MHz");
+                }
+            });
+        }).start();
+    }
+
+    // --- GOVERNOR PICKER (DUAL PURPOSE) ---
     private void pickGov() {
         new Thread(() -> {
-            String raw = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors");
+            String title = isGpuModeActive ? "GPU GOVERNOR" : "CPU GOVERNOR";
+            String path = isGpuModeActive ? (gpuGovPath.isEmpty() ? "" : "cat " + gpuGovPath) : "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors";
+            
+            // Handle available list for GPU if needed (Adreno usually lists available in available_governors)
+            String availPath = "";
+            if(isGpuModeActive) {
+                if(new File("/sys/class/kgsl/kgsl-3d0/devfreq/available_governors").exists()) availPath = "cat /sys/class/kgsl/kgsl-3d0/devfreq/available_governors";
+                else if(new File("/sys/class/devfreq/mali0/available_governors").exists()) availPath = "cat /sys/class/devfreq/mali0/available_governors";
+                else { path = ""; } // Manual entry needed if list not found
+            }
+
+            String raw = "";
+            if(isGpuModeActive && !availPath.isEmpty()) raw = runSuReturn(availPath);
+            else if(!path.isEmpty()) raw = runSuReturn(path);
+            
+            // If GPU avail list empty, try common fallbacks
+            if(raw.isEmpty() && isGpuModeActive) {
+                raw = "performance\npowersave\nsimple_ondemand\nondemand\nconservative"; 
+            }
+
             String[] govs = raw.split("\\s+");
             if(govs.length > 0 && !govs[0].isEmpty()) {
                 runOnUiThread(() -> {
-                    new AlertDialog.Builder(this).setTitle("CPU GOVERNOR")
+                    new AlertDialog.Builder(this).setTitle(title)
                         .setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, govs), (d, w) -> {
                             new Thread(() -> {
-                                String cmd = "for c in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo " + govs[w] + " > $c; done";
+                                String target = govs[w];
+                                String cmd = "";
+                                if(isGpuModeActive && !gpuGovPath.isEmpty()) {
+                                    cmd = "echo " + target + " > " + gpuGovPath;
+                                } else {
+                                    cmd = "for c in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do echo " + target + " > $c; done";
+                                }
                                 runSu(cmd);
                             }).start();
                             Toast.makeText(this, "Governor set to " + govs[w], Toast.LENGTH_SHORT).show();
