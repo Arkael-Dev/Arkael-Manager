@@ -61,15 +61,16 @@ public class MainActivity extends AppCompatActivity {
     private SharedPreferences prefs;
     private Handler handler = new Handler(Looper.getMainLooper());
     
-    // Static Data (Only read once to save battery/cpu)
+    // Static Data
     private int maxFreqKhz = 0;
     private int minFreqKhz = 0;
     private int staticCoreCount = 4;
     private String staticLittleFreq = "N/A";
     private String staticBigFreq = "N/A";
+    private String totalRamStr = "Unknown"; // Menyimpan Total RAM Hardware
     
     private boolean isGlassTheme = false;
-    private int iconColorMode = 0; // 0: Gray, 1: Rainbow, 2: Cyan, 3: Orange, 4: Purple
+    private int iconColorMode = 0; 
     private boolean staticInfoLoaded = false;
     
     // Launcher untuk Pick Image
@@ -82,7 +83,6 @@ public class MainActivity extends AppCompatActivity {
 
         prefs = getSharedPreferences("VortexPrefs", 0);
         
-        // Register Image Picker
         pickImageLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
             result -> {
@@ -96,7 +96,7 @@ public class MainActivity extends AppCompatActivity {
         initViews();
         loadThemeSettings();
 
-        // --- AUTH LOGIC (KERNEL CHECK) ---
+        // --- AUTH LOGIC ---
         String kernelName = "";
         try {
             Process p = Runtime.getRuntime().exec("uname -r");
@@ -108,8 +108,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
         Log.d("VortexAuth", "Kernel: " + kernelName);
-        
-        // Cek Kernel VorteX
         boolean isEKernel = kernelName.toLowerCase().contains("vortex");
 
         if(isEKernel) {
@@ -180,6 +178,12 @@ public class MainActivity extends AppCompatActivity {
         inputCode = findViewById(R.id.input_code);
 
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
+
+        // --- SETTING APP ICONS (Bukan Emoticon) ---
+        // Menggunakan drawable bawaan sistem Android agar lebih profesional
+        if(navSystem != null) navSystem.setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_info_details, 0, 0, 0);
+        if(navTools != null) navTools.setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_manage, 0, 0, 0);
+        if(navSettings != null) navSettings.setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_preferences, 0, 0, 0);
     }
 
     private void loadThemeSettings() {
@@ -206,7 +210,6 @@ public class MainActivity extends AppCompatActivity {
             });
         }
 
-        // Tools Clicks
         findViewById(R.id.btn_cpu_gov).setOnClickListener(v -> pickGov());
         findViewById(R.id.btn_set_zram).setOnClickListener(v -> showZramMenu());
         findViewById(R.id.btn_thermal).setOnClickListener(v -> showThermalMenu());
@@ -215,7 +218,6 @@ public class MainActivity extends AppCompatActivity {
             cleanRam();
         });
 
-        // Nav
         navSystem.setOnClickListener(v -> { 
             viewFlipper.setDisplayedChild(0); 
             updateNavUI(0);
@@ -232,7 +234,6 @@ public class MainActivity extends AppCompatActivity {
             bannerContainer.setVisibility(View.GONE); 
         });
 
-        // Settings Actions
         findViewById(R.id.banner_click_area).setOnClickListener(v -> openGallery());
         findViewById(R.id.btn_reset_banner).setOnClickListener(v -> {
             prefs.edit().putString("custom_banner_path", "").apply();
@@ -247,7 +248,6 @@ public class MainActivity extends AppCompatActivity {
             Toast.makeText(this, "Glass Effect: " + (isGlassTheme?"ON":"OFF"), Toast.LENGTH_SHORT).show();
         });
 
-        // ICON COLOR CYCLE
         findViewById(R.id.btn_theme_color).setOnClickListener(v -> {
             iconColorMode = (iconColorMode + 1) % 5;
             prefs.edit().putInt("icon_color_mode", iconColorMode).apply();
@@ -265,13 +265,11 @@ public class MainActivity extends AppCompatActivity {
 
         findViewById(R.id.btn_bg_black).setOnClickListener(v -> setBackgroundMode(0));
         findViewById(R.id.btn_bg_white).setOnClickListener(v -> setBackgroundMode(1));
-        findViewById(R.id.btn_bg_transparent).setOnClickListener(v -> setBackgroundMode(3)); // Mode 3 Transparent
+        findViewById(R.id.btn_bg_transparent).setOnClickListener(v -> setBackgroundMode(3));
 
-        // Links
         findViewById(R.id.tv_dev_link).setOnClickListener(v -> openUrl("https://t.me/VorteXSU_Dev"));
         findViewById(R.id.tv_channel_link).setOnClickListener(v -> openUrl("https://t.me/vortexgki"));
 
-        // Slider Logic
         seekBarMaxFreq.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
                 if (fromUser && maxFreqKhz > 0 && minFreqKhz > 0) {
@@ -285,8 +283,6 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onStopTrackingTouch(SeekBar seekBar) {}
         });
     }
-    
-    // --- BACKGROUND THREAD LOGIC ---
     
     private void refreshUI() {
         boolean ok = prefs.getBoolean("is_unlocked", false);
@@ -304,6 +300,19 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadStaticHardwareInfo() {
         new Thread(() -> {
+            // 1. GET ACCURATE TOTAL RAM (Hardware Specific)
+            ActivityManager memInfo = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+            ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+            memInfo.getMemoryInfo(mi);
+            long totalMemBytes = mi.totalMem;
+            // Format RAM: 8.0 GB, 12.0 GB, etc.
+            if (totalMemBytes >= 1073741824) {
+                double gb = totalMemBytes / (1024.0 * 1024.0 * 1024.0);
+                totalRamStr = String.format("%.1f GB", gb);
+            } else {
+                totalRamStr = (totalMemBytes / 1048576) + " MB";
+            }
+
             String brand = Build.BRAND;
             String model = Build.MODEL;
             String kernelFull = runSuReturn("uname -r");
@@ -315,7 +324,6 @@ public class MainActivity extends AppCompatActivity {
             String vendor = "Unknown Device";
             String gpu = "Unknown GPU";
 
-            // CPU Vendor Logic
             if (platform.contains("qcom") || platform.contains("msm")) {
                 vendor = "Qualcomm";
                 if(!socModel.isEmpty()) vendor += " (" + socModel + ")";
@@ -328,10 +336,7 @@ public class MainActivity extends AppCompatActivity {
             else if (platform.contains("universal") || platform.contains("sp98")) vendor = "Unisoc";
             else vendor = platform.toUpperCase();
 
-            // --- IMPROVED GPU LOGIC ---
             boolean gpuFound = false;
-            
-            // Try Direct Root Path first
             if (platform.contains("mt") || hardware.contains("mt")) {
                 gpu = runSuReturn("cat /sys/class/misc/mali0/device/gpu_model 2>/dev/null");
                 if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/kernel/debug/mali0/gpu_id 2>/dev/null");
@@ -342,26 +347,18 @@ public class MainActivity extends AppCompatActivity {
                 if(!gpu.isEmpty()) gpuFound = true;
             }
 
-            // Fallback Logic if Root Read Fails or returns empty
             if (!gpuFound) {
-                if (platform.contains("qcom") || platform.contains("msm")) {
-                    gpu = "Adreno GPU";
-                } else if (platform.contains("mt") || hardware.contains("mt")) {
-                    gpu = "Mali GPU";
-                } else if (platform.contains("exynos")) {
-                    gpu = "Exynos GPU";
-                } else if (platform.contains("intel")) {
-                    gpu = "Intel GPU";
-                } else {
-                    gpu = "Generic GPU (" + platform.toUpperCase() + ")";
-                }
+                if (platform.contains("qcom") || platform.contains("msm")) gpu = "Adreno GPU";
+                else if (platform.contains("mt") || hardware.contains("mt")) gpu = "Mali GPU";
+                else if (platform.contains("exynos")) gpu = "Exynos GPU";
+                else if (platform.contains("intel")) gpu = "Intel GPU";
+                else gpu = "Generic GPU (" + platform.toUpperCase() + ")";
             }
             
             String gl = runSuReturn("getprop ro.opengles.version");
             if(gl.isEmpty()) gl = "OpenGL ES 3.x";
             else gl = "OpenGL ES " + gl;
 
-            // --- STATIC CPU INFO (Read Once) ---
             String max = runSuReturn("cat /sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq");
             if(!max.isEmpty()) maxFreqKhz = Integer.parseInt(max);
 
@@ -383,10 +380,22 @@ public class MainActivity extends AppCompatActivity {
             final String finalGl = gl;
 
             runOnUiThread(() -> {
-                if(tvCpuVendor != null) tvCpuVendor.setText(finalVendor);
-                if(tvKernel != null) tvKernel.setText(finalKernel);
-                if(tvDevice != null) tvDevice.setText(finalDevice);
-                if(tvGpuRenderer != null) tvGpuRenderer.setText(finalGpu);
+                if(tvCpuVendor != null) {
+                    tvCpuVendor.setText(finalVendor);
+                    tvCpuVendor.setTextColor(Color.parseColor("#4CAF50")); // GREEN
+                }
+                if(tvKernel != null) {
+                    tvKernel.setText(finalKernel);
+                    tvKernel.setTextColor(Color.parseColor("#4CAF50")); // GREEN
+                }
+                if(tvDevice != null) {
+                    tvDevice.setText(finalDevice);
+                    tvDevice.setTextColor(Color.parseColor("#4CAF50")); // GREEN
+                }
+                if(tvGpuRenderer != null) {
+                    tvGpuRenderer.setText(finalGpu);
+                    tvGpuRenderer.setTextColor(Color.parseColor("#4CAF50")); // GREEN
+                }
                 if(tvGpuVersion != null) tvGpuVersion.setText(finalGl);
                 if(tvMaxFreq != null) tvMaxFreq.setText((maxFreqKhz/1000) + " MHz");
                 if(tvLittleCluster != null) tvLittleCluster.setText(staticLittleFreq);
@@ -399,7 +408,6 @@ public class MainActivity extends AppCompatActivity {
         handler.post(new Runnable() {
             @Override public void run() {
                 new Thread(() -> {
-                    // --- 1. API BASED READS (No Root, Fast) ---
                     String ramStr = "...";
                     String batStr = "...";
                     String tempStr = "N/A";
@@ -407,9 +415,14 @@ public class MainActivity extends AppCompatActivity {
                     try {
                         ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
                         ((ActivityManager)getSystemService(ACTIVITY_SERVICE)).getMemoryInfo(mi);
-                        ramStr = (mi.availMem / 1048576) + " MB";
+                        
+                        // RAM Display: Available / Total Hardware
+                        long availMem = mi.availMem;
+                        String availRamStr = (availMem / 1048576) + " MB";
+                        if (totalRamStr == null) totalRamStr = "Unknown";
+                        ramStr = availRamStr + " / " + totalRamStr;
 
-                        // FIXED: Use Intent for Battery Status (Compatible with old SDK)
+                        // Battery via Intent (Compatible & No Root Popup)
                         IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
                         Intent batteryStatus = registerReceiver(null, ifilter);
                         
@@ -425,7 +438,6 @@ public class MainActivity extends AppCompatActivity {
                             
                             batStr = (int)batteryPct + "% (" + statusText + ")";
 
-                            // FIXED: Get Temperature via Intent (No Root, Compatible)
                             int temp = batteryStatus.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1);
                             if(temp != -1) {
                                 tempStr = (temp / 10.0f) + "°C";
@@ -433,48 +445,34 @@ public class MainActivity extends AppCompatActivity {
                         }
                     } catch (Exception e) { e.printStackTrace(); }
 
-                    // --- 2. BATCHED ROOT READS (Optimized to 1 call) ---
                     String curFreq = "N/A";
                     String govStr = "Unknown";
                     String maxTools = "N/A";
                     
                     try {
-                        // We combine commands to avoid multiple SU prompts
+                        // Batch Root Commands
                         String script = "cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq\necho ---SEPARATOR---\ncat /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor\necho ---SEPARATOR---\ncat /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq";
                         String output = runSuReturnAll(script);
-                        
                         String[] parts = output.split("---SEPARATOR---");
                         
                         if(parts.length >= 1 && !parts[0].trim().isEmpty()) {
                             int cur = Integer.parseInt(parts[0].trim());
                             curFreq = (cur/1000) + " MHz";
                         }
-                        
-                        if(parts.length >= 2 && !parts[1].trim().isEmpty()) {
-                            govStr = parts[1].trim();
-                        }
-
+                        if(parts.length >= 2 && !parts[1].trim().isEmpty()) govStr = parts[1].trim();
                         if(parts.length >= 3 && !parts[2].trim().isEmpty()) {
                             int currentMax = Integer.parseInt(parts[2].trim());
                             maxTools = (currentMax/1000) + " MHz";
                         } else {
                             maxTools = (maxFreqKhz/1000) + " MHz";
                         }
-
                     } catch (Exception e) {
-                        e.printStackTrace();
-                        // Fallback if batch fails
-                        curFreq = "Error";
-                        govStr = "Error";
+                        curFreq = "Error"; govStr = "Error";
                     }
-
-                    // ZRAM is static
-                    String zramStr = "Static"; 
 
                     final String fRam = ramStr;
                     final String fBat = batStr;
                     final String fGov = govStr;
-                    final String fZram = zramStr;
                     final String fCurFreq = curFreq;
                     final String fMaxTools = maxTools;
                     final String fTemp = tempStr;
@@ -483,21 +481,17 @@ public class MainActivity extends AppCompatActivity {
                         if(tvRam != null) tvRam.setText(fRam);
                         if(tvBattery != null) tvBattery.setText(fBat);
                         if(tvCpu != null) tvCpu.setText(fGov.toUpperCase());
-                        if(tvZram != null) tvZram.setText(fZram);
-                        
                         if(tvCurrentFreq != null) tvCurrentFreq.setText(fCurFreq);
                         if(tvMaxFreqTools != null) tvMaxFreqTools.setText(fMaxTools);
                         if(tvTemp != null) tvTemp.setText(fTemp);
                     });
-
                 }).start(); 
-
                 handler.postDelayed(this, 2000); 
             }
         });
     }
 
-    // --- THEME & GLASS LOGIC ---
+    // --- THEME & UI LOGIC ---
 
     private void setBackgroundMode(int mode) {
         int bgCol, cardCol, textCol;
@@ -512,42 +506,31 @@ public class MainActivity extends AppCompatActivity {
             cardCol = Color.parseColor("#FFFFFF");
             textCol = Color.BLACK;
             isDark = false;
-        } else if (mode == 3) { // Transparent (NEW)
-            bgCol = Color.parseColor("#00000000"); // Fully Transparent
-            cardCol = Color.parseColor("#DD000000"); // Semi-transparent dark for cards
+        } else if (mode == 3) { // Transparent
+            bgCol = Color.parseColor("#00000000");
+            cardCol = Color.parseColor("#DD000000");
             textCol = Color.WHITE;
             isDark = true;
-        } else { // Gray (Fallback)
+        } else { // Gray
             bgCol = Color.parseColor("#808080");
             cardCol = Color.parseColor("#909090");
             textCol = Color.WHITE;
         }
 
-        // --- REAL GLASS EFFECT ---
         if(isGlassTheme) {
-            // Card becomes Glassy: Semi-transparent + Border
-            if (isDark) {
-                cardCol = Color.parseColor("#80000000"); // 50% Black Glass
-            } else {
-                cardCol = Color.parseColor("#80FFFFFF"); // 50% White Glass
-            }
+            if (isDark) cardCol = Color.parseColor("#80000000");
+            else cardCol = Color.parseColor("#80FFFFFF");
         }
 
         prefs.edit().putInt("bg_mode", mode).apply();
-
         if(rootLayout != null) rootLayout.setBackgroundColor(bgCol);
         
         GradientDrawable gd = new GradientDrawable();
         gd.setShape(GradientDrawable.RECTANGLE);
         gd.setColor(cardCol);
         gd.setCornerRadius(20);
-        
-        // Add Stroke if Glass is active to create the "Glass Edge" look
-        if(isGlassTheme) {
-            gd.setStroke(2, Color.parseColor("#33FFFFFF")); // Thin white border
-        } else {
-            gd.setStroke(0, Color.TRANSPARENT);
-        }
+        if(isGlassTheme) gd.setStroke(2, Color.parseColor("#33FFFFFF"));
+        else gd.setStroke(0, Color.TRANSPARENT);
         
         if(cardRam != null) cardRam.setBackground(gd);
         if(cardBat != null) cardBat.setBackground(gd);
@@ -566,21 +549,15 @@ public class MainActivity extends AppCompatActivity {
 
     private void applyIconColor() {
         int color = Color.GRAY; 
-        
-        // Cycle Colors
         switch(iconColorMode) {
-            case 1: color = Color.parseColor("#FF4081"); // Rainbow Pink
-                break;
-            case 2: color = Color.parseColor("#00E5FF"); // Cyan
-                break;
-            case 3: color = Color.parseColor("#FF9100"); // Orange
-                break;
-            case 4: color = Color.parseColor("#D500F9"); // Purple
-                break;
-            default: color = Color.parseColor("#AAAAAA"); // Default Gray
-                break;
+            case 1: color = Color.parseColor("#FF4081"); break;
+            case 2: color = Color.parseColor("#00E5FF"); break;
+            case 3: color = Color.parseColor("#FF9100"); break;
+            case 4: color = Color.parseColor("#D500F9"); break;
+            default: color = Color.parseColor("#AAAAAA"); break;
         }
         
+        // Apply color to icons we set in initViews
         if(navSystem != null) tintCompoundDrawables(navSystem.getChildAt(0), color);
         if(navTools != null) tintCompoundDrawables(navTools.getChildAt(0), color);
         if(navSettings != null) tintCompoundDrawables(navSettings.getChildAt(0), color);
@@ -607,7 +584,6 @@ public class MainActivity extends AppCompatActivity {
             String fileName = "custom_banner.jpg";
             File outFile = new File(getFilesDir(), fileName);
             OutputStream outputStream = new FileOutputStream(outFile);
-            
             byte[] buffer = new byte[1024];
             int len;
             while ((len = inputStream.read(buffer)) > 0) {
@@ -615,12 +591,10 @@ public class MainActivity extends AppCompatActivity {
             }
             outputStream.close();
             inputStream.close();
-
             String path = outFile.getAbsolutePath();
             prefs.edit().putString("custom_banner_path", path).apply();
             loadCustomBanner();
             Toast.makeText(this, "Banner Applied", Toast.LENGTH_SHORT).show();
-
         } catch (Exception e) {
             Toast.makeText(this, "Failed to load image", Toast.LENGTH_SHORT).show();
         }
@@ -643,6 +617,7 @@ public class MainActivity extends AppCompatActivity {
                 headerBanner.setVisibility(View.VISIBLE);
                 bannerContainer.setVisibility(View.VISIBLE);
                 findViewById(R.id.btn_reset_banner).setVisibility(View.VISIBLE);
+                applyBannerRadius(); // Apply rounded corners
                 return;
             }
         }
@@ -650,6 +625,7 @@ public class MainActivity extends AppCompatActivity {
             Glide.with(this).load(R.drawable.header_bg).centerCrop().into(headerBanner);
             headerBanner.setVisibility(View.VISIBLE);
             bannerContainer.setVisibility(View.VISIBLE);
+            applyBannerRadius();
         } catch (Exception e) {
             headerBanner.setVisibility(View.GONE);
             bannerContainer.setVisibility(View.GONE);
@@ -657,11 +633,23 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_reset_banner).setVisibility(View.GONE);
     }
 
+    private void applyBannerRadius() {
+        // Membuat Banner Rounded sesuai Card (20dp)
+        if(headerBanner != null) {
+            GradientDrawable shape = new GradientDrawable();
+            shape.setShape(GradientDrawable.RECTANGLE);
+            shape.setCornerRadius(20); // Radius sesuai card
+            shape.setColor(Color.TRANSPARENT); 
+            headerBanner.setBackground(shape);
+            // Clip to outline agar gambar ikut terpotong rounded
+            headerBanner.setClipToOutline(true);
+        }
+    }
+
     private void updateNavUI(int activeIndex) {
         int colorActive = Color.parseColor("#4CAF50");
-        int colorInactive = Color.GRAY; // Default inactive
+        int colorInactive = Color.GRAY;
 
-        // Get Active Color based on mode
         switch(iconColorMode) {
             case 1: colorInactive = Color.parseColor("#FF4081"); break;
             case 2: colorInactive = Color.parseColor("#00E5FF"); break;
