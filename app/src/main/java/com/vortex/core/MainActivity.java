@@ -667,8 +667,9 @@ public class MainActivity extends AppCompatActivity {
                         if(tvBattery != null) {
                             tvBattery.setText(fBat);
                             tvBattery.setTextColor(fBatColor);
-                            // Set Icon Left
+                            // Set Icon Left (Using Resource ID)
                             tvBattery.setCompoundDrawablesRelativeWithIntrinsicBounds(fIcon, 0, 0, 0);
+                            
                             // --- FIX 3: CHARGING ANIMATION ---
                             if(fIsCharging) {
                                 batteryBlinkState = !batteryBlinkState;
@@ -677,7 +678,8 @@ public class MainActivity extends AppCompatActivity {
                                     icon.mutate(); // Don't affect other instances
                                     icon.setAlpha(batteryBlinkState ? 255 : 80); // Blink effect
                                 }
-                                tvBattery.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, 0, 0, 0);
+                                // FIX: Use null for empty drawables when passing a Drawable object
+                                tvBattery.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, null, null, null);
                             }
                         }
                         if(tvCpu != null) tvCpu.setText(fGov.toUpperCase());
