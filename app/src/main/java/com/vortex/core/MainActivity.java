@@ -338,23 +338,34 @@ public class MainActivity extends AppCompatActivity {
             String socModel = runSuReturn("getprop ro.soc.model"); 
             String socMan = runSuReturn("getprop ro.soc.manufacturer").toLowerCase();
 
+            // --- ZRAM SIZE CALCULATION (Fix untuk tampilan ...) ---
+            String zramDisplay = "Disabled";
+            try {
+                String zramRaw = runSuReturn("cat /sys/block/zram0/disksize 2>/dev/null");
+                if(!zramRaw.isEmpty()) {
+                    long zramBytes = Long.parseLong(zramRaw.trim());
+                    if (zramBytes > 0) {
+                        double zramGB = zramBytes / (1024.0 * 1024.0 * 1024.0);
+                        zramDisplay = String.format("%.1f GB", zramGB);
+                    }
+                }
+            } catch (Exception e) {
+                zramDisplay = "Error";
+            }
+            final String fZram = zramDisplay;
+
             // --- ROBUST CPU VENDOR DETECTION ---
             String vendor = "Unknown";
             
-            // Prioritas 1: Manufacturer Prop (Paling Akurat)
             if (!socMan.isEmpty()) {
                 vendor = socMan.substring(0, 1).toUpperCase() + socMan.substring(1).toLowerCase();
             } 
-            // Prioritas 2: Platform String Detection
             else {
                 if (platform.contains("mt") || hardware.contains("mt")) {
-                    // Cek Mediatek dulu biar gak tertukar
                     vendor = "Mediatek";
                 } else if (platform.contains("qcom") || platform.contains("msm")) {
                     vendor = "Qualcomm";
                 } else if (platform.contains("parrot")) {
-                    // Parrot adalah codename POCO F5 (Snapdragon)
-                    // Masuk sini berarti bukan Mediatek (karena else if)
                     vendor = "Qualcomm"; 
                 } else if (platform.contains("exynos")) {
                     vendor = "Exynos";
@@ -366,14 +377,12 @@ public class MainActivity extends AppCompatActivity {
             }
 
             // --- CPU ARCHITECTURE DISPLAY ---
-            String cpuArch = Build.SUPPORTED_ABIS[0]; // e.g. arm64-v8a
+            String cpuArch = Build.SUPPORTED_ABIS[0]; 
             String archDisplay = cpuArch.toUpperCase();
             
-            // Tampilkan SoC Model jika ada (Contoh: ARM64-V8A (SM7325))
             if(!socModel.isEmpty() && !socModel.equals("unknown")) {
                 archDisplay += " (" + socModel + ")";
             } else {
-                // Jika tidak ada model, tampilkan Brand (Qualcomm/Mediatek)
                 archDisplay += " (" + vendor + ")";
             }
 
@@ -381,20 +390,17 @@ public class MainActivity extends AppCompatActivity {
             String gpu = "Unknown GPU";
             boolean gpuFound = false;
             
-            // Cek Mediatek (Mali)
             if (platform.contains("mt") || hardware.contains("mt")) {
                 gpu = runSuReturn("cat /sys/class/misc/mali0/device/gpu_model 2>/dev/null");
                 if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/kernel/debug/mali0/gpu_id 2>/dev/null");
                 if(!gpu.isEmpty()) gpuFound = true;
             } 
-            // Cek Qualcomm (Adreno) - Termasuk Parrot
             else if (platform.contains("qcom") || platform.contains("msm") || platform.contains("parrot")) {
                 gpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/gpu_model 2>/dev/null");
                 if(gpu.isEmpty()) gpu = runSuReturn("cat /sys/devices/platform/soc/soc:qcom,kgsl-3d0/devfreq/soc:qcom,kgsl-3d0/gpu_model 2>/dev/null");
                 if(!gpu.isEmpty()) gpuFound = true;
             }
 
-            // Fallback Otomatis
             if (!gpuFound) {
                 if (platform.contains("mt") || hardware.contains("mt")) {
                     gpu = "Mali GPU";
@@ -434,8 +440,6 @@ public class MainActivity extends AppCompatActivity {
             final String finalArchDisplay = archDisplay;
 
             runOnUiThread(() -> {
-                // PERBAIKAN: HANYA SET TEXT, WARNA MENGIKUT XML (PUTIH)
-                // TIDAK ADA setTextColor(...) DI SINI
                 if(tvCpuVendor != null) {
                     tvCpuVendor.setText(finalArchDisplay);
                 }
@@ -452,6 +456,9 @@ public class MainActivity extends AppCompatActivity {
                 if(tvMaxFreq != null) tvMaxFreq.setText((maxFreqKhz/1000) + " MHz");
                 if(tvLittleCluster != null) tvLittleCluster.setText(staticLittleFreq);
                 if(tvBigCluster != null) tvBigCluster.setText(staticBigFreq);
+                
+                // UPDATE ZRAM TEXT DI SINI (SAAT AWAL)
+                if(tvZram != null) tvZram.setText(fZram);
             });
         }).start();
     }
@@ -532,6 +539,7 @@ public class MainActivity extends AppCompatActivity {
                         if(tvCurrentFreq != null) tvCurrentFreq.setText(fCurFreq);
                         if(tvMaxFreqTools != null) tvMaxFreqTools.setText(fMaxTools);
                         if(tvTemp != null) tvTemp.setText(fTemp);
+                        // ZRAM DIHAPUS DARI LOOP AGAR TIDAK TIMPA JADI ... / Static
                     });
                 }).start(); 
                 handler.postDelayed(this, 2000); 
@@ -770,9 +778,12 @@ public class MainActivity extends AppCompatActivity {
                     runSu("swapoff /dev/block/zram0 2>/dev/null");
                     runSu("echo 1 > /sys/block/zram0/reset 2>/dev/null");
                     try { Thread.sleep(500); } catch (Exception e){}
+                    runOnUiThread(() -> { if(tvZram != null) tvZram.setText("Disabled"); });
                 }).start();
             } else {
                 applyZram(new int[]{4, 8, 12, 16}[which]);
+                // Update text immediately to match selection
+                runOnUiThread(() -> { if(tvZram != null) tvZram.setText(options[which]); });
             }
             Toast.makeText(this, "ZRAM " + options[which] + " Applied", Toast.LENGTH_SHORT).show();
         });
