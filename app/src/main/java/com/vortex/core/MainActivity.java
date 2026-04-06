@@ -179,11 +179,26 @@ public class MainActivity extends AppCompatActivity {
 
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
 
-        // --- SETTING APP ICONS (Bukan Emoticon) ---
-        // Menggunakan drawable bawaan sistem Android agar lebih profesional
-        if(navSystem != null) navSystem.setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_info_details, 0, 0, 0);
-        if(navTools != null) navTools.setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_manage, 0, 0, 0);
-        if(navSettings != null) navSettings.setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_preferences, 0, 0, 0);
+        // --- PERBAIKAN: SETTING ICON APLIKASI ---
+        // Karena nav adalah LinearLayout, kita ambil anak (child) ke-0 yang merupakan TextView
+        if (navSystem != null && navSystem.getChildCount() > 0) {
+            View child = navSystem.getChildAt(0);
+            if(child instanceof TextView) {
+                ((TextView) child).setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_info_details, 0, 0, 0);
+            }
+        }
+        if (navTools != null && navTools.getChildCount() > 0) {
+            View child = navTools.getChildAt(0);
+            if(child instanceof TextView) {
+                ((TextView) child).setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_manage, 0, 0, 0);
+            }
+        }
+        if (navSettings != null && navSettings.getChildCount() > 0) {
+            View child = navSettings.getChildAt(0);
+            if(child instanceof TextView) {
+                ((TextView) child).setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_preferences, 0, 0, 0);
+            }
+        }
     }
 
     private void loadThemeSettings() {
@@ -557,10 +572,16 @@ public class MainActivity extends AppCompatActivity {
             default: color = Color.parseColor("#AAAAAA"); break;
         }
         
-        // Apply color to icons we set in initViews
-        if(navSystem != null) tintCompoundDrawables(navSystem.getChildAt(0), color);
-        if(navTools != null) tintCompoundDrawables(navTools.getChildAt(0), color);
-        if(navSettings != null) tintCompoundDrawables(navSettings.getChildAt(0), color);
+        // Apply color to icons we set in initViews (child of LinearLayout)
+        if(navSystem != null && navSystem.getChildCount() > 0) {
+            tintCompoundDrawables(navSystem.getChildAt(0), color);
+        }
+        if(navTools != null && navTools.getChildCount() > 0) {
+            tintCompoundDrawables(navTools.getChildAt(0), color);
+        }
+        if(navSettings != null && navSettings.getChildCount() > 0) {
+            tintCompoundDrawables(navSettings.getChildAt(0), color);
+        }
     }
 
     private void tintCompoundDrawables(View view, int color) {
@@ -657,9 +678,13 @@ public class MainActivity extends AppCompatActivity {
             case 4: colorInactive = Color.parseColor("#D500F9"); break;
         }
 
-        ((TextView)navSystem.getChildAt(0)).setTextColor(activeIndex == 0 ? colorActive : colorInactive);
-        ((TextView)navTools.getChildAt(0)).setTextColor(activeIndex == 1 ? colorActive : colorInactive);
-        ((TextView)navSettings.getChildAt(0)).setTextColor(activeIndex == 2 ? colorActive : colorInactive);
+        if(navSystem != null && navSystem.getChildCount() > 0) 
+            ((TextView)navSystem.getChildAt(0)).setTextColor(activeIndex == 0 ? colorActive : colorInactive);
+        if(navTools != null && navTools.getChildCount() > 0) 
+            ((TextView)navTools.getChildAt(0)).setTextColor(activeIndex == 1 ? colorActive : colorInactive);
+        if(navSettings != null && navSettings.getChildCount() > 0) 
+            ((TextView)navSettings.getChildAt(0)).setTextColor(activeIndex == 2 ? colorActive : colorInactive);
+        
         applyIconColor(); 
     }
 
