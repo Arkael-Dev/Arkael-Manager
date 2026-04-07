@@ -210,7 +210,7 @@ public class MainActivity extends AppCompatActivity {
 
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
 
-        // --- SOLUTION 1: FIX RAM TEXT TRUNCATED ---
+        // --- FIX RAM TEXT TRUNCATED ---
         if(tvRam != null) {
             tvRam.setMaxLines(1);
             tvRam.setSingleLine(true);
@@ -366,7 +366,7 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // --- HELPER: RUN SCRIPT BASH (FIX THERMAL) ---
+    // --- HELPER: RUN SCRIPT BASH ---
     private void runSuScript(String scriptContent) {
         new Thread(() -> {
             try {
@@ -451,11 +451,9 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showZramAlgoMenu() {
-        // Baca algo yang tersedia di device
         new Thread(() -> {
             String raw = runSuReturn("cat /sys/block/zram0/comp_algorithm");
             final String[] available = raw.split(" ");
-            // Fallback jika kosong
             final String[] options = (available.length > 0 && !available[0].isEmpty()) ? available : new String[]{"lzo", "lz4", "zstd", "lzo-rle"};
             
             runOnUiThread(() -> {
@@ -464,12 +462,9 @@ public class MainActivity extends AppCompatActivity {
                 builder.setItems(options, (dialog, which) -> {
                     String selected = options[which];
                     new Thread(() -> {
-                        // FIX: Matikan dulu ZRAM agar perubahan algo efektif
                         runSu("swapoff /dev/block/zram0 2>/dev/null");
                         runSu("echo 1 > /sys/block/zram0/reset 2>/dev/null");
-                        // Ganti Algo
                         runSu("echo " + selected + " > /sys/block/zram0/comp_algorithm");
-                        // Nyalakan kembali
                         runSu("mkswap /dev/block/zram0 2>/dev/null");
                         runSu("swapon /dev/block/zram0 2>/dev/null");
                         
@@ -482,7 +477,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void applySaturationBoost() {
-        // Sementara ini statis 1.5, nanti bisa diubah sesuai request slider
         new Thread(() -> {
             runSu("service call SurfaceFlinger 1023 i32 0");
             runSu("service call SurfaceFlinger 1022 f 1.5");
@@ -522,49 +516,62 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
     
-    // --- FIX: THERMAL MENU (NON-GIMMICK) ---
+    // --- UPDATED: THERMAL MENU (AGGRESSIVE SCRIPT) ---
     public void showThermalMenu() {
         final String[] options = {"DISABLE THERMAL (AGGRESSIVE)", "ENABLE THERMAL (RESTORE)"};
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Thermal Control");
         builder.setItems(options, (dialog, which) -> {
             if (which == 0) {
-                // DISABLE: SCRIPT PERSIS SESUAI REQUEST USER
+                // DISABLE: SCRIPT AGGRESSIVE SESUAI REQUEST
                 String disableScript = ""
-                    + "while [[ -z $(resetprop sys.boot_completed) ]]; do sleep 5; done\n"
-                    + "sleep 30\n"
                     + "for thermal in $(resetprop | awk -F '[][]' '/thermal/ {print $2}'); do\n"
                     + "  if [[ $(resetprop $thermal) == running ]]; then\n"
                     + "    stop ${thermal/init.svc.}\n"
-                    + "    sleep 10\n"
                     + "    resetprop -n $thermal stopped\n"
                     + "  fi\n"
                     + "done\n"
-                    + "sleep 10\n"
-                    + "find /sys/devices/virtual/thermal -name temp -type f -exec chmod 000 {} +";
+                    + "sleep 5\n"
+                    + "# tambahan: kill daemon (biar gak restart sendiri)\n"
+                    + "pkill -f thermal\n"
+                    + "pkill -f thermald\n"
+                    + "sleep 3\n"
+                    + "# disable mode thermal zone (INI YANG PENTING)\n"
+                    + "for zone in /sys/class/thermal/thermal_zone*/mode; do\n"
+                    + "  echo disabled > $zone 2>/dev/null\n"
+                    + "done\n"
+                    + "# block temp read \n"
+                    + "find /sys/devices/virtual/thermal -name temp -type f -exec chmod 000 {} +\n"
+                    + "# optional: turunin trip point biar gak throttle\n"
+                    + "for trip in /sys/class/thermal/thermal_zone*/trip_point_*_temp; do\n"
+                    + "  echo 100000 > $trip 2>/dev/null\n"
+                    + "done";
                 
                 runOnUiThread(() -> tvTerminalLog.setText("> Disabling Thermal (Aggressive)...\nPlease wait..."));
                 runSuScript(disableScript);
                 
-                // Simulasi delay menunggu script selesai
                 new Thread(() -> {
-                    try { Thread.sleep(10000); } catch (Exception e){}
+                    try { Thread.sleep(15000); } catch (Exception e){}
                     runOnUiThread(() -> { 
-                        tvTerminalLog.setText("THERMAL DISABLED\n(Services Stopped + Sensors Muted)"); 
+                        tvTerminalLog.setText("THERMAL DISABLED\n(Services Stopped + Killed + Zones Disabled)"); 
                         Toast.makeText(this, "Thermal DISABLED", Toast.LENGTH_SHORT).show(); 
                     });
                 }).start();
 
             } else {
                 // ENABLE: RESTORE LOGIC
-                // Karena Disable melakukan chmod 000, Enable WAJIB mengembalikan chmod 644
                 String enableScript = ""
                     + "# Restore Sensor Read Permissions\n"
-                    + "find /sys/devices/virtual/thermal -name temp -type f -exec chmod 644 {} +\n"
-                    + "# Attempt to Start Common Services\n"
+                    + "find /sys/devices/virtual/thermal -name temp -type f -exec chmod 644 {} + 2>/dev/null\n"
+                    + "# Enable Thermal Zones\n"
+                    + "for zone in /sys/class/thermal/thermal_zone*/mode; do\n"
+                    + "  echo enabled > $zone 2>/dev/null\n"
+                    + "done\n"
+                    + "# Start Services\n"
                     + "start thermald 2>/dev/null\n"
                     + "start thermal-engine 2>/dev/null\n"
-                    + "start thermal-daemon 2>/dev/null\n"
+                    + "start android.thermal-hal 2>/dev/null\n"
+                    + "start mi_thermald 2>/dev/null\n"
                     + "resetprop ctl.start thermald 2>/dev/null";
 
                 runOnUiThread(() -> tvTerminalLog.setText("> Enabling Thermal...\nRestoring permissions..."));
@@ -934,7 +941,7 @@ public class MainActivity extends AppCompatActivity {
                         if(tvTemp != null) tvTemp.setText(fTemp);
                     });
                 }).start(); 
-                // --- OPTIMISASI: INTERVAL DITAMBAH DARI 1000ms KE 2000ms UNTUK KURANGI LAG ---
+                // --- OPTIMISASI: INTERVAL DITAMBAH DARI 1000ms KE 2000ms ---
                 handler.postDelayed(this, 2000); 
             }
         });
