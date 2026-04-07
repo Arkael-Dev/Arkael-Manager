@@ -608,7 +608,7 @@
                 <TextView 
                     android:layout_width="wrap_content" 
                     android:layout_height="wrap_content" 
-                    android:text="GPU & SYSTEM TWEAKS" 
+                    android:text="GPU &amp; SYSTEM TWEAKS" 
                     android:textColor="#4CAF50" 
                     android:textSize="12sp" 
                     android:layout_marginBottom="15dp" 
