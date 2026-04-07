@@ -269,7 +269,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_gpu_control).setOnClickListener(v -> showGpuFreqMenu());
         findViewById(R.id.btn_io_scheduler).setOnClickListener(v -> showIoSchedulerMenu());
         findViewById(R.id.btn_zram_algo).setOnClickListener(v -> showZramAlgoMenu());
-        findViewById(R.id.btn_saturation).setOnClickListener(v -> applySaturationBoost());
+        findViewById(R.id.btn_saturation).setOnClickListener(v -> showSaturationMenu()); // CHANGED TO MENU
         findViewById(R.id.btn_renderer).setOnClickListener(v -> showRendererMenu());
         findViewById(R.id.btn_vsync).setOnClickListener(v -> toggleCpuVsync());
 
@@ -431,6 +431,53 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
+    // --- UPDATED: SATURATION SLIDER (LIKE VOLUME) ---
+    private void showSaturationMenu() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Screen Saturation Control");
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 40, 50, 10);
+
+        TextView tvValue = new TextView(this);
+        tvValue.setText("Current: 1.00");
+        tvValue.setTextSize(20);
+        tvValue.setTextColor(Color.WHITE);
+        tvValue.setGravity(Gravity.CENTER);
+        layout.addView(tvValue);
+
+        SeekBar seekBar = new SeekBar(this);
+        seekBar.setMax(150); // 1.5 max
+        seekBar.setProgress(100); // 1.0 default
+        layout.addView(seekBar);
+
+        final TextView finalTvValue = tvValue;
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                float val = progress / 100.0f;
+                finalTvValue.setText(String.format("%.2f", val));
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {
+                float val = seekBar.getProgress() / 100.0f;
+                new Thread(() -> {
+                    runSu("service call SurfaceFlinger 1023 i32 0");
+                    runSu("service call SurfaceFlinger 1022 f " + val);
+                    runOnUiThread(() -> {
+                        Toast.makeText(MainActivity.this, "Saturation Set: " + val, Toast.LENGTH_SHORT).show();
+                        if(tvTerminalLog != null) tvTerminalLog.setText("> Saturation: " + val);
+                    });
+                }).start();
+            }
+        });
+
+        builder.setView(layout);
+        builder.setPositiveButton("Close", null);
+        builder.show();
+    }
+
     private void showIoSchedulerMenu() {
         final String[] options = {"ssg", "mq-deadline", "kyber", "cpq", "none"};
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -472,17 +519,6 @@ public class MainActivity extends AppCompatActivity {
                     }).start();
                 });
                 builder.show();
-            });
-        }).start();
-    }
-
-    private void applySaturationBoost() {
-        new Thread(() -> {
-            runSu("service call SurfaceFlinger 1023 i32 0");
-            runSu("service call SurfaceFlinger 1022 f 1.5");
-            runOnUiThread(() -> {
-                Toast.makeText(this, "Saturation Boost Applied!", Toast.LENGTH_SHORT).show();
-                if(tvTerminalLog != null) tvTerminalLog.setText("> Saturation Boost: 1.5x\n> SurfaceFlinger tuned");
             });
         }).start();
     }
