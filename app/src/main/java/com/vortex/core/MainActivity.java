@@ -268,8 +268,8 @@ public class MainActivity extends AppCompatActivity {
         // --- NEW FEATURE LISTENERS ---
         findViewById(R.id.btn_gpu_control).setOnClickListener(v -> showGpuFreqMenu());
         findViewById(R.id.btn_io_scheduler).setOnClickListener(v -> showIoSchedulerMenu());
-        findViewById(R.id.btn_zram_algo).setOnClickListener(v -> showZramAlgoMenu());
-        findViewById(R.id.btn_saturation).setOnClickListener(v -> showSaturationMenu()); // CHANGED TO MENU
+        findViewById(R.id.btn_zram_algo).setOnClickListener(v -> showZramAlgoMenu()); // UPDATED
+        findViewById(R.id.btn_saturation).setOnClickListener(v -> showSaturationMenu()); // UPDATED
         findViewById(R.id.btn_renderer).setOnClickListener(v -> showRendererMenu());
         findViewById(R.id.btn_vsync).setOnClickListener(v -> toggleCpuVsync());
 
@@ -497,8 +497,10 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
+    // --- UPDATED: ZRAM ALGO (EXACT SCRIPT SEQUENCE) ---
     private void showZramAlgoMenu() {
         new Thread(() -> {
+            // Read available algos so user doesn't click unsupported ones
             String raw = runSuReturn("cat /sys/block/zram0/comp_algorithm");
             final String[] available = raw.split(" ");
             final String[] options = (available.length > 0 && !available[0].isEmpty()) ? available : new String[]{"lzo", "lz4", "zstd", "lzo-rle"};
@@ -509,13 +511,31 @@ public class MainActivity extends AppCompatActivity {
                 builder.setItems(options, (dialog, which) -> {
                     String selected = options[which];
                     new Thread(() -> {
-                        runSu("swapoff /dev/block/zram0 2>/dev/null");
-                        runSu("echo 1 > /sys/block/zram0/reset 2>/dev/null");
-                        runSu("echo " + selected + " > /sys/block/zram0/comp_algorithm");
-                        runSu("mkswap /dev/block/zram0 2>/dev/null");
-                        runSu("swapon /dev/block/zram0 2>/dev/null");
+                        // EXACT COMMAND SEQUENCE AS REQUESTED
+                        // 1. Swapoff All
+                        runSu("swapoff -a 2>/dev/null");
                         
-                        runOnUiThread(() -> Toast.makeText(this, "ZRAM Algo: " + selected + " (Restarted)", Toast.LENGTH_SHORT).show());
+                        // 2. Reset ZRAM
+                        runSu("echo 1 > /sys/block/zram0/reset");
+                        
+                        // 3. Set Compression Algorithm
+                        runSu("echo " + selected + " > /sys/block/zram0/comp_algorithm");
+                        
+                        // 4. Make Swap
+                        runSu("mkswap /dev/block/zram0");
+                        
+                        // 5. Swap On
+                        runSu("swapon /dev/block/zram0");
+                        
+                        // Verification
+                        String swapInfo = runSuReturn("cat /proc/swaps");
+
+                        runOnUiThread(() -> {
+                            Toast.makeText(this, "ZRAM Algo: " + selected, Toast.LENGTH_SHORT).show();
+                            if(tvTerminalLog != null) {
+                                tvTerminalLog.setText("> ZRAM Reset Complete\n> Algorithm Set: " + selected + "\n" + swapInfo);
+                            }
+                        });
                     }).start();
                 });
                 builder.show();
@@ -1169,10 +1189,11 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
+    // --- UPDATED: APPLY ZRAM (USE SWAPOFF -A) ---
     public void applyZram(int sizeGB) {
         new Thread(() -> {
             long sizeInBytes = sizeGB * 1073741824L;
-            runSu("swapoff /dev/block/zram0 2>/dev/null");
+            runSu("swapoff -a 2>/dev/null"); // Update to match style
             runSu("echo 1 > /sys/block/zram0/reset 2>/dev/null");
             runSu("echo " + sizeInBytes + " > /sys/block/zram0/disksize 2>/dev/null");
             runSu("echo zstd > /sys/block/zram0/comp_algorithm 2>/dev/null");
@@ -1189,7 +1210,7 @@ public class MainActivity extends AppCompatActivity {
         builder.setItems(options, (dialog, which) -> {
             if (which == 4) {
                 new Thread(() -> {
-                    runSu("swapoff /dev/block/zram0 2>/dev/null");
+                    runSu("swapoff -a 2>/dev/null");
                     runSu("echo 1 > /sys/block/zram0/reset 2>/dev/null");
                     try { Thread.sleep(500); } catch (Exception e){}
                     runOnUiThread(() -> { if(tvZram != null) tvZram.setText("Disabled"); });
