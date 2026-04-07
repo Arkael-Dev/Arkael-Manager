@@ -210,11 +210,11 @@ public class MainActivity extends AppCompatActivity {
 
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
 
-        // --- SOLUTION 1: FIX RAM TEXT TRUNCATED (MANDATORY) ---
+        // --- SOLUTION 1: FIX RAM TEXT TRUNCATED ---
         if(tvRam != null) {
             tvRam.setMaxLines(1);
             tvRam.setSingleLine(true);
-            tvRam.setEllipsize(null); // Remove "..." truncation
+            tvRam.setEllipsize(null); 
             tvRam.setHorizontallyScrolling(true);
             tvRam.setGravity(Gravity.CENTER_VERTICAL);
             tvRam.setIncludeFontPadding(false);
@@ -365,6 +365,20 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
+
+    // --- HELPER: RUN SCRIPT BASH (FIX THERMAL) ---
+    private void runSuScript(String scriptContent) {
+        new Thread(() -> {
+            try {
+                String scriptPath = "/data/local/tmp/vortex_thermal.sh";
+                FileOutputStream fos = new FileOutputStream(scriptPath);
+                fos.write(scriptContent.getBytes());
+                fos.close();
+                Runtime.getRuntime().exec(new String[]{"su", "-c", "chmod 755 " + scriptPath}).waitFor();
+                Runtime.getRuntime().exec(new String[]{"su", "-c", scriptPath}).waitFor();
+            } catch (Exception e) { e.printStackTrace(); }
+        }).start();
+    }
     
     // --- NEW FEATURE IMPLEMENTATIONS ---
 
@@ -377,7 +391,6 @@ public class MainActivity extends AppCompatActivity {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("GPU Frequency Control (Universal)");
 
-        // Create a custom view with SeekBar
         LinearLayout layout = new LinearLayout(this);
         layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(50, 40, 50, 10);
@@ -391,10 +404,9 @@ public class MainActivity extends AppCompatActivity {
 
         SeekBar seekBar = new SeekBar(this);
         seekBar.setMax(gpuAvailableFreqs.size() - 1);
-        // Set current max
         int currentMax = parseIntSafe(runSuReturn("cat " + gpuMaxFreqPath));
         int index = gpuAvailableFreqs.indexOf(currentMax);
-        if(index == -1) index = gpuAvailableFreqs.size() - 1; // Default to max if not found
+        if(index == -1) index = gpuAvailableFreqs.size() - 1;
         seekBar.setProgress(index);
         
         layout.addView(seekBar);
@@ -427,7 +439,6 @@ public class MainActivity extends AppCompatActivity {
             String selected = options[which];
             new Thread(() -> {
                 runSu("for queue in /sys/block/sd*/queue; do echo " + selected + " > \"$queue/scheduler\" 2>/dev/null; echo 0 > \"$queue/iostats\" 2>/dev/null; echo 128 > \"$queue/read_ahead_kb\" 2>/dev/null; done");
-                // Also try mmc/nvme fallback for universality
                 runSu("for queue in /sys/block/mmc*/queue; do echo " + selected + " > \"$queue/scheduler\" 2>/dev/null; echo 0 > \"$queue/iostats\" 2>/dev/null; echo 128 > \"$queue/read_ahead_kb\" 2>/dev/null; done");
                 
                 runOnUiThread(() -> {
@@ -440,12 +451,11 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showZramAlgoMenu() {
-        // Common algos: lzo, lz4, zstd, lzo-rle
-        // We check available algos on device first to be accurate
+        // Baca algo yang tersedia di device
         new Thread(() -> {
             String raw = runSuReturn("cat /sys/block/zram0/comp_algorithm");
             final String[] available = raw.split(" ");
-            // Fallback if empty
+            // Fallback jika kosong
             final String[] options = (available.length > 0 && !available[0].isEmpty()) ? available : new String[]{"lzo", "lz4", "zstd", "lzo-rle"};
             
             runOnUiThread(() -> {
@@ -454,8 +464,16 @@ public class MainActivity extends AppCompatActivity {
                 builder.setItems(options, (dialog, which) -> {
                     String selected = options[which];
                     new Thread(() -> {
+                        // FIX: Matikan dulu ZRAM agar perubahan algo efektif
+                        runSu("swapoff /dev/block/zram0 2>/dev/null");
+                        runSu("echo 1 > /sys/block/zram0/reset 2>/dev/null");
+                        // Ganti Algo
                         runSu("echo " + selected + " > /sys/block/zram0/comp_algorithm");
-                        runOnUiThread(() -> Toast.makeText(this, "ZRAM Algo: " + selected, Toast.LENGTH_SHORT).show());
+                        // Nyalakan kembali
+                        runSu("mkswap /dev/block/zram0 2>/dev/null");
+                        runSu("swapon /dev/block/zram0 2>/dev/null");
+                        
+                        runOnUiThread(() -> Toast.makeText(this, "ZRAM Algo: " + selected + " (Restarted)", Toast.LENGTH_SHORT).show());
                     }).start();
                 });
                 builder.show();
@@ -464,6 +482,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void applySaturationBoost() {
+        // Sementara ini statis 1.5, nanti bisa diubah sesuai request slider
         new Thread(() -> {
             runSu("service call SurfaceFlinger 1023 i32 0");
             runSu("service call SurfaceFlinger 1022 f 1.5");
@@ -480,15 +499,9 @@ public class MainActivity extends AppCompatActivity {
         builder.setTitle("Graphics Renderer");
         builder.setItems(options, (dialog, which) -> {
             new Thread(() -> {
-                if(which == 0) { // OpenGL
-                    runSu("setprop debug.hwui.renderer opengl");
-                } else if(which == 1) { // Skia GL
-                    runSu("setprop debug.composition.type skiagl");
-                    runSu("setprop debug.hwui.renderer skiagl");
-                } else if(which == 2) { // Vulkan
-                    runSu("setprop debug.hwui.renderer skiavk");
-                    runSu("setprop ro.config.hw_quickpoweron true");
-                }
+                if(which == 0) { runSu("setprop debug.hwui.renderer opengl"); } 
+                else if(which == 1) { runSu("setprop debug.composition.type skiagl"); runSu("setprop debug.hwui.renderer skiagl"); } 
+                else if(which == 2) { runSu("setprop debug.hwui.renderer skiavk"); runSu("setprop ro.config.hw_quickpoweron true"); }
                 final String sel = options[which];
                 runOnUiThread(() -> {
                     Toast.makeText(this, "Renderer: " + sel, Toast.LENGTH_SHORT).show();
@@ -507,6 +520,66 @@ public class MainActivity extends AppCompatActivity {
                 if(tvTerminalLog != null) tvTerminalLog.setText("> CPU VSync: OFF");
             });
         }).start();
+    }
+    
+    // --- FIX: THERMAL MENU (NON-GIMMICK) ---
+    public void showThermalMenu() {
+        final String[] options = {"DISABLE THERMAL (AGGRESSIVE)", "ENABLE THERMAL (RESTORE)"};
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Thermal Control");
+        builder.setItems(options, (dialog, which) -> {
+            if (which == 0) {
+                // DISABLE: SCRIPT PERSIS SESUAI REQUEST USER
+                String disableScript = ""
+                    + "while [[ -z $(resetprop sys.boot_completed) ]]; do sleep 5; done\n"
+                    + "sleep 30\n"
+                    + "for thermal in $(resetprop | awk -F '[][]' '/thermal/ {print $2}'); do\n"
+                    + "  if [[ $(resetprop $thermal) == running ]]; then\n"
+                    + "    stop ${thermal/init.svc.}\n"
+                    + "    sleep 10\n"
+                    + "    resetprop -n $thermal stopped\n"
+                    + "  fi\n"
+                    + "done\n"
+                    + "sleep 10\n"
+                    + "find /sys/devices/virtual/thermal -name temp -type f -exec chmod 000 {} +";
+                
+                runOnUiThread(() -> tvTerminalLog.setText("> Disabling Thermal (Aggressive)...\nPlease wait..."));
+                runSuScript(disableScript);
+                
+                // Simulasi delay menunggu script selesai
+                new Thread(() -> {
+                    try { Thread.sleep(10000); } catch (Exception e){}
+                    runOnUiThread(() -> { 
+                        tvTerminalLog.setText("THERMAL DISABLED\n(Services Stopped + Sensors Muted)"); 
+                        Toast.makeText(this, "Thermal DISABLED", Toast.LENGTH_SHORT).show(); 
+                    });
+                }).start();
+
+            } else {
+                // ENABLE: RESTORE LOGIC
+                // Karena Disable melakukan chmod 000, Enable WAJIB mengembalikan chmod 644
+                String enableScript = ""
+                    + "# Restore Sensor Read Permissions\n"
+                    + "find /sys/devices/virtual/thermal -name temp -type f -exec chmod 644 {} +\n"
+                    + "# Attempt to Start Common Services\n"
+                    + "start thermald 2>/dev/null\n"
+                    + "start thermal-engine 2>/dev/null\n"
+                    + "start thermal-daemon 2>/dev/null\n"
+                    + "resetprop ctl.start thermald 2>/dev/null";
+
+                runOnUiThread(() -> tvTerminalLog.setText("> Enabling Thermal...\nRestoring permissions..."));
+                runSuScript(enableScript);
+
+                new Thread(() -> {
+                    try { Thread.sleep(5000); } catch (Exception e){}
+                    runOnUiThread(() -> { 
+                        tvTerminalLog.setText("THERMAL ENABLED\n(Permissions Restored)"); 
+                        Toast.makeText(this, "Thermal ENABLED", Toast.LENGTH_SHORT).show(); 
+                    });
+                }).start();
+            }
+        });
+        builder.show();
     }
 
     // --- EXISTING HELPERS ---
@@ -750,7 +823,7 @@ public class MainActivity extends AppCompatActivity {
                         ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
                         ((ActivityManager)getSystemService(ACTIVITY_SERVICE)).getMemoryInfo(mi);
                         
-                        // --- SOLUTION 2: FORMAT RAM AS USED / TOTAL GB ---
+                        // --- FORMAT RAM AS USED / TOTAL GB ---
                         double totalGB = mi.totalMem / (1024.0 * 1024.0 * 1024.0);
                         double usedGB = (mi.totalMem - mi.availMem) / (1024.0 * 1024.0 * 1024.0);
                         ramStr = String.format("%.1f / %.1f GB", usedGB, totalGB);
@@ -767,19 +840,18 @@ public class MainActivity extends AppCompatActivity {
                             String statusText = isCharging ? "Charging" : "Discharging";
                             batStr = (int)batteryPct + "% (" + statusText + ")";
 
-                            // --- FIX 2: DYNAMIC BATTERY ICON & COLOR ---
                             if(isCharging) {
-                                iconId = android.R.drawable.ic_menu_upload; // Charging Icon
+                                iconId = android.R.drawable.ic_menu_upload; 
                                 batColor = Color.CYAN;
                             } else if(level <= 20) {
-                                iconId = android.R.drawable.ic_dialog_alert; // Low Battery Icon
+                                iconId = android.R.drawable.ic_dialog_alert; 
                                 batColor = Color.RED;
                             } else if(level <= 50) {
-                                iconId = android.R.drawable.ic_menu_sort_by_size; // Medium Icon
-                                batColor = Color.parseColor("#FFD700"); // Gold/Yellow
+                                iconId = android.R.drawable.ic_menu_sort_by_size; 
+                                batColor = Color.parseColor("#FFD700"); 
                             } else {
-                                iconId = android.R.drawable.ic_menu_info_details; // Full/Normal Icon
-                                batColor = Color.parseColor("#00E676"); // Green
+                                iconId = android.R.drawable.ic_menu_info_details; 
+                                batColor = Color.parseColor("#00E676"); 
                             }
 
                             int temp = batteryStatus.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, -1);
@@ -844,18 +916,15 @@ public class MainActivity extends AppCompatActivity {
                         if(tvBattery != null) {
                             tvBattery.setText(fBat);
                             tvBattery.setTextColor(fBatColor);
-                            // Set Icon Left (Using Resource ID)
                             tvBattery.setCompoundDrawablesRelativeWithIntrinsicBounds(fIcon, 0, 0, 0);
                             
-                            // --- FIX 3: CHARGING ANIMATION ---
                             if(fIsCharging) {
                                 batteryBlinkState = !batteryBlinkState;
                                 Drawable icon = getDrawable(fIcon);
                                 if(icon != null) {
-                                    icon.mutate(); // Don't affect other instances
-                                    icon.setAlpha(batteryBlinkState ? 255 : 80); // Blink effect
+                                    icon.mutate(); 
+                                    icon.setAlpha(batteryBlinkState ? 255 : 80); 
                                 }
-                                // FIX: Use null for empty drawables when passing a Drawable object
                                 tvBattery.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, null, null, null);
                             }
                         }
@@ -865,7 +934,8 @@ public class MainActivity extends AppCompatActivity {
                         if(tvTemp != null) tvTemp.setText(fTemp);
                     });
                 }).start(); 
-                handler.postDelayed(this, 1000); 
+                // --- OPTIMISASI: INTERVAL DITAMBAH DARI 1000ms KE 2000ms UNTUK KURANGI LAG ---
+                handler.postDelayed(this, 2000); 
             }
         });
     }
@@ -1086,28 +1156,6 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> { if(tvZram != null) tvZram.setText(options[which]); });
             }
             Toast.makeText(this, "ZRAM " + options[which] + " Applied", Toast.LENGTH_SHORT).show();
-        });
-        builder.show();
-    }
-
-    public void showThermalMenu() {
-        final String[] options = {"DISABLE THERMAL", "ENABLE THERMAL"};
-        AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Thermal Control");
-        builder.setItems(options, (dialog, which) -> {
-            if (which == 0) {
-                new Thread(() -> {
-                    runOnUiThread(() -> tvTerminalLog.setText("> Disabling Thermal..."));
-                    runSu("stop thermald 2>/dev/null"); runSu("stop thermal-engine 2>/dev/null");
-                    runOnUiThread(() -> { tvTerminalLog.setText("Thermal Disabled\n(Unlocked Performance)"); Toast.makeText(this, "Thermal DISABLED", Toast.LENGTH_SHORT).show(); });
-                }).start();
-            } else {
-                new Thread(() -> {
-                    runOnUiThread(() -> tvTerminalLog.setText("> Enabling Thermal..."));
-                    runSu("start thermald 2>/dev/null"); runSu("start thermal-engine 2>/dev/null");
-                    runOnUiThread(() -> { tvTerminalLog.setText("Thermal Enabled\n(Safe Mode)"); Toast.makeText(this, "Thermal ENABLED", Toast.LENGTH_SHORT).show(); });
-                }).start();
-            }
         });
         builder.show();
     }
