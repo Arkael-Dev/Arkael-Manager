@@ -46,6 +46,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
     // UI Components
@@ -77,9 +80,10 @@ public class MainActivity extends AppCompatActivity {
     private String gpuMaxFreqPath = "";
     private String gpuCurFreqPath = "";
     private String gpuGovPath = "";
-    private String gpuAvailFreqPath = "";
+    private String gpuAvailFreqPath = ""; 
     private boolean isGpuControlReady = false;
     private boolean isGpuModeActive = false;
+    private List<Integer> gpuAvailableFreqs = new ArrayList<>(); 
     
     // Animation Helper
     private boolean batteryBlinkState = false;
@@ -261,6 +265,14 @@ public class MainActivity extends AppCompatActivity {
             cleanRam();
         });
 
+        // --- NEW FEATURE LISTENERS ---
+        findViewById(R.id.btn_gpu_control).setOnClickListener(v -> showGpuFreqMenu());
+        findViewById(R.id.btn_io_scheduler).setOnClickListener(v -> showIoSchedulerMenu());
+        findViewById(R.id.btn_zram_algo).setOnClickListener(v -> showZramAlgoMenu());
+        findViewById(R.id.btn_saturation).setOnClickListener(v -> applySaturationBoost());
+        findViewById(R.id.btn_renderer).setOnClickListener(v -> showRendererMenu());
+        findViewById(R.id.btn_vsync).setOnClickListener(v -> toggleCpuVsync());
+
         navSystem.setOnClickListener(v -> { 
             viewFlipper.setDisplayedChild(0); 
             updateNavUI(0);
@@ -353,6 +365,151 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
+    
+    // --- NEW FEATURE IMPLEMENTATIONS ---
+
+    private void showGpuFreqMenu() {
+        if (!isGpuControlReady || gpuAvailableFreqs.isEmpty()) {
+            Toast.makeText(this, "GPU Control Not Ready or No Freqs Found", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("GPU Frequency Control (Universal)");
+
+        // Create a custom view with SeekBar
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(50, 40, 50, 10);
+
+        TextView tvValue = new TextView(this);
+        tvValue.setText("Current: " + (gpuAvailableFreqs.get(gpuAvailableFreqs.size()-1)/1000) + " MHz");
+        tvValue.setTextSize(20);
+        tvValue.setTextColor(Color.WHITE);
+        tvValue.setGravity(Gravity.CENTER);
+        layout.addView(tvValue);
+
+        SeekBar seekBar = new SeekBar(this);
+        seekBar.setMax(gpuAvailableFreqs.size() - 1);
+        // Set current max
+        int currentMax = parseIntSafe(runSuReturn("cat " + gpuMaxFreqPath));
+        int index = gpuAvailableFreqs.indexOf(currentMax);
+        if(index == -1) index = gpuAvailableFreqs.size() - 1; // Default to max if not found
+        seekBar.setProgress(index);
+        
+        layout.addView(seekBar);
+
+        final TextView finalTvValue = tvValue;
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                int freq = gpuAvailableFreqs.get(progress);
+                finalTvValue.setText((freq/1000) + " MHz");
+            }
+            @Override public void onStartTrackingTouch(SeekBar seekBar) {}
+            @Override public void onStopTrackingTouch(SeekBar seekBar) {
+                int freq = gpuAvailableFreqs.get(seekBar.getProgress());
+                runSu("echo " + freq + " > " + gpuMaxFreqPath);
+                Toast.makeText(MainActivity.this, "GPU Max Set: " + (freq/1000) + " MHz", Toast.LENGTH_SHORT).show();
+            }
+        });
+
+        builder.setView(layout);
+        builder.setPositiveButton("Close", null);
+        builder.show();
+    }
+
+    private void showIoSchedulerMenu() {
+        final String[] options = {"ssg", "mq-deadline", "kyber", "cpq", "none"};
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Select IO Scheduler");
+        builder.setItems(options, (dialog, which) -> {
+            String selected = options[which];
+            new Thread(() -> {
+                runSu("for queue in /sys/block/sd*/queue; do echo " + selected + " > \"$queue/scheduler\" 2>/dev/null; echo 0 > \"$queue/iostats\" 2>/dev/null; echo 128 > \"$queue/read_ahead_kb\" 2>/dev/null; done");
+                // Also try mmc/nvme fallback for universality
+                runSu("for queue in /sys/block/mmc*/queue; do echo " + selected + " > \"$queue/scheduler\" 2>/dev/null; echo 0 > \"$queue/iostats\" 2>/dev/null; echo 128 > \"$queue/read_ahead_kb\" 2>/dev/null; done");
+                
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "IO Scheduler: " + selected + " + Optimized", Toast.LENGTH_SHORT).show();
+                    if(tvTerminalLog != null) tvTerminalLog.setText("> IO Scheduler set to " + selected + "\n> Read Ahead: 128KB\n> Iostats: Disabled");
+                });
+            }).start();
+        });
+        builder.show();
+    }
+
+    private void showZramAlgoMenu() {
+        // Common algos: lzo, lz4, zstd, lzo-rle
+        // We check available algos on device first to be accurate
+        new Thread(() -> {
+            String raw = runSuReturn("cat /sys/block/zram0/comp_algorithm");
+            final String[] available = raw.split(" ");
+            // Fallback if empty
+            final String[] options = (available.length > 0 && !available[0].isEmpty()) ? available : new String[]{"lzo", "lz4", "zstd", "lzo-rle"};
+            
+            runOnUiThread(() -> {
+                AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                builder.setTitle("ZRAM Compression Algorithm");
+                builder.setItems(options, (dialog, which) -> {
+                    String selected = options[which];
+                    new Thread(() -> {
+                        runSu("echo " + selected + " > /sys/block/zram0/comp_algorithm");
+                        runOnUiThread(() -> Toast.makeText(this, "ZRAM Algo: " + selected, Toast.LENGTH_SHORT).show());
+                    }).start();
+                });
+                builder.show();
+            });
+        }).start();
+    }
+
+    private void applySaturationBoost() {
+        new Thread(() -> {
+            runSu("service call SurfaceFlinger 1023 i32 0");
+            runSu("service call SurfaceFlinger 1022 f 1.5");
+            runOnUiThread(() -> {
+                Toast.makeText(this, "Saturation Boost Applied!", Toast.LENGTH_SHORT).show();
+                if(tvTerminalLog != null) tvTerminalLog.setText("> Saturation Boost: 1.5x\n> SurfaceFlinger tuned");
+            });
+        }).start();
+    }
+
+    private void showRendererMenu() {
+        final String[] options = {"OpenGL Default", "Skia GL", "Vulkan (SkiaVK)"};
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Graphics Renderer");
+        builder.setItems(options, (dialog, which) -> {
+            new Thread(() -> {
+                if(which == 0) { // OpenGL
+                    runSu("setprop debug.hwui.renderer opengl");
+                } else if(which == 1) { // Skia GL
+                    runSu("setprop debug.composition.type skiagl");
+                    runSu("setprop debug.hwui.renderer skiagl");
+                } else if(which == 2) { // Vulkan
+                    runSu("setprop debug.hwui.renderer skiavk");
+                    runSu("setprop ro.config.hw_quickpoweron true");
+                }
+                final String sel = options[which];
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Renderer: " + sel, Toast.LENGTH_SHORT).show();
+                    if(tvTerminalLog != null) tvTerminalLog.setText("> Renderer: " + sel);
+                });
+            }).start();
+        });
+        builder.show();
+    }
+
+    private void toggleCpuVsync() {
+        new Thread(() -> {
+            runSu("setprop debug.cpurend.vsync false");
+            runOnUiThread(() -> {
+                Toast.makeText(this, "CPU VSync Disabled", Toast.LENGTH_SHORT).show();
+                if(tvTerminalLog != null) tvTerminalLog.setText("> CPU VSync: OFF");
+            });
+        }).start();
+    }
+
+    // --- EXISTING HELPERS ---
     
     private void refreshControlMode() {
         new Thread(() -> {
@@ -471,10 +628,11 @@ public class MainActivity extends AppCompatActivity {
             if (detectedMin != Integer.MAX_VALUE) cpuMinFreqKhz = detectedMin;
             else cpuMinFreqKhz = 300000;
 
-            // --- GPU DETECTION ---
+            // --- GPU DETECTION & AVAILABLE FREQS ---
             if (new File("/sys/class/kgsl/kgsl-3d0/gpuclk").exists()) {
                 gpuCurFreqPath = "/sys/class/kgsl/kgsl-3d0/gpuclk";
                 gpuMaxFreqPath = "/sys/class/kgsl/kgsl-3d0/max_gpuclk";
+                gpuAvailFreqPath = "/sys/class/kgsl/kgsl-3d0/devfreq/available_frequencies";
                 
                 String minGpu = runSuReturn("cat /sys/class/kgsl/kgsl-3d0/min_gpuclk");
                 if(minGpu.isEmpty()) {
@@ -499,6 +657,7 @@ public class MainActivity extends AppCompatActivity {
                 gpuCurFreqPath = "/sys/class/devfreq/mali0/cur_freq";
                 gpuMaxFreqPath = "/sys/class/devfreq/mali0/max_freq";
                 gpuGovPath = "/sys/class/devfreq/mali0/governor";
+                gpuAvailFreqPath = "/sys/class/devfreq/mali0/available_frequencies";
                 
                 String sGpuMax = runSuReturn("cat " + gpuMaxFreqPath);
                 gpuMaxFreqKhz = parseIntSafe(sGpuMax);
@@ -507,6 +666,21 @@ public class MainActivity extends AppCompatActivity {
                 gpuMinFreqKhz = parseIntSafe(sGpuMin);
                 
                 if(gpuMaxFreqKhz > 0) isGpuControlReady = true;
+            }
+
+            // Load Available Frequencies for Universal Slider
+            if(!gpuAvailFreqPath.isEmpty()) {
+                String availRaw = runSuReturn("cat " + gpuAvailFreqPath);
+                if(!availRaw.isEmpty()) {
+                    String[] strFreqs = availRaw.split("\\s+");
+                    gpuAvailableFreqs.clear();
+                    for(String s : strFreqs) {
+                        int val = parseIntSafe(s);
+                        if(val > 0) gpuAvailableFreqs.add(val);
+                    }
+                    // Sort ascending (Min to Max)
+                    Collections.sort(gpuAvailableFreqs);
+                }
             }
 
             // --- STATIC INFO ---

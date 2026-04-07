@@ -45,7 +45,7 @@
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <!-- TAB 1: MONITOR -->
+        <!-- TAB 1: MONITOR (No Change) -->
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent">
@@ -441,7 +441,7 @@
             </LinearLayout>
         </ScrollView>
 
-        <!-- TAB 2: TOOLS -->
+        <!-- TAB 2: TOOLS (UPDATED WITH NEW FEATURES) -->
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent">
@@ -450,10 +450,11 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="15dp">
+                
                 <TextView 
                     android:layout_width="wrap_content" 
                     android:layout_height="wrap_content" 
-                    android:text="POWER TOOLS" 
+                    android:text="BASIC TOOLS" 
                     android:textColor="#888888" 
                     android:textSize="12sp" 
                     android:layout_marginBottom="15dp" 
@@ -495,7 +496,7 @@
                         android:textSize="18sp"/>
                 </LinearLayout>
 
-                <!-- ZRAM -->
+                <!-- ZRAM SIZE -->
                 <LinearLayout 
                     android:id="@+id/btn_set_zram" 
                     android:layout_width="match_parent" 
@@ -518,7 +519,7 @@
                         android:layout_width="0dp" 
                         android:layout_height="wrap_content" 
                         android:layout_weight="1" 
-                        android:text="ZRAM" 
+                        android:text="ZRAM SIZE" 
                         android:textColor="#FFFFFF" 
                         android:textSize="15sp" 
                         android:textStyle="bold" 
@@ -554,7 +555,7 @@
                         android:layout_width="0dp" 
                         android:layout_height="wrap_content" 
                         android:layout_weight="1" 
-                        android:text="THERMAL" 
+                        android:text="THERMAL CONTROL" 
                         android:textColor="#FFFFFF" 
                         android:textSize="15sp" 
                         android:textStyle="bold" 
@@ -603,13 +604,239 @@
                         android:textSize="18sp"/>
                 </LinearLayout>
 
-                <!-- SLIDER MAX FREQ -->
+                <!-- NEW FEATURES SECTION -->
                 <TextView 
                     android:layout_width="wrap_content" 
                     android:layout_height="wrap_content" 
-                    android:text="CPU CONTROL" 
-                    android:textColor="#888888" 
+                    android:text="GPU & SYSTEM TWEAKS" 
+                    android:textColor="#4CAF50" 
                     android:textSize="12sp" 
+                    android:layout_marginBottom="15dp" 
+                    android:textStyle="bold"/>
+
+                <!-- GPU CONTROL -->
+                <LinearLayout 
+                    android:id="@+id/btn_gpu_control" 
+                    android:layout_width="match_parent" 
+                    android:layout_height="60dp" 
+                    android:orientation="horizontal" 
+                    android:gravity="center_vertical" 
+                    android:background="@drawable/bg_card_rounded" 
+                    android:paddingStart="15dp" 
+                    android:paddingEnd="15dp" 
+                    android:layout_marginBottom="10dp" 
+                    android:clickable="true" 
+                    android:focusable="true">
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="GPU" 
+                        android:drawableLeft="@android:drawable/ic_menu_mapmode" 
+                        android:drawablePadding="15dp"/>
+                    <TextView 
+                        android:layout_width="0dp" 
+                        android:layout_height="wrap_content" 
+                        android:layout_weight="1" 
+                        android:text="GPU FREQUENCY CONTROL" 
+                        android:textColor="#FFFFFF" 
+                        android:textSize="14sp" 
+                        android:textStyle="bold" 
+                        android:layout_marginStart="5dp"/>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text=">" 
+                        android:textColor="#555555" 
+                        android:textSize="18sp"/>
+                </LinearLayout>
+
+                <!-- IO SCHEDULER -->
+                <LinearLayout 
+                    android:id="@+id/btn_io_scheduler" 
+                    android:layout_width="match_parent" 
+                    android:layout_height="60dp" 
+                    android:orientation="horizontal" 
+                    android:gravity="center_vertical" 
+                    android:background="@drawable/bg_card_rounded" 
+                    android:paddingStart="15dp" 
+                    android:paddingEnd="15dp" 
+                    android:layout_marginBottom="10dp" 
+                    android:clickable="true" 
+                    android:focusable="true">
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="IO" 
+                        android:drawableLeft="@android:drawable/ic_menu_agenda" 
+                        android:drawablePadding="15dp"/>
+                    <TextView 
+                        android:layout_width="0dp" 
+                        android:layout_height="wrap_content" 
+                        android:layout_weight="1" 
+                        android:text="IO SCHEDULER" 
+                        android:textColor="#FFFFFF" 
+                        android:textSize="14sp" 
+                        android:textStyle="bold" 
+                        android:layout_marginStart="5dp"/>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text=">" 
+                        android:textColor="#555555" 
+                        android:textSize="18sp"/>
+                </LinearLayout>
+
+                <!-- ZRAM ALGO -->
+                <LinearLayout 
+                    android:id="@+id/btn_zram_algo" 
+                    android:layout_width="match_parent" 
+                    android:layout_height="60dp" 
+                    android:orientation="horizontal" 
+                    android:gravity="center_vertical" 
+                    android:background="@drawable/bg_card_rounded" 
+                    android:paddingStart="15dp" 
+                    android:paddingEnd="15dp" 
+                    android:layout_marginBottom="10dp" 
+                    android:clickable="true" 
+                    android:focusable="true">
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="Algo" 
+                        android:drawableLeft="@android:drawable.ic_menu_compass" 
+                        android:drawablePadding="15dp"/>
+                    <TextView 
+                        android:layout_width="0dp" 
+                        android:layout_height="wrap_content" 
+                        android:layout_weight="1" 
+                        android:text="ZRAM COMPRESSION" 
+                        android:textColor="#FFFFFF" 
+                        android:textSize="14sp" 
+                        android:textStyle="bold" 
+                        android:layout_marginStart="5dp"/>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text=">" 
+                        android:textColor="#555555" 
+                        android:textSize="18sp"/>
+                </LinearLayout>
+
+                <!-- SATURATION -->
+                <LinearLayout 
+                    android:id="@+id/btn_saturation" 
+                    android:layout_width="match_parent" 
+                    android:layout_height="60dp" 
+                    android:orientation="horizontal" 
+                    android:gravity="center_vertical" 
+                    android:background="@drawable/bg_card_rounded" 
+                    android:paddingStart="15dp" 
+                    android:paddingEnd="15dp" 
+                    android:layout_marginBottom="10dp" 
+                    android:clickable="true" 
+                    android:focusable="true">
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="Col" 
+                        android:drawableLeft="@android:drawable.ic_menu_gallery" 
+                        android:drawablePadding="15dp"/>
+                    <TextView 
+                        android:layout_width="0dp" 
+                        android:layout_height="wrap_content" 
+                        android:layout_weight="1" 
+                        android:text="SCREEN SATURATION BOOST" 
+                        android:textColor="#FFFFFF" 
+                        android:textSize="14sp" 
+                        android:textStyle="bold" 
+                        android:layout_marginStart="5dp"/>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text=">" 
+                        android:textColor="#555555" 
+                        android:textSize="18sp"/>
+                </LinearLayout>
+
+                <!-- RENDERER -->
+                <LinearLayout 
+                    android:id="@+id/btn_renderer" 
+                    android:layout_width="match_parent" 
+                    android:layout_height="60dp" 
+                    android:orientation="horizontal" 
+                    android:gravity="center_vertical" 
+                    android:background="@drawable/bg_card_rounded" 
+                    android:paddingStart="15dp" 
+                    android:paddingEnd="15dp" 
+                    android:layout_marginBottom="10dp" 
+                    android:clickable="true" 
+                    android:focusable="true">
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="GL" 
+                        android:drawableLeft="@android:drawable.ic_menu_view" 
+                        android:drawablePadding="15dp"/>
+                    <TextView 
+                        android:layout_width="0dp" 
+                        android:layout_height="wrap_content" 
+                        android:layout_weight="1" 
+                        android:text="GRAPHICS RENDERER" 
+                        android:textColor="#FFFFFF" 
+                        android:textSize="14sp" 
+                        android:textStyle="bold" 
+                        android:layout_marginStart="5dp"/>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text=">" 
+                        android:textColor="#555555" 
+                        android:textSize="18sp"/>
+                </LinearLayout>
+
+                 <!-- VSYNC -->
+                <LinearLayout 
+                    android:id="@+id/btn_vsync" 
+                    android:layout_width="match_parent" 
+                    android:layout_height="60dp" 
+                    android:orientation="horizontal" 
+                    android:gravity="center_vertical" 
+                    android:background="@drawable/bg_card_rounded" 
+                    android:paddingStart="15dp" 
+                    android:paddingEnd="15dp" 
+                    android:layout_marginBottom="20dp" 
+                    android:clickable="true" 
+                    android:focusable="true">
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="Sync" 
+                        android:drawableLeft="@android:drawable.ic_menu_call" 
+                        android:drawablePadding="15dp"/>
+                    <TextView 
+                        android:layout_width="0dp" 
+                        android:layout_height="wrap_content" 
+                        android:layout_weight="1" 
+                        android:text="DISABLE CPU VSYNC" 
+                        android:textColor="#FFFFFF" 
+                        android:textSize="14sp" 
+                        android:textStyle="bold" 
+                        android:layout_marginStart="5dp"/>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text=">" 
+                        android:textColor="#555555" 
+                        android:textSize="18sp"/>
+                </LinearLayout>
+
+                <!-- LEGACY CPU SLIDER (KEPT AS PER ORIGINAL FLOW) -->
+                <TextView 
+                    android:layout_width="wrap_content" 
+                    android:layout_height="wrap_content" 
+                    android:text="CPU CONTROL (LEGACY)" 
+                    android:textColor="#888888" 
+                    android:textSize="10sp" 
                     android:layout_marginBottom="10dp" 
                     android:textStyle="bold"/>
                 <LinearLayout
@@ -650,7 +877,7 @@
             </LinearLayout>
         </ScrollView>
 
-        <!-- TAB 3: SETTINGS -->
+        <!-- TAB 3: SETTINGS (UNCHANGED) -->
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent">
