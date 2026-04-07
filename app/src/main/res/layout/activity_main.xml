@@ -45,7 +45,7 @@
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <!-- TAB 1: MONITOR (No Change) -->
+        <!-- TAB 1: MONITOR -->
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent">
@@ -441,7 +441,7 @@
             </LinearLayout>
         </ScrollView>
 
-        <!-- TAB 2: TOOLS (UPDATED WITH NEW FEATURES) -->
+        <!-- TAB 2: TOOLS -->
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent">
@@ -686,7 +686,7 @@
                         android:textSize="18sp"/>
                 </LinearLayout>
 
-                <!-- ZRAM ALGO -->
+                <!-- ZRAM ALGO (FIXED ICON) -->
                 <LinearLayout 
                     android:id="@+id/btn_zram_algo" 
                     android:layout_width="match_parent" 
@@ -703,7 +703,7 @@
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="Algo" 
-                        android:drawableLeft="@android:drawable.ic_menu_compass" 
+                        android:drawableLeft="@android:drawable/ic_menu_preferences" 
                         android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
@@ -722,7 +722,7 @@
                         android:textSize="18sp"/>
                 </LinearLayout>
 
-                <!-- SATURATION -->
+                <!-- SATURATION (FIXED ICON) -->
                 <LinearLayout 
                     android:id="@+id/btn_saturation" 
                     android:layout_width="match_parent" 
@@ -739,7 +739,7 @@
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="Col" 
-                        android:drawableLeft="@android:drawable.ic_menu_gallery" 
+                        android:drawableLeft="@android:drawable/ic_menu_info_details" 
                         android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
@@ -758,7 +758,7 @@
                         android:textSize="18sp"/>
                 </LinearLayout>
 
-                <!-- RENDERER -->
+                <!-- RENDERER (FIXED ICON) -->
                 <LinearLayout 
                     android:id="@+id/btn_renderer" 
                     android:layout_width="match_parent" 
@@ -775,7 +775,7 @@
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="GL" 
-                        android:drawableLeft="@android:drawable.ic_menu_view" 
+                        android:drawableLeft="@android:drawable/ic_menu_edit" 
                         android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
@@ -794,7 +794,7 @@
                         android:textSize="18sp"/>
                 </LinearLayout>
 
-                 <!-- VSYNC -->
+                 <!-- VSYNC (FIXED ICON) -->
                 <LinearLayout 
                     android:id="@+id/btn_vsync" 
                     android:layout_width="match_parent" 
@@ -811,7 +811,7 @@
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="Sync" 
-                        android:drawableLeft="@android:drawable.ic_menu_call" 
+                        android:drawableLeft="@android:drawable/ic_menu_share" 
                         android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
@@ -877,7 +877,7 @@
             </LinearLayout>
         </ScrollView>
 
-        <!-- TAB 3: SETTINGS (UNCHANGED) -->
+        <!-- TAB 3: SETTINGS -->
         <ScrollView
             android:layout_width="match_parent"
             android:layout_height="match_parent">
