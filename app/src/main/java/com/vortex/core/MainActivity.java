@@ -268,8 +268,8 @@ public class MainActivity extends AppCompatActivity {
         // --- NEW FEATURE LISTENERS ---
         findViewById(R.id.btn_gpu_control).setOnClickListener(v -> showGpuFreqMenu());
         findViewById(R.id.btn_io_scheduler).setOnClickListener(v -> showIoSchedulerMenu());
-        findViewById(R.id.btn_zram_algo).setOnClickListener(v -> showZramAlgoMenu()); // UPDATED
-        findViewById(R.id.btn_saturation).setOnClickListener(v -> showSaturationMenu()); // UPDATED
+        findViewById(R.id.btn_zram_algo).setOnClickListener(v -> showZramAlgoMenu()); 
+        findViewById(R.id.btn_saturation).setOnClickListener(v -> showSaturationMenu()); 
         findViewById(R.id.btn_renderer).setOnClickListener(v -> showRendererMenu());
         findViewById(R.id.btn_vsync).setOnClickListener(v -> toggleCpuVsync());
 
@@ -572,45 +572,33 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
     
-    // --- UPDATED: THERMAL MENU (AGGRESSIVE SCRIPT) ---
+    // --- UPDATED: THERMAL MENU (LOGIC USER TANPA PKILL) ---
     public void showThermalMenu() {
-        final String[] options = {"DISABLE THERMAL (AGGRESSIVE)", "ENABLE THERMAL (RESTORE)"};
+        final String[] options = {"DISABLE THERMAL (UNIVERSAL)", "ENABLE THERMAL (RESTORE)"};
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Thermal Control");
         builder.setItems(options, (dialog, which) -> {
             if (which == 0) {
-                // DISABLE: SCRIPT AGGRESSIVE SESUAI REQUEST
+                // SCRIPT USER: STOP SERVICE + RESETPROP STOPPED (NO PKILL)
                 String disableScript = ""
                     + "for thermal in $(resetprop | awk -F '[][]' '/thermal/ {print $2}'); do\n"
                     + "  if [[ $(resetprop $thermal) == running ]]; then\n"
                     + "    stop ${thermal/init.svc.}\n"
+                    + "    sleep 10\n"
                     + "    resetprop -n $thermal stopped\n"
                     + "  fi\n"
                     + "done\n"
-                    + "sleep 5\n"
-                    + "# tambahan: kill daemon (biar gak restart sendiri)\n"
-                    + "pkill -f thermal\n"
-                    + "pkill -f thermald\n"
-                    + "sleep 3\n"
-                    + "# disable mode thermal zone (INI YANG PENTING)\n"
-                    + "for zone in /sys/class/thermal/thermal_zone*/mode; do\n"
-                    + "  echo disabled > $zone 2>/dev/null\n"
-                    + "done\n"
-                    + "# block temp read \n"
-                    + "find /sys/devices/virtual/thermal -name temp -type f -exec chmod 000 {} +\n"
-                    + "# optional: turunin trip point biar gak throttle\n"
-                    + "for trip in /sys/class/thermal/thermal_zone*/trip_point_*_temp; do\n"
-                    + "  echo 100000 > $trip 2>/dev/null\n"
-                    + "done";
+                    + "sleep 10\n"
+                    + "find /sys/devices/virtual/thermal -name temp -type f -exec chmod 000 {} +";
                 
-                runOnUiThread(() -> tvTerminalLog.setText("> Disabling Thermal (Aggressive)...\nPlease wait..."));
+                runOnUiThread(() -> tvTerminalLog.setText("> Disabling Thermal (Universal Loop)...\nThis may take 20-30s..."));
                 runSuScript(disableScript);
                 
                 new Thread(() -> {
-                    try { Thread.sleep(15000); } catch (Exception e){}
+                    try { Thread.sleep(25000); } catch (Exception e){}
                     runOnUiThread(() -> { 
-                        tvTerminalLog.setText("THERMAL DISABLED\n(Services Stopped + Killed + Zones Disabled)"); 
-                        Toast.makeText(this, "Thermal DISABLED", Toast.LENGTH_SHORT).show(); 
+                        tvTerminalLog.setText("THERMAL DISABLED\n(Loops Stopped + Resetprop + Locked)"); 
+                        Toast.makeText(this, "Thermal OFF (Universal)", Toast.LENGTH_SHORT).show(); 
                     });
                 }).start();
 
@@ -1240,11 +1228,11 @@ public class MainActivity extends AppCompatActivity {
     }
     private String runSuReturnAll(String c) {
         try {
-            Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", c});
-            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            process c = Runtime.getRuntime().exec(new String[]{"su", "-c", c});
+            BufferedReader reader = new BufferedReader(new InputStreamReader(c.getInputStream()));
             StringBuilder output = new StringBuilder(); String line;
             while ((line = reader.readLine()) != null) output.append(line).append("\n");
-            p.waitFor(); return output.toString().trim();
+            c.waitFor(); return output.toString().trim();
         } catch (Exception e) { return ""; }
     }
     private void cleanRam() {
