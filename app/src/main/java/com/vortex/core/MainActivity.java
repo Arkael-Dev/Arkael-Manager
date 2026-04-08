@@ -86,6 +86,9 @@ public class MainActivity extends AppCompatActivity {
     private boolean isGpuModeActive = false;
     private List<Integer> gpuAvailableFreqs = new ArrayList<>(); 
     
+    // ZRAM State Tracking (FIX)
+    private int currentZramSizeGB = 0; // Menyimpan ukuran ZRAM saat ini agar tidak hilang saat ganti Algo
+
     // Animation Helper
     private boolean batteryBlinkState = false;
 
@@ -483,18 +486,14 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    // --- FIXED: ZRAM ALGO (ROBUST PARSING & VERIFICATION) ---
+    // --- FIXED: ZRAM ALGO (RETAINS DISKSIZE) ---
     private void showZramAlgoMenu() {
         new Thread(() -> {
             // 1. Read Available Algorithms
             String raw = runSuReturn("cat /sys/block/zram0/comp_algorithm");
-            
-            // 2. Clean the string: Kernel often outputs like "[lzo] lz4"
-            // We remove [ and ] to get clean names: "lzo lz4"
             String cleanRaw = raw.replace("[", "").replace("]", "").trim();
             String[] available = cleanRaw.split("\\s+");
             
-            // 3. Fallback if reading failed (Kernel might not support the file path)
             if (available.length == 0 || (available.length == 1 && available[0].isEmpty())) {
                 available = new String[]{"lzo", "lz4", "zstd", "lzo-rle"};
             }
@@ -508,42 +507,40 @@ public class MainActivity extends AppCompatActivity {
                     String selected = options[which];
                     new Thread(() -> {
                         runOnUiThread(() -> {
-                            if(tvTerminalLog != null) tvTerminalLog.setText("> Applying ZRAM Algorithm: " + selected + "...\n> Disabling Swap...");
+                            if(tvTerminalLog != null) tvTerminalLog.setText("> Applying Algo: " + selected + "...\n> Retaining Size: " + currentZramSizeGB + "GB");
                         });
 
-                        // 4. SEQUENCE: Swapoff -> Reset -> Write Algo -> MkSwap -> Swapon
-                        // This sequence is CRITICAL for changing algo on active zram
+                        // 2. CRITICAL SEQUENCE
                         runSu("swapoff -a 2>/dev/null");
-                        
-                        // Small delay to ensure swap is fully off
                         try { Thread.sleep(200); } catch (Exception e){}
                         
                         runSu("echo 1 > /sys/block/zram0/reset");
                         
-                        // Write the selected algorithm
+                        // 3. Set Algorithm
                         runSu("echo " + selected + " > /sys/block/zram0/comp_algorithm");
                         
-                        // Recreate Swap with the new algo
+                        // 4. RESTORE SIZE (FIX: This was missing before)
+                        // If currentZramSizeGB is 0 (fresh start), default to 4GB to avoid 0-size error
+                        int targetSizeGB = (currentZramSizeGB > 0) ? currentZramSizeGB : 4;
+                        long sizeInBytes = targetSizeGB * 1073741824L;
+                        
+                        runSu("echo " + sizeInBytes + " > /sys/block/zram0/disksize");
+                        
+                        // 5. Recreate Swap
                         runSu("mkswap /dev/block/zram0");
                         runSu("swapon /dev/block/zram0");
 
-                        // 5. VERIFICATION: Read back to confirm
+                        // 6. Verification
                         String verification = runSuReturn("cat /sys/block/zram0/comp_algorithm");
-                        String finalStatus = "Unknown";
+                        String sizeVerification = runSuReturn("cat /sys/block/zram0/disksize");
                         
-                        if(verification.contains(selected)) {
-                            finalStatus = "SUCCESS: " + selected;
-                        } else {
-                            finalStatus = "FAILED (Check Kernel Support)";
-                        }
-
-                        final String fStatus = finalStatus;
-                        final String swapInfo = runSuReturn("cat /proc/swaps");
+                        String finalStatus = (verification.contains(selected)) ? "SUCCESS" : "FAILED";
+                        String sizeStatus = (sizeVerification.equals(String.valueOf(sizeInBytes))) ? "Size Retained" : "Size Error";
 
                         runOnUiThread(() -> {
-                            Toast.makeText(this, "ZRAM Algo: " + fStatus, Toast.LENGTH_LONG).show();
+                            Toast.makeText(this, "Algo: " + finalStatus + " | " + sizeStatus, Toast.LENGTH_LONG).show();
                             if(tvTerminalLog != null) {
-                                tvTerminalLog.setText("> ZRAM Algo Set: " + fStatus + "\n> Active Algos: " + verification + "\n" + swapInfo);
+                                tvTerminalLog.setText("> Algo Set: " + selected + "\n> " + finalStatus + "\n> " + sizeStatus);
                             }
                         });
                     }).start();
@@ -589,37 +586,24 @@ public class MainActivity extends AppCompatActivity {
         builder.setTitle("Thermal Control (Direct)");
         builder.setItems(options, (dialog, which) -> {
             if (which == 0) {
-                // DISABLE: Langsung stop service dan chmod 000
                 new Thread(() -> {
-                    // Stop services berdasarkan log user (android.thermal-hal, mi_thermald)
                     runSu("stop android.thermal-hal");
                     runSu("stop mi_thermald");
-                    
-                    // Set prop ke stopped agar getprop sesuai keinginan
                     runSu("resetprop -n init.svc.android.thermal-hal stopped");
                     runSu("resetprop -n init.svc.mi_thermald stopped");
-
-                    // Matikan sensor bacaan suhu
                     runSu("find /sys/devices/virtual/thermal -name temp -type f -exec chmod 000 {} +");
-
                     runOnUiThread(() -> { 
-                        tvTerminalLog.setText("> Thermal DISABLED DIRECTLY!\n> Services STOPPED\n> Sensors Blocked\n> Status Active NOW"); 
+                        tvTerminalLog.setText("> Thermal DISABLED DIRECTLY!\n> Services STOPPED\n> Sensors Blocked"); 
                         Toast.makeText(this, "Thermal Disabled (No Reboot)", Toast.LENGTH_SHORT).show(); 
                     });
                 }).start();
-
             } else {
-                // ENABLE: Langsung start service dan chmod 644
                 new Thread(() -> {
-                    // Start ulang services
                     runSu("start android.thermal-hal");
                     runSu("start mi_thermald");
-
-                    // Kembalikan permission sensor
                     runSu("find /sys/devices/virtual/thermal -name temp -type f -exec chmod 644 {} + 2>/dev/null");
-
                     runOnUiThread(() -> { 
-                        tvTerminalLog.setText("> Thermal RESTORED DIRECTLY!\n> Services RUNNING\n> Sensors Unblocked\n> Status Active NOW"); 
+                        tvTerminalLog.setText("> Thermal RESTORED DIRECTLY!\n> Services RUNNING\n> Sensors Unblocked"); 
                         Toast.makeText(this, "Thermal Restored (No Reboot)", Toast.LENGTH_SHORT).show(); 
                     });
                 }).start();
@@ -712,7 +696,7 @@ public class MainActivity extends AppCompatActivity {
             String socModel = runSuReturn("getprop ro.soc.model"); 
             String socMan = runSuReturn("getprop ro.soc.manufacturer").toLowerCase();
 
-            // --- ZRAM SIZE ---
+            // --- ZRAM SIZE DETECTION (UPDATE STATE) ---
             String zramDisplay = "Disabled";
             try {
                 String zramRaw = runSuReturn("cat /sys/block/zram0/disksize 2>/dev/null");
@@ -721,6 +705,8 @@ public class MainActivity extends AppCompatActivity {
                     if (zramBytes > 0) {
                         double zramGB = zramBytes / (1024.0 * 1024.0 * 1024.0);
                         zramDisplay = String.format("%.1f GB", zramGB);
+                        // UPDATE GLOBAL STATE
+                        currentZramSizeGB = (int) Math.round(zramGB); 
                     }
                 }
             } catch (Exception e) { zramDisplay = "Error"; }
@@ -1171,7 +1157,7 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    // --- APPLY ZRAM ---
+    // --- APPLY ZRAM (UPDATED TO SAVE STATE) ---
     public void applyZram(int sizeGB) {
         new Thread(() -> {
             long sizeInBytes = sizeGB * 1073741824L;
@@ -1180,6 +1166,10 @@ public class MainActivity extends AppCompatActivity {
             runSu("echo " + sizeInBytes + " > /sys/block/zram0/disksize 2>/dev/null");
             runSu("mkswap /dev/block/zram0 2>/dev/null");
             runSu("swapon /dev/block/zram0 2>/dev/null");
+            
+            // SAVE STATE so Algo menu knows the size
+            currentZramSizeGB = sizeGB;
+            
             try { Thread.sleep(500); } catch (Exception e){}
         }).start();
     }
@@ -1193,6 +1183,7 @@ public class MainActivity extends AppCompatActivity {
                 new Thread(() -> {
                     runSu("swapoff -a 2>/dev/null");
                     runSu("echo 1 > /sys/block/zram0/reset 2>/dev/null");
+                    currentZramSizeGB = 0; // Reset state
                     try { Thread.sleep(500); } catch (Exception e){}
                     runOnUiThread(() -> { if(tvZram != null) tvZram.setText("Disabled"); });
                 }).start();
