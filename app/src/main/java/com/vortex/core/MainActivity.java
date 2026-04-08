@@ -573,15 +573,22 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
     
-    // --- FIXED: THERMAL MENU (UNIVERSAL SCRIPT EXACT MATCH) ---
+    // --- FIXED: THERMAL MENU (BOOT LEVEL + MODULE.PROP FIX) ---
     public void showThermalMenu() {
-        final String[] options = {"DISABLE THERMAL (UNIVERSAL)", "ENABLE THERMAL (RESTORE)"};
+        final String[] options = {"DISABLE THERMAL (BOOT LEVEL)", "ENABLE THERMAL (RESTORE)"};
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Thermal Control (Boot Level)");
+        builder.setTitle("Thermal Control (Magisk Module)");
         builder.setItems(options, (dialog, which) -> {
             if (which == 0) {
-                // SCRIPT UNIVERSAL USER (EXACT MATCH FROM PROMPT)
-                // Result: [init.svc.xxx]: [stopped]
+                // 1. CREATE MODULE.PROP (Required for Magisk to recognize module)
+                String moduleProp = "id=vortex_thermal\n"
+                    + "name=Vortex Thermal Killer\n"
+                    + "version=v1.0\n"
+                    + "versionCode=1\n"
+                    + "author=Vortex\n"
+                    + "description=Disables thermal throttling on boot using Universal Script\n";
+                
+                // 2. CREATE SERVICE.SH (Universal Script)
                 String disableScript = "#!/system/bin/sh\n"
                     + "# VORTEX THERMAL KILLER (UNIVERSAL)\n"
                     + "while [[ -z $(resetprop sys.boot_completed) ]]; do sleep 1; done\n"
@@ -599,17 +606,29 @@ public class MainActivity extends AppCompatActivity {
                 // Write to Magisk Module Directory
                 new Thread(() -> {
                     runSu("mkdir -p /data/adb/modules/vortex");
+                    runSu("echo '" + moduleProp + "' > /data/adb/modules/vortex/module.prop");
                     runSu("echo '" + disableScript + "' > /data/adb/modules/vortex/service.sh");
+                    runSu("chmod 644 /data/adb/modules/vortex/module.prop");
                     runSu("chmod 755 /data/adb/modules/vortex/service.sh");
+                    // Ensure module is enabled (remove 'disable' file if exists)
+                    runSu("rm -f /data/adb/modules/vortex/disable");
                     
                     runOnUiThread(() -> { 
-                        tvTerminalLog.setText("> DISABLE SCRIPT WRITTEN TO:\n/data/adb/modules/vortex/service.sh\n\n> UNIVERSAL LOGIC ACTIVE\n> REBOOT TO APPLY"); 
-                        Toast.makeText(this, "Universal Script Installed. REBOOT.", Toast.LENGTH_LONG).show(); 
+                        tvTerminalLog.setText("> MODULE CREATED:\n/data/adb/modules/vortex/\n> module.prop: OK\n> service.sh: OK\n\n> REBOOT TO APPLY"); 
+                        Toast.makeText(this, "Module Installed with module.prop. REBOOT.", Toast.LENGTH_LONG).show(); 
                     });
                 }).start();
 
             } else {
                 // ENABLE: RESTORE LOGIC
+                // To restore, we just replace the script content with restore commands
+                String moduleProp = "id=vortex_thermal\n"
+                    + "name=Vortex Thermal Restore\n"
+                    + "version=v1.0\n"
+                    + "versionCode=1\n"
+                    + "author=Vortex\n"
+                    + "description=Restores thermal throttling\n";
+
                 String enableScript = "#!/system/bin/sh\n"
                     + "# VORTEX THERMAL RESTORE\n"
                     + "while [[ -z $(resetprop sys.boot_completed) ]]; do sleep 1; done\n"
@@ -629,12 +648,15 @@ public class MainActivity extends AppCompatActivity {
 
                 new Thread(() -> {
                     runSu("mkdir -p /data/adb/modules/vortex");
+                    runSu("echo '" + moduleProp + "' > /data/adb/modules/vortex/module.prop");
                     runSu("echo '" + enableScript + "' > /data/adb/modules/vortex/service.sh");
+                    runSu("chmod 644 /data/adb/modules/vortex/module.prop");
                     runSu("chmod 755 /data/adb/modules/vortex/service.sh");
-                    
+                    runSu("rm -f /data/adb/modules/vortex/disable");
+
                     runOnUiThread(() -> { 
-                        tvTerminalLog.setText("> RESTORE SCRIPT WRITTEN\n> REBOOT TO RESTORE THERMAL"); 
-                        Toast.makeText(this, "Restore Script Installed. REBOOT.", Toast.LENGTH_LONG).show(); 
+                        tvTerminalLog.setText("> RESTORE MODULE WRITTEN\n> REBOOT TO RESTORE THERMAL"); 
+                        Toast.makeText(this, "Restore Module Installed. REBOOT.", Toast.LENGTH_LONG).show(); 
                     });
                 }).start();
             }
