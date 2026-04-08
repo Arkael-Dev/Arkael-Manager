@@ -367,44 +367,6 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // --- HELPER: RUN SCRIPT BASH ---
-    private void runSuScript(String scriptContent) {
-        new Thread(() -> {
-            try {
-                String scriptPath = "/data/local/tmp/vortex_thermal.sh";
-                FileOutputStream fos = new FileOutputStream(scriptPath);
-                fos.write(scriptContent.getBytes());
-                fos.close();
-                Runtime.getRuntime().exec(new String[]{"su", "-c", "chmod 755 " + scriptPath}).waitFor();
-                Runtime.getRuntime().exec(new String[]{"su", "-c", scriptPath}).waitFor();
-            } catch (Exception e) { e.printStackTrace(); }
-        }).start();
-    }
-    
-    // --- HELPER: WRITE FILE DIRECTLY (FIXES QUOTE ESCAPING) ---
-    private void writeFile(String path, String content) {
-        try {
-            Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", "mkdir -p " + path.substring(0, path.lastIndexOf('/'))});
-            p.waitFor();
-            FileOutputStream fos = new FileOutputStream(path);
-            fos.write(content.getBytes());
-            fos.close();
-            Runtime.getRuntime().exec(new String[]{"su", "-c", "chmod 644 " + path}).waitFor();
-        } catch (Exception e) { e.printStackTrace(); }
-    }
-    
-    // --- HELPER: WRITE EXECUTABLE FILE ---
-    private void writeExecutableFile(String path, String content) {
-        try {
-            Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", "mkdir -p " + path.substring(0, path.lastIndexOf('/'))});
-            p.waitFor();
-            FileOutputStream fos = new FileOutputStream(path);
-            fos.write(content.getBytes());
-            fos.close();
-            Runtime.getRuntime().exec(new String[]{"su", "-c", "chmod 755 " + path}).waitFor();
-        } catch (Exception e) { e.printStackTrace(); }
-    }
-    
     // --- NEW FEATURE IMPLEMENTATIONS ---
 
     private void showGpuFreqMenu() {
@@ -456,7 +418,6 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    // --- UPDATED: SATURATION SLIDER (LIKE VOLUME) ---
     private void showSaturationMenu() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Screen Saturation Control");
@@ -473,8 +434,8 @@ public class MainActivity extends AppCompatActivity {
         layout.addView(tvValue);
 
         SeekBar seekBar = new SeekBar(this);
-        seekBar.setMax(150); // 1.5 max
-        seekBar.setProgress(100); // 1.0 default
+        seekBar.setMax(150); 
+        seekBar.setProgress(100); 
         layout.addView(seekBar);
 
         final TextView finalTvValue = tvValue;
@@ -522,10 +483,8 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    // --- UPDATED: ZRAM ALGO (DYNAMIC KERNEL READ) ---
     private void showZramAlgoMenu() {
         new Thread(() -> {
-            // Read available algos so user doesn't click unsupported ones
             String raw = runSuReturn("cat /sys/block/zram0/comp_algorithm");
             final String[] available = raw.split(" ");
             final String[] options = (available.length > 0 && !available[0].isEmpty()) ? available : new String[]{"lzo", "lz4", "zstd", "lzo-rle"};
@@ -536,23 +495,11 @@ public class MainActivity extends AppCompatActivity {
                 builder.setItems(options, (dialog, which) -> {
                     String selected = options[which];
                     new Thread(() -> {
-                        // EXACT COMMAND SEQUENCE AS REQUESTED
-                        // 1. Swapoff All
                         runSu("swapoff -a 2>/dev/null");
-                        
-                        // 2. Reset ZRAM
                         runSu("echo 1 > /sys/block/zram0/reset");
-                        
-                        // 3. Set Compression Algorithm (DYNAMIC - NOT HARDCODED)
                         runSu("echo " + selected + " > /sys/block/zram0/comp_algorithm");
-                        
-                        // 4. Make Swap
                         runSu("mkswap /dev/block/zram0");
-                        
-                        // 5. Swap On
                         runSu("swapon /dev/block/zram0");
-                        
-                        // Verification
                         String swapInfo = runSuReturn("cat /proc/swaps");
 
                         runOnUiThread(() -> {
@@ -597,90 +544,45 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
     
-    // --- FIXED: THERMAL MENU (SPECIFIC SCRIPT + FILE OUTPUT STREAM) ---
+    // --- FIXED: THERMAL MENU (DIRECT EXECUTION NO REBOOT) ---
     public void showThermalMenu() {
-        final String[] options = {"DISABLE THERMAL (BOOT LEVEL)", "ENABLE THERMAL (RESTORE)"};
+        final String[] options = {"DISABLE THERMAL (NO REBOOT)", "ENABLE THERMAL (RESTORE)"};
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Thermal Control (Magisk Module)");
+        builder.setTitle("Thermal Control (Direct)");
         builder.setItems(options, (dialog, which) -> {
             if (which == 0) {
-                // 1. CREATE MODULE.PROP
-                String moduleProp = "id=vortex_thermal\n"
-                    + "name=Vortex Thermal Killer\n"
-                    + "version=v1.0\n"
-                    + "versionCode=1\n"
-                    + "author=Vortex\n"
-                    + "description=Disables thermal throttling on boot using User Requested Script\n";
-                
-                // 2. CREATE SERVICE.SH (USER REQUESTED SCRIPT)
-                // Menggunakan metode script yang diminta: sleep 30, stop service, chmod 000
-                String disableScript = "#!/system/bin/sh\n"
-                    + "# VORTEX THERMAL KILLER (USER REQUESTED)\n"
-                    + "while [[ -z $(resetprop sys.boot_completed) ]]; do sleep 5; done\n"
-                    + "sleep 30\n"
-                    + "for thermal in $(resetprop | awk -F '[][]' '/thermal/ {print $2}'); do\n"
-                    + "  if [[ $(resetprop $thermal) == running ]]; then\n"
-                    + "    stop ${thermal/init.svc.}\n"
-                    + "    sleep 10\n"
-                    + "    resetprop -n $thermal stopped\n"
-                    + "  fi\n"
-                    + "done\n"
-                    + "sleep 10\n"
-                    + "find /sys/devices/virtual/thermal -name temp -type f -exec chmod 000 {} +\n";
-                
-                // Write to Magisk Module Directory using FileOutputStream helpers
+                // DISABLE: Langsung stop service dan chmod 000
                 new Thread(() -> {
-                    // Create directory structure first to be safe
-                    runSu("mkdir -p /data/adb/modules/vortex");
+                    // Stop services berdasarkan log user (android.thermal-hal, mi_thermald)
+                    runSu("stop android.thermal-hal");
+                    runSu("stop mi_thermald");
                     
-                    // Write files using safe methods to avoid escaping issues
-                    writeFile("/data/adb/modules/vortex/module.prop", moduleProp);
-                    writeExecutableFile("/data/adb/modules/vortex/service.sh", disableScript);
-                    
-                    // Ensure module is enabled
-                    runSu("rm -f /data/adb/modules/vortex/disable");
-                    
+                    // Set prop ke stopped agar getprop sesuai keinginan
+                    runSu("resetprop -n init.svc.android.thermal-hal stopped");
+                    runSu("resetprop -n init.svc.mi_thermald stopped");
+
+                    // Matikan sensor bacaan suhu
+                    runSu("find /sys/devices/virtual/thermal -name temp -type f -exec chmod 000 {} +");
+
                     runOnUiThread(() -> { 
-                        tvTerminalLog.setText("> MODULE CREATED SAFELY:\n/data/adb/modules/vortex/\n> module.prop: OK\n> service.sh: OK (Updated Script)\n\n> REBOOT TO APPLY"); 
-                        Toast.makeText(this, "Module Installed. REBOOT to apply.", Toast.LENGTH_LONG).show(); 
+                        tvTerminalLog.setText("> Thermal DISABLED DIRECTLY!\n> Services STOPPED\n> Sensors Blocked\n> Status Active NOW"); 
+                        Toast.makeText(this, "Thermal Disabled (No Reboot)", Toast.LENGTH_SHORT).show(); 
                     });
                 }).start();
 
             } else {
-                // ENABLE: RESTORE LOGIC
-                String moduleProp = "id=vortex_thermal\n"
-                    + "name=Vortex Thermal Restore\n"
-                    + "version=v1.0\n"
-                    + "versionCode=1\n"
-                    + "author=Vortex\n"
-                    + "description=Restores thermal throttling\n";
-
-                String enableScript = "#!/system/bin/sh\n"
-                    + "# VORTEX THERMAL RESTORE\n"
-                    + "while [[ -z $(resetprop sys.boot_completed) ]]; do sleep 1; done\n"
-                    + "sleep 1\n"
-                    + "# Restore Sensor Read Permissions\n"
-                    + "find /sys/devices/virtual/thermal -name temp -type f -exec chmod 644 {} + 2>/dev/null\n"
-                    + "# Enable Thermal Zones\n"
-                    + "for zone in /sys/class/thermal/thermal_zone*/mode; do\n"
-                    + "  echo enabled > $zone 2>/dev/null\n"
-                    + "done\n"
-                    + "# Start Services\n"
-                    + "start thermald 2>/dev/null\n"
-                    + "start thermal-engine 2>/dev/null\n"
-                    + "start android.thermal-hal 2>/dev/null\n"
-                    + "start mi_thermald 2>/dev/null\n"
-                    + "resetprop ctl.start thermald 2>/dev/null";
-
+                // ENABLE: Langsung start service dan chmod 644
                 new Thread(() -> {
-                    runSu("mkdir -p /data/adb/modules/vortex");
-                    writeFile("/data/adb/modules/vortex/module.prop", moduleProp);
-                    writeExecutableFile("/data/adb/modules/vortex/service.sh", enableScript);
-                    runSu("rm -f /data/adb/modules/vortex/disable");
+                    // Start ulang services
+                    runSu("start android.thermal-hal");
+                    runSu("start mi_thermald");
+
+                    // Kembalikan permission sensor
+                    runSu("find /sys/devices/virtual/thermal -name temp -type f -exec chmod 644 {} + 2>/dev/null");
 
                     runOnUiThread(() -> { 
-                        tvTerminalLog.setText("> RESTORE MODULE WRITTEN\n> REBOOT TO RESTORE THERMAL"); 
-                        Toast.makeText(this, "Restore Module Installed. REBOOT.", Toast.LENGTH_LONG).show(); 
+                        tvTerminalLog.setText("> Thermal RESTORED DIRECTLY!\n> Services RUNNING\n> Sensors Unblocked\n> Status Active NOW"); 
+                        Toast.makeText(this, "Thermal Restored (No Reboot)", Toast.LENGTH_SHORT).show(); 
                     });
                 }).start();
             }
@@ -1231,14 +1133,13 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    // --- UPDATED: APPLY ZRAM (REMOVE HARDCODED ZSTD) ---
+    // --- APPLY ZRAM ---
     public void applyZram(int sizeGB) {
         new Thread(() -> {
             long sizeInBytes = sizeGB * 1073741824L;
             runSu("swapoff -a 2>/dev/null");
             runSu("echo 1 > /sys/block/zram0/reset 2>/dev/null");
             runSu("echo " + sizeInBytes + " > /sys/block/zram0/disksize 2>/dev/null");
-            // REMOVED: runSu("echo zstd > /sys/block/zram0/comp_algorithm 2>/dev/null");
             runSu("mkswap /dev/block/zram0 2>/dev/null");
             runSu("swapon /dev/block/zram0 2>/dev/null");
             try { Thread.sleep(500); } catch (Exception e){}
