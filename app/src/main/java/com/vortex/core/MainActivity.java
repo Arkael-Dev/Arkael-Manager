@@ -381,6 +381,30 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
     
+    // --- HELPER: WRITE FILE DIRECTLY (FIXES QUOTE ESCAPING) ---
+    private void writeFile(String path, String content) {
+        try {
+            Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", "mkdir -p " + path.substring(0, path.lastIndexOf('/'))});
+            p.waitFor();
+            FileOutputStream fos = new FileOutputStream(path);
+            fos.write(content.getBytes());
+            fos.close();
+            Runtime.getRuntime().exec(new String[]{"su", "-c", "chmod 644 " + path}).waitFor();
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+    
+    // --- HELPER: WRITE EXECUTABLE FILE ---
+    private void writeExecutableFile(String path, String content) {
+        try {
+            Process p = Runtime.getRuntime().exec(new String[]{"su", "-c", "mkdir -p " + path.substring(0, path.lastIndexOf('/'))});
+            p.waitFor();
+            FileOutputStream fos = new FileOutputStream(path);
+            fos.write(content.getBytes());
+            fos.close();
+            Runtime.getRuntime().exec(new String[]{"su", "-c", "chmod 755 " + path}).waitFor();
+        } catch (Exception e) { e.printStackTrace(); }
+    }
+    
     // --- NEW FEATURE IMPLEMENTATIONS ---
 
     private void showGpuFreqMenu() {
@@ -573,55 +597,57 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
     
-    // --- FIXED: THERMAL MENU (BOOT LEVEL + MODULE.PROP FIX) ---
+    // --- FIXED: THERMAL MENU (SPECIFIC SCRIPT + FILE OUTPUT STREAM) ---
     public void showThermalMenu() {
         final String[] options = {"DISABLE THERMAL (BOOT LEVEL)", "ENABLE THERMAL (RESTORE)"};
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Thermal Control (Magisk Module)");
         builder.setItems(options, (dialog, which) -> {
             if (which == 0) {
-                // 1. CREATE MODULE.PROP (Required for Magisk to recognize module)
+                // 1. CREATE MODULE.PROP
                 String moduleProp = "id=vortex_thermal\n"
                     + "name=Vortex Thermal Killer\n"
                     + "version=v1.0\n"
                     + "versionCode=1\n"
                     + "author=Vortex\n"
-                    + "description=Disables thermal throttling on boot using Universal Script\n";
+                    + "description=Disables thermal throttling on boot using User Requested Script\n";
                 
-                // 2. CREATE SERVICE.SH (Universal Script)
+                // 2. CREATE SERVICE.SH (USER REQUESTED SCRIPT)
+                // Menggunakan metode script yang diminta: sleep 30, stop service, chmod 000
                 String disableScript = "#!/system/bin/sh\n"
-                    + "# VORTEX THERMAL KILLER (UNIVERSAL)\n"
-                    + "while [[ -z $(resetprop sys.boot_completed) ]]; do sleep 1; done\n"
-                    + "sleep 1\n"
+                    + "# VORTEX THERMAL KILLER (USER REQUESTED)\n"
+                    + "while [[ -z $(resetprop sys.boot_completed) ]]; do sleep 5; done\n"
+                    + "sleep 30\n"
                     + "for thermal in $(resetprop | awk -F '[][]' '/thermal/ {print $2}'); do\n"
                     + "  if [[ $(resetprop $thermal) == running ]]; then\n"
                     + "    stop ${thermal/init.svc.}\n"
-                    + "    sleep 1\n"
+                    + "    sleep 10\n"
                     + "    resetprop -n $thermal stopped\n"
                     + "  fi\n"
                     + "done\n"
-                    + "sleep 1\n"
+                    + "sleep 10\n"
                     + "find /sys/devices/virtual/thermal -name temp -type f -exec chmod 000 {} +\n";
                 
-                // Write to Magisk Module Directory
+                // Write to Magisk Module Directory using FileOutputStream helpers
                 new Thread(() -> {
+                    // Create directory structure first to be safe
                     runSu("mkdir -p /data/adb/modules/vortex");
-                    runSu("echo '" + moduleProp + "' > /data/adb/modules/vortex/module.prop");
-                    runSu("echo '" + disableScript + "' > /data/adb/modules/vortex/service.sh");
-                    runSu("chmod 644 /data/adb/modules/vortex/module.prop");
-                    runSu("chmod 755 /data/adb/modules/vortex/service.sh");
-                    // Ensure module is enabled (remove 'disable' file if exists)
+                    
+                    // Write files using safe methods to avoid escaping issues
+                    writeFile("/data/adb/modules/vortex/module.prop", moduleProp);
+                    writeExecutableFile("/data/adb/modules/vortex/service.sh", disableScript);
+                    
+                    // Ensure module is enabled
                     runSu("rm -f /data/adb/modules/vortex/disable");
                     
                     runOnUiThread(() -> { 
-                        tvTerminalLog.setText("> MODULE CREATED:\n/data/adb/modules/vortex/\n> module.prop: OK\n> service.sh: OK\n\n> REBOOT TO APPLY"); 
-                        Toast.makeText(this, "Module Installed with module.prop. REBOOT.", Toast.LENGTH_LONG).show(); 
+                        tvTerminalLog.setText("> MODULE CREATED SAFELY:\n/data/adb/modules/vortex/\n> module.prop: OK\n> service.sh: OK (Updated Script)\n\n> REBOOT TO APPLY"); 
+                        Toast.makeText(this, "Module Installed. REBOOT to apply.", Toast.LENGTH_LONG).show(); 
                     });
                 }).start();
 
             } else {
                 // ENABLE: RESTORE LOGIC
-                // To restore, we just replace the script content with restore commands
                 String moduleProp = "id=vortex_thermal\n"
                     + "name=Vortex Thermal Restore\n"
                     + "version=v1.0\n"
@@ -648,10 +674,8 @@ public class MainActivity extends AppCompatActivity {
 
                 new Thread(() -> {
                     runSu("mkdir -p /data/adb/modules/vortex");
-                    runSu("echo '" + moduleProp + "' > /data/adb/modules/vortex/module.prop");
-                    runSu("echo '" + enableScript + "' > /data/adb/modules/vortex/service.sh");
-                    runSu("chmod 644 /data/adb/modules/vortex/module.prop");
-                    runSu("chmod 755 /data/adb/modules/vortex/service.sh");
+                    writeFile("/data/adb/modules/vortex/module.prop", moduleProp);
+                    writeExecutableFile("/data/adb/modules/vortex/service.sh", enableScript);
                     runSu("rm -f /data/adb/modules/vortex/disable");
 
                     runOnUiThread(() -> { 
