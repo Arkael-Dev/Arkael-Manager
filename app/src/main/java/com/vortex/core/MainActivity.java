@@ -483,11 +483,23 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
+    // --- FIXED: ZRAM ALGO (ROBUST PARSING & VERIFICATION) ---
     private void showZramAlgoMenu() {
         new Thread(() -> {
+            // 1. Read Available Algorithms
             String raw = runSuReturn("cat /sys/block/zram0/comp_algorithm");
-            final String[] available = raw.split(" ");
-            final String[] options = (available.length > 0 && !available[0].isEmpty()) ? available : new String[]{"lzo", "lz4", "zstd", "lzo-rle"};
+            
+            // 2. Clean the string: Kernel often outputs like "[lzo] lz4"
+            // We remove [ and ] to get clean names: "lzo lz4"
+            String cleanRaw = raw.replace("[", "").replace("]", "").trim();
+            String[] available = cleanRaw.split("\\s+");
+            
+            // 3. Fallback if reading failed (Kernel might not support the file path)
+            if (available.length == 0 || (available.length == 1 && available[0].isEmpty())) {
+                available = new String[]{"lzo", "lz4", "zstd", "lzo-rle"};
+            }
+
+            final String[] options = available;
             
             runOnUiThread(() -> {
                 AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -495,17 +507,43 @@ public class MainActivity extends AppCompatActivity {
                 builder.setItems(options, (dialog, which) -> {
                     String selected = options[which];
                     new Thread(() -> {
+                        runOnUiThread(() -> {
+                            if(tvTerminalLog != null) tvTerminalLog.setText("> Applying ZRAM Algorithm: " + selected + "...\n> Disabling Swap...");
+                        });
+
+                        // 4. SEQUENCE: Swapoff -> Reset -> Write Algo -> MkSwap -> Swapon
+                        // This sequence is CRITICAL for changing algo on active zram
                         runSu("swapoff -a 2>/dev/null");
+                        
+                        // Small delay to ensure swap is fully off
+                        try { Thread.sleep(200); } catch (Exception e){}
+                        
                         runSu("echo 1 > /sys/block/zram0/reset");
+                        
+                        // Write the selected algorithm
                         runSu("echo " + selected + " > /sys/block/zram0/comp_algorithm");
+                        
+                        // Recreate Swap with the new algo
                         runSu("mkswap /dev/block/zram0");
                         runSu("swapon /dev/block/zram0");
-                        String swapInfo = runSuReturn("cat /proc/swaps");
+
+                        // 5. VERIFICATION: Read back to confirm
+                        String verification = runSuReturn("cat /sys/block/zram0/comp_algorithm");
+                        String finalStatus = "Unknown";
+                        
+                        if(verification.contains(selected)) {
+                            finalStatus = "SUCCESS: " + selected;
+                        } else {
+                            finalStatus = "FAILED (Check Kernel Support)";
+                        }
+
+                        final String fStatus = finalStatus;
+                        final String swapInfo = runSuReturn("cat /proc/swaps");
 
                         runOnUiThread(() -> {
-                            Toast.makeText(this, "ZRAM Algo: " + selected, Toast.LENGTH_SHORT).show();
+                            Toast.makeText(this, "ZRAM Algo: " + fStatus, Toast.LENGTH_LONG).show();
                             if(tvTerminalLog != null) {
-                                tvTerminalLog.setText("> ZRAM Reset Complete\n> Algorithm Set: " + selected + "\n" + swapInfo);
+                                tvTerminalLog.setText("> ZRAM Algo Set: " + fStatus + "\n> Active Algos: " + verification + "\n" + swapInfo);
                             }
                         });
                     }).start();
