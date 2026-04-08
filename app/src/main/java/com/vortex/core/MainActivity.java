@@ -498,7 +498,7 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    // --- UPDATED: ZRAM ALGO (EXACT SCRIPT SEQUENCE) ---
+    // --- UPDATED: ZRAM ALGO (DYNAMIC KERNEL READ) ---
     private void showZramAlgoMenu() {
         new Thread(() -> {
             // Read available algos so user doesn't click unsupported ones
@@ -519,7 +519,7 @@ public class MainActivity extends AppCompatActivity {
                         // 2. Reset ZRAM
                         runSu("echo 1 > /sys/block/zram0/reset");
                         
-                        // 3. Set Compression Algorithm
+                        // 3. Set Compression Algorithm (DYNAMIC - NOT HARDCODED)
                         runSu("echo " + selected + " > /sys/block/zram0/comp_algorithm");
                         
                         // 4. Make Swap
@@ -573,15 +573,19 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
     
-    // --- UPDATED: THERMAL MENU (LOGIC USER TANPA PKILL - UNIVERSAL LOOP) ---
+    // --- FIXED: THERMAL MENU (BOOT LEVEL SCRIPT GENERATION) ---
     public void showThermalMenu() {
-        final String[] options = {"DISABLE THERMAL (UNIVERSAL)", "ENABLE THERMAL (RESTORE)"};
+        final String[] options = {"DISABLE THERMAL (BOOT SCRIPT)", "ENABLE THERMAL (RESTORE BOOT)"};
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
-        builder.setTitle("Thermal Control");
+        builder.setTitle("Thermal Control (Magisk Boot)");
         builder.setItems(options, (dialog, which) -> {
             if (which == 0) {
                 // SCRIPT USER: STOP SERVICE + RESETPROP STOPPED (NO PKILL)
-                String disableScript = ""
+                // This script will be written to service.sh
+                String disableScript = "#!/system/bin/sh\n"
+                    + "# VORTEX THERMAL KILLER (BOOT LEVEL)\n"
+                    + "while [[ -z $(resetprop sys.boot_completed) ]]; do sleep 5; done\n"
+                    + "sleep 30\n"
                     + "for thermal in $(resetprop | awk -F '[][]' '/thermal/ {print $2}'); do\n"
                     + "  if [[ $(resetprop $thermal) == running ]]; then\n"
                     + "    stop ${thermal/init.svc.}\n"
@@ -590,22 +594,24 @@ public class MainActivity extends AppCompatActivity {
                     + "  fi\n"
                     + "done\n"
                     + "sleep 10\n"
-                    + "find /sys/devices/virtual/thermal -name temp -type f -exec chmod 000 {} +";
+                    + "find /sys/devices/virtual/thermal -name temp -type f -exec chmod 000 {} +\n";
                 
-                runOnUiThread(() -> tvTerminalLog.setText("> Disabling Thermal (Universal Loop)...\nThis may take 20-30s..."));
-                runSuScript(disableScript);
-                
+                // Write to Magisk Module Directory
                 new Thread(() -> {
-                    try { Thread.sleep(25000); } catch (Exception e){}
+                    runSu("mkdir -p /data/adb/modules/vortex");
+                    runSu("echo '" + disableScript + "' > /data/adb/modules/vortex/service.sh");
+                    runSu("chmod 755 /data/adb/modules/vortex/service.sh");
+                    
                     runOnUiThread(() -> { 
-                        tvTerminalLog.setText("THERMAL DISABLED\n(Loops Stopped + Resetprop + Locked)"); 
-                        Toast.makeText(this, "Thermal OFF (Universal)", Toast.LENGTH_SHORT).show(); 
+                        tvTerminalLog.setText("> DISABLE SCRIPT WRITTEN TO:\n/data/adb/modules/vortex/service.sh\n\n> REBOOT DEVICE TO APPLY PERSISTENT THERMAL DISABLE"); 
+                        Toast.makeText(this, "Boot Script Installed. REBOOT to Apply.", Toast.LENGTH_LONG).show(); 
                     });
                 }).start();
 
             } else {
-                // ENABLE: RESTORE LOGIC
-                String enableScript = ""
+                // ENABLE: RESTORE LOGIC (BOOT SCRIPT)
+                String enableScript = "#!/system/bin/sh\n"
+                    + "# VORTEX THERMAL RESTORE (BOOT LEVEL)\n"
                     + "# Restore Sensor Read Permissions\n"
                     + "find /sys/devices/virtual/thermal -name temp -type f -exec chmod 644 {} + 2>/dev/null\n"
                     + "# Enable Thermal Zones\n"
@@ -619,14 +625,14 @@ public class MainActivity extends AppCompatActivity {
                     + "start mi_thermald 2>/dev/null\n"
                     + "resetprop ctl.start thermald 2>/dev/null";
 
-                runOnUiThread(() -> tvTerminalLog.setText("> Enabling Thermal...\nRestoring permissions..."));
-                runSuScript(enableScript);
-
                 new Thread(() -> {
-                    try { Thread.sleep(5000); } catch (Exception e){}
+                    runSu("mkdir -p /data/adb/modules/vortex");
+                    runSu("echo '" + enableScript + "' > /data/adb/modules/vortex/service.sh");
+                    runSu("chmod 755 /data/adb/modules/vortex/service.sh");
+                    
                     runOnUiThread(() -> { 
-                        tvTerminalLog.setText("THERMAL ENABLED\n(Permissions Restored)"); 
-                        Toast.makeText(this, "Thermal ENABLED", Toast.LENGTH_SHORT).show(); 
+                        tvTerminalLog.setText("> RESTORE SCRIPT WRITTEN TO:\n/data/adb/modules/vortex/service.sh\n\n> REBOOT DEVICE TO RESTORE THERMAL"); 
+                        Toast.makeText(this, "Restore Script Installed. REBOOT to Apply.", Toast.LENGTH_LONG).show(); 
                     });
                 }).start();
             }
@@ -1177,14 +1183,16 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    // --- UPDATED: APPLY ZRAM (USE SWAPOFF -A) ---
+    // --- UPDATED: APPLY ZRAM (REMOVE HARDCODED ZSTD) ---
     public void applyZram(int sizeGB) {
         new Thread(() -> {
             long sizeInBytes = sizeGB * 1073741824L;
             runSu("swapoff -a 2>/dev/null");
             runSu("echo 1 > /sys/block/zram0/reset 2>/dev/null");
             runSu("echo " + sizeInBytes + " > /sys/block/zram0/disksize 2>/dev/null");
-            runSu("echo zstd > /sys/block/zram0/comp_algorithm 2>/dev/null");
+            // REMOVED: runSu("echo zstd > /sys/block/zram0/comp_algorithm 2>/dev/null");
+            // Reason: Let user choose via showZramAlgoMenu. 
+            // Do not override the user's selected algorithm when changing size.
             runSu("mkswap /dev/block/zram0 2>/dev/null");
             runSu("swapon /dev/block/zram0 2>/dev/null");
             try { Thread.sleep(500); } catch (Exception e){}
