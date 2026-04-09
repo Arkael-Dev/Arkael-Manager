@@ -773,7 +773,24 @@ public class MainActivity extends AppCompatActivity {
             if (detectedMin != Integer.MAX_VALUE) cpuMinFreqKhz = detectedMin;
             else cpuMinFreqKhz = 300000;
 
-            if (new File("/sys/class/kgsl/kgsl-3d0/gpuclk").exists()) {
+            // --- IMPROVED UNIVERSAL GPU DETECTION ---
+            // 1. Standard Mali (devfreq)
+            if (new File("/sys/class/devfreq/mali0/cur_freq").exists()) {
+                gpuCurFreqPath = "/sys/class/devfreq/mali0/cur_freq";
+                gpuMaxFreqPath = "/sys/class/devfreq/mali0/max_freq";
+                gpuGovPath = "/sys/class/devfreq/mali0/governor";
+                gpuAvailFreqPath = "/sys/class/devfreq/mali0/available_frequencies";
+                
+                String sGpuMax = runSuReturn("cat " + gpuMaxFreqPath);
+                gpuMaxFreqKhz = parseIntSafe(sGpuMax);
+                
+                String sGpuMin = runSuReturn("cat /sys/class/devfreq/mali0/min_freq");
+                gpuMinFreqKhz = parseIntSafe(sGpuMin);
+                
+                if(gpuMaxFreqKhz > 0) isGpuControlReady = true;
+            }
+            // 2. Qualcomm KGSL (Standard)
+            else if (new File("/sys/class/kgsl/kgsl-3d0/gpuclk").exists()) {
                 gpuCurFreqPath = "/sys/class/kgsl/kgsl-3d0/gpuclk";
                 gpuMaxFreqPath = "/sys/class/kgsl/kgsl-3d0/max_gpuclk";
                 gpuAvailFreqPath = "/sys/class/kgsl/kgsl-3d0/devfreq/available_frequencies";
@@ -797,21 +814,63 @@ public class MainActivity extends AppCompatActivity {
                 
                 if(gpuMaxFreqKhz > 0) isGpuControlReady = true;
             }
-            else if (new File("/sys/class/devfreq/mali0/cur_freq").exists()) {
-                gpuCurFreqPath = "/sys/class/devfreq/mali0/cur_freq";
-                gpuMaxFreqPath = "/sys/class/devfreq/mali0/max_freq";
-                gpuGovPath = "/sys/class/devfreq/mali0/governor";
-                gpuAvailFreqPath = "/sys/class/devfreq/mali0/available_frequencies";
+            // 3. Universal Fallback for Mali (panjkov/legacy naming)
+            else if (new File("/sys/class/misc/mali0/device/clock").exists()) {
+                gpuCurFreqPath = "/sys/class/misc/mali0/device/clock";
+                // Try to find max freq in common locations
+                if (new File("/sys/class/misc/mali0/device/max_clock").exists()) {
+                    gpuMaxFreqPath = "/sys/class/misc/mali0/device/max_clock";
+                } else {
+                    // Fallback to reading available frequencies if max_clock doesn't exist
+                    gpuAvailFreqPath = "/sys/class/misc/mali0/device/available_frequencies";
+                }
+                
+                String sGpuMax = runSuReturn("cat " + gpuMaxFreqPath);
+                if(sGpuMax.isEmpty()) {
+                    // Try reading avail freqs to determine max
+                    String avail = runSuReturn("cat " + gpuAvailFreqPath);
+                    String[] freqs = avail.split("\\s+");
+                    if(freqs.length > 0) gpuMaxFreqKhz = parseIntSafe(freqs[freqs.length-1]);
+                } else {
+                    gpuMaxFreqKhz = parseIntSafe(sGpuMax);
+                }
+
+                if(gpuMaxFreqKhz > 0) isGpuControlReady = true;
+            }
+            // 4. Adreno fallback (older kernels)
+            else if (new File("/sys/devices/system/kgsl/kgsl-3d0/devfreq/available_frequencies").exists()) {
+                gpuMaxFreqPath = "/sys/devices/system/kgsl/kgsl-3d0/devfreq/max_freq";
+                gpuCurFreqPath = "/sys/devices/system/kgsl/kgsl-3d0/devfreq/cur_freq";
+                gpuAvailFreqPath = "/sys/devices/system/kgsl/kgsl-3d0/devfreq/available_frequencies";
                 
                 String sGpuMax = runSuReturn("cat " + gpuMaxFreqPath);
                 gpuMaxFreqKhz = parseIntSafe(sGpuMax);
                 
-                String sGpuMin = runSuReturn("cat /sys/class/devfreq/mali0/min_freq");
-                gpuMinFreqKhz = parseIntSafe(sGpuMin);
-                
                 if(gpuMaxFreqKhz > 0) isGpuControlReady = true;
             }
+            // 5. Generic devfreq fallback (catch-all)
+            else {
+                 // Try to find ANY devfreq device that looks like a GPU
+                 String devList = runSuReturn("ls /sys/class/devfreq");
+                 String[] devices = devList.split("\\s+");
+                 for(String dev : devices) {
+                     if(dev.contains("gpu") || dev.contains("mali") || dev.contains("galcore") || dev.contains("3d")) {
+                         String basePath = "/sys/class/devfreq/" + dev;
+                         String testMax = runSuReturn("cat " + basePath + "/max_freq");
+                         if(!testMax.isEmpty()) {
+                             gpuMaxFreqPath = basePath + "/max_freq";
+                             gpuCurFreqPath = basePath + "/cur_freq";
+                             gpuAvailFreqPath = basePath + "/available_frequencies";
+                             gpuGovPath = basePath + "/governor";
+                             gpuMaxFreqKhz = parseIntSafe(testMax);
+                             if(gpuMaxFreqKhz > 0) isGpuControlReady = true;
+                             break; // Use first found
+                         }
+                     }
+                 }
+            }
 
+            // Load Available Frequencies if path is found
             if(!gpuAvailFreqPath.isEmpty()) {
                 String availRaw = runSuReturn("cat " + gpuAvailFreqPath);
                 if(!availRaw.isEmpty()) {
@@ -1156,6 +1215,11 @@ public class MainActivity extends AppCompatActivity {
             if(isGpuModeActive) {
                 if(new File("/sys/class/kgsl/kgsl-3d0/devfreq/available_governors").exists()) availPath = "cat /sys/class/kgsl/kgsl-3d0/devfreq/available_governors";
                 else if(new File("/sys/class/devfreq/mali0/available_governors").exists()) availPath = "cat /sys/class/devfreq/mali0/available_governors";
+                else if(!gpuGovPath.isEmpty()) {
+                     // Try to extract available governors from path if specific file missing
+                     String parent = new File(gpuGovPath).getParent();
+                     if(new File(parent + "/available_governors").exists()) availPath = "cat " + parent + "/available_governors";
+                } 
                 else { path = ""; } 
             }
 
