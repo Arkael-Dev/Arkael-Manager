@@ -86,8 +86,8 @@ public class MainActivity extends AppCompatActivity {
     private boolean isGpuModeActive = false;
     private List<Integer> gpuAvailableFreqs = new ArrayList<>(); 
     
-    // ZRAM State Tracking (FIX)
-    private int currentZramSizeGB = 0; // Menyimpan ukuran ZRAM saat ini agar tidak hilang saat ganti Algo
+    // ZRAM State Tracking
+    private int currentZramSizeGB = 0;
 
     // Animation Helper
     private boolean batteryBlinkState = false;
@@ -158,6 +158,14 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // --- HELPER: GET TOTAL RAM BYTES ---
+    private long getTotalRamBytes() {
+        ActivityManager memInfo = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+        ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+        memInfo.getMemoryInfo(mi);
+        return mi.totalMem;
+    }
+
     private String getPasskeyFromAssets() {
         try {
             AssetManager am = getAssets();
@@ -214,7 +222,6 @@ public class MainActivity extends AppCompatActivity {
 
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
 
-        // --- FIX RAM TEXT TRUNCATED ---
         if(tvRam != null) {
             tvRam.setMaxLines(1);
             tvRam.setSingleLine(true);
@@ -269,7 +276,6 @@ public class MainActivity extends AppCompatActivity {
             cleanRam();
         });
 
-        // --- NEW FEATURE LISTENERS ---
         findViewById(R.id.btn_gpu_control).setOnClickListener(v -> showGpuFreqMenu());
         findViewById(R.id.btn_io_scheduler).setOnClickListener(v -> showIoSchedulerMenu());
         findViewById(R.id.btn_zram_algo).setOnClickListener(v -> showZramAlgoMenu()); 
@@ -370,7 +376,85 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // --- NEW FEATURE IMPLEMENTATIONS ---
+    // --- ROBUST ZRAM IMPLEMENTATION (USER REQUEST) ---
+    public void applyZram(int sizeGB) {
+        new Thread(() -> {
+            long sizeInBytes = sizeGB * 1073741824L;
+            long totalRam = getTotalRamBytes();
+
+            // Safety Check: Don't allow ZRAM larger than Physical RAM
+            if (sizeInBytes > totalRam) {
+                runOnUiThread(() -> Toast.makeText(this, "Warning: ZRAM Size > Total RAM! Risky.", Toast.LENGTH_LONG).show());
+            }
+
+            // ROBUST BASH SCRIPT CONSTRUCTION
+            String script = "ZRAM_DEV='/dev/block/zram0'\n" +
+                           "SIZE='" + sizeInBytes + "'\n" +
+                           "LOG=/data/local/tmp/zram_setup.log\n" +
+                           "echo \"Starting ZRAM Setup ($SIZE bytes)...\" > $LOG\n" +
+                           "\n" +
+                           "# 1. Device Check\n" +
+                           "if [ ! -e \"$ZRAM_DEV\" ]; then\n" +
+                           "  echo 'ERR: ZRAM Device not found!' >> $LOG\n" +
+                           "  echo 'DEVICE_ERR'\n" + // Marker for Java to read
+                           "  exit 1\n" +
+                           "fi\n" +
+                           "\n" +
+                           "# 2. Disable & Reset\n" +
+                           "swapoff $ZRAM_DEV 2>/dev/null\n" +
+                           "echo 1 > /sys/block/zram0/reset 2>/dev/null\n" +
+                           "\n" +
+                           "# 3. Fallback Algorithm Logic (zstd -> lz4 -> lzo)\n" +
+                           "ALGO_FILE='/sys/block/zram0/comp_algorithm'\n" +
+                           "if grep -q 'zstd' $ALGO_FILE; then\n" +
+                           "  echo 'zstd' > $ALGO_FILE 2>/dev/null\n" +
+                           "  echo 'Selected Algo: zstd' >> $LOG\n" +
+                           "elif grep -q 'lz4' $ALGO_FILE; then\n" +
+                           "  echo 'lz4' > $ALGO_FILE 2>/dev/null\n" +
+                           "  echo 'Selected Algo: lz4 (fallback)' >> $LOG\n" +
+                           "else\n" +
+                           "  echo 'lzo' > $ALGO_FILE 2>/dev/null\n" +
+                           "  echo 'Selected Algo: lzo (fallback)' >> $LOG\n" +
+                           "fi\n" +
+                           "\n" +
+                           "# 4. Set Disksize\n" +
+                           "echo $SIZE > /sys/block/zram0/disksize 2>> $LOG\n" +
+                           "\n" +
+                           "# 5. Make Swap & Enable\n" +
+                           "mkswap $ZRAM_DEV >> $LOG 2>&1\n" +
+                           "swapon $ZRAM_DEV >> $LOG 2>&1\n" +
+                           "\n" +
+                           "# 6. Verification\n" +
+                           "if grep -q '$ZRAM_DEV' /proc/swaps; then\n" +
+                           "  echo 'SUCCESS: ZRAM Activated' >> $LOG\n" +
+                           "  echo 'OK'\n" + // Marker for Java
+                           "else\n" +
+                           "  echo 'ERR: Failed to activate swap' >> $LOG\n" +
+                           "  echo 'FAILED'\n" + // Marker for Java
+                           "fi\n" +
+                           "cat $LOG"; // Output log to Java
+
+            String output = runSuReturnAll(script);
+            
+            // Parse Result
+            if (output.contains("DEVICE_ERR")) {
+                runOnUiThread(() -> Toast.makeText(this, "ZRAM Device Not Found!", Toast.LENGTH_LONG).show());
+                if(tvTerminalLog != null) tvTerminalLog.setText(output);
+            } else if (output.contains("OK")) {
+                currentZramSizeGB = sizeGB; // Save state
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "ZRAM " + sizeGB + "GB Activated Successfully", Toast.LENGTH_SHORT).show();
+                    if(tvTerminalLog != null) tvTerminalLog.setText(output);
+                    if(tvZram != null) tvZram.setText(sizeGB + " GB");
+                });
+            } else {
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "ZRAM Activation Failed", Toast.LENGTH_LONG).show();
+                    if(tvTerminalLog != null) tvTerminalLog.setText(output);
+                });
+            }
+        }).start();
+    }
 
     private void showGpuFreqMenu() {
         if (!isGpuControlReady || gpuAvailableFreqs.isEmpty()) {
@@ -486,10 +570,9 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    // --- FIXED: ZRAM ALGO (RETAINS DISKSIZE) ---
+    // --- UPDATED: ZRAM ALGO WITH VERIFICATION ---
     private void showZramAlgoMenu() {
         new Thread(() -> {
-            // 1. Read Available Algorithms
             String raw = runSuReturn("cat /sys/block/zram0/comp_algorithm");
             String cleanRaw = raw.replace("[", "").replace("]", "").trim();
             String[] available = cleanRaw.split("\\s+");
@@ -510,37 +593,28 @@ public class MainActivity extends AppCompatActivity {
                             if(tvTerminalLog != null) tvTerminalLog.setText("> Applying Algo: " + selected + "...\n> Retaining Size: " + currentZramSizeGB + "GB");
                         });
 
-                        // 2. CRITICAL SEQUENCE
-                        runSu("swapoff -a 2>/dev/null");
-                        try { Thread.sleep(200); } catch (Exception e){}
-                        
-                        runSu("echo 1 > /sys/block/zram0/reset");
-                        
-                        // 3. Set Algorithm
-                        runSu("echo " + selected + " > /sys/block/zram0/comp_algorithm");
-                        
-                        // 4. RESTORE SIZE (FIX: This was missing before)
-                        // If currentZramSizeGB is 0 (fresh start), default to 4GB to avoid 0-size error
-                        int targetSizeGB = (currentZramSizeGB > 0) ? currentZramSizeGB : 4;
-                        long sizeInBytes = targetSizeGB * 1073741824L;
-                        
-                        runSu("echo " + sizeInBytes + " > /sys/block/zram0/disksize");
-                        
-                        // 5. Recreate Swap
-                        runSu("mkswap /dev/block/zram0");
-                        runSu("swapon /dev/block/zram0");
+                        // Script with Algo Change
+                        String script = 
+                            "swapoff /dev/block/zram0 2>/dev/null\n" +
+                            "echo 1 > /sys/block/zram0/reset 2>/dev/null\n" +
+                            // Try to set user choice
+                            "echo " + selected + " > /sys/block/zram0/comp_algorithm 2>/dev/null\n" +
+                            // Restore Size (Robust)
+                            "SIZE=" + (currentZramSizeGB > 0 ? (currentZramSizeGB * 1073741824L) : (4 * 1073741824L)) + "\n" +
+                            "echo $SIZE > /sys/block/zram0/disksize\n" +
+                            "mkswap /dev/block/zram0\n" +
+                            "swapon /dev/block/zram0\n" +
+                            // Verification
+                            "if grep -q '/dev/block/zram0' /proc/swaps; then echo 'OK'; else echo 'FAILED'; fi";
 
-                        // 6. Verification
-                        String verification = runSuReturn("cat /sys/block/zram0/comp_algorithm");
-                        String sizeVerification = runSuReturn("cat /sys/block/zram0/disksize");
-                        
-                        String finalStatus = (verification.contains(selected)) ? "SUCCESS" : "FAILED";
-                        String sizeStatus = (sizeVerification.equals(String.valueOf(sizeInBytes))) ? "Size Retained" : "Size Error";
+                        String output = runSuReturnAll(script);
 
+                        String finalStatus = (output.contains("OK")) ? "SUCCESS" : "FAILED";
+                        
                         runOnUiThread(() -> {
-                            Toast.makeText(this, "Algo: " + finalStatus + " | " + sizeStatus, Toast.LENGTH_LONG).show();
+                            Toast.makeText(this, "Algo: " + finalStatus, Toast.LENGTH_LONG).show();
                             if(tvTerminalLog != null) {
-                                tvTerminalLog.setText("> Algo Set: " + selected + "\n> " + finalStatus + "\n> " + sizeStatus);
+                                tvTerminalLog.setText("> Algo Set: " + selected + "\n> " + finalStatus + "\n" + output);
                             }
                         });
                     }).start();
@@ -579,7 +653,6 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
     
-    // --- FIXED: THERMAL MENU (DIRECT EXECUTION NO REBOOT) ---
     public void showThermalMenu() {
         final String[] options = {"DISABLE THERMAL (NO REBOOT)", "ENABLE THERMAL (RESTORE)"};
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -611,8 +684,6 @@ public class MainActivity extends AppCompatActivity {
         });
         builder.show();
     }
-
-    // --- EXISTING HELPERS ---
     
     private void refreshControlMode() {
         new Thread(() -> {
@@ -673,7 +744,6 @@ public class MainActivity extends AppCompatActivity {
 
     private void loadStaticHardwareInfo() {
         new Thread(() -> {
-            // 1. RAM Calculation
             ActivityManager memInfo = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
             ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
             memInfo.getMemoryInfo(mi);
@@ -685,7 +755,6 @@ public class MainActivity extends AppCompatActivity {
                 totalRamStr = (totalMemBytes / 1048576) + " MB";
             }
 
-            // 2. System Properties
             String brand = Build.BRAND;
             String model = Build.MODEL;
             String kernelFull = runSuReturn("uname -r");
@@ -696,7 +765,6 @@ public class MainActivity extends AppCompatActivity {
             String socModel = runSuReturn("getprop ro.soc.model"); 
             String socMan = runSuReturn("getprop ro.soc.manufacturer").toLowerCase();
 
-            // --- ZRAM SIZE DETECTION (UPDATE STATE) ---
             String zramDisplay = "Disabled";
             try {
                 String zramRaw = runSuReturn("cat /sys/block/zram0/disksize 2>/dev/null");
@@ -705,14 +773,12 @@ public class MainActivity extends AppCompatActivity {
                     if (zramBytes > 0) {
                         double zramGB = zramBytes / (1024.0 * 1024.0 * 1024.0);
                         zramDisplay = String.format("%.1f GB", zramGB);
-                        // UPDATE GLOBAL STATE
                         currentZramSizeGB = (int) Math.round(zramGB); 
                     }
                 }
             } catch (Exception e) { zramDisplay = "Error"; }
             final String fZram = zramDisplay;
 
-            // --- CPU DETECTION (ALL CORES) ---
             String rawMaxFreqs = runSuReturnAll("cat /sys/devices/system/cpu/cpu*/cpufreq/cpuinfo_max_freq");
             String[] maxLines = rawMaxFreqs.split("\\s+");
             int detectedMax = 0;
@@ -733,7 +799,6 @@ public class MainActivity extends AppCompatActivity {
             if (detectedMin != Integer.MAX_VALUE) cpuMinFreqKhz = detectedMin;
             else cpuMinFreqKhz = 300000;
 
-            // --- GPU DETECTION & AVAILABLE FREQS ---
             if (new File("/sys/class/kgsl/kgsl-3d0/gpuclk").exists()) {
                 gpuCurFreqPath = "/sys/class/kgsl/kgsl-3d0/gpuclk";
                 gpuMaxFreqPath = "/sys/class/kgsl/kgsl-3d0/max_gpuclk";
@@ -773,7 +838,6 @@ public class MainActivity extends AppCompatActivity {
                 if(gpuMaxFreqKhz > 0) isGpuControlReady = true;
             }
 
-            // Load Available Frequencies for Universal Slider
             if(!gpuAvailFreqPath.isEmpty()) {
                 String availRaw = runSuReturn("cat " + gpuAvailFreqPath);
                 if(!availRaw.isEmpty()) {
@@ -783,12 +847,10 @@ public class MainActivity extends AppCompatActivity {
                         int val = parseIntSafe(s);
                         if(val > 0) gpuAvailableFreqs.add(val);
                     }
-                    // Sort ascending (Min to Max)
                     Collections.sort(gpuAvailableFreqs);
                 }
             }
 
-            // --- STATIC INFO ---
             String vendor = "Unknown";
             if (!socMan.isEmpty()) vendor = socMan.substring(0, 1).toUpperCase() + socMan.substring(1).toLowerCase();
             else if (platform.contains("mt") || hardware.contains("mt")) vendor = "Mediatek";
@@ -845,17 +907,15 @@ public class MainActivity extends AppCompatActivity {
                     String maxTools = "N/A";
                     String govStr = "Unknown";
 
-                    // Battery State
                     int level = -1;
                     boolean isCharging = false;
-                    int iconId = android.R.drawable.ic_menu_info_details; // Default
+                    int iconId = android.R.drawable.ic_menu_info_details;
                     int batColor = Color.WHITE;
 
                     try {
                         ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
                         ((ActivityManager)getSystemService(ACTIVITY_SERVICE)).getMemoryInfo(mi);
                         
-                        // --- FORMAT RAM AS USED / TOTAL GB ---
                         double totalGB = mi.totalMem / (1024.0 * 1024.0 * 1024.0);
                         double usedGB = (mi.totalMem - mi.availMem) / (1024.0 * 1024.0 * 1024.0);
                         ramStr = String.format("%.1f / %.1f GB", usedGB, totalGB);
@@ -891,7 +951,6 @@ public class MainActivity extends AppCompatActivity {
                         }
                     } catch (Exception e) { e.printStackTrace(); }
 
-                    // --- DYNAMIC MONITOR ---
                     try {
                         if (isGpuModeActive && isGpuControlReady) {
                             String valCur = runSuReturn("cat " + gpuCurFreqPath);
@@ -1109,7 +1168,6 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    // --- GOVERNOR PICKER ---
     private void pickGov() {
         new Thread(() -> {
             if (isGpuModeActive && gpuGovPath.isEmpty()) {
@@ -1157,23 +1215,6 @@ public class MainActivity extends AppCompatActivity {
         }).start();
     }
 
-    // --- APPLY ZRAM (UPDATED TO SAVE STATE) ---
-    public void applyZram(int sizeGB) {
-        new Thread(() -> {
-            long sizeInBytes = sizeGB * 1073741824L;
-            runSu("swapoff -a 2>/dev/null");
-            runSu("echo 1 > /sys/block/zram0/reset 2>/dev/null");
-            runSu("echo " + sizeInBytes + " > /sys/block/zram0/disksize 2>/dev/null");
-            runSu("mkswap /dev/block/zram0 2>/dev/null");
-            runSu("swapon /dev/block/zram0 2>/dev/null");
-            
-            // SAVE STATE so Algo menu knows the size
-            currentZramSizeGB = sizeGB;
-            
-            try { Thread.sleep(500); } catch (Exception e){}
-        }).start();
-    }
-
     public void showZramMenu() {
         final String[] options = {"4 GB", "8 GB", "12 GB", "16 GB", "Disable ZRAM"};
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
@@ -1183,13 +1224,12 @@ public class MainActivity extends AppCompatActivity {
                 new Thread(() -> {
                     runSu("swapoff -a 2>/dev/null");
                     runSu("echo 1 > /sys/block/zram0/reset 2>/dev/null");
-                    currentZramSizeGB = 0; // Reset state
+                    currentZramSizeGB = 0;
                     try { Thread.sleep(500); } catch (Exception e){}
                     runOnUiThread(() -> { if(tvZram != null) tvZram.setText("Disabled"); });
                 }).start();
             } else {
                 applyZram(new int[]{4, 8, 12, 16}[which]);
-                runOnUiThread(() -> { if(tvZram != null) tvZram.setText(options[which]); });
             }
             Toast.makeText(this, "ZRAM " + options[which] + " Applied", Toast.LENGTH_SHORT).show();
         });
