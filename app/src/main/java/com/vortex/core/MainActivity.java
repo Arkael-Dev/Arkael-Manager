@@ -158,6 +158,14 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // --- HELPER: GET TOTAL RAM BYTES ---
+    private long getTotalRamBytes() {
+        ActivityManager memInfo = (ActivityManager) getSystemService(ACTIVITY_SERVICE);
+        ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+        memInfo.getMemoryInfo(mi);
+        return mi.totalMem;
+    }
+
     private String getPasskeyFromAssets() {
         try {
             AssetManager am = getAssets();
@@ -368,46 +376,54 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    // --- FINAL TEMPLATE: CORRECT ORDER ZRAM SETUP ---
+    // --- FIX ZRAM CONFIGURATION - FINAL TEMPLATE ---
+    // Urutan yang benar: swapoff -> reset -> comp_algorithm -> disksize -> mkswap -> swapon -> verifikasi
     public void applyZram(int sizeGB) {
         new Thread(() -> {
-            long sizeInBytes = sizeGB * 1073741824L; // Exact GB calculation
+            long sizeInBytes = sizeGB * 1073741824L;
+            long totalRam = getTotalRamBytes();
 
-            // FINAL TEMPLATE SCRIPT (Strict Order)
+            // Safety Check: Don't allow ZRAM larger than Physical RAM
+            if (sizeInBytes > totalRam) {
+                runOnUiThread(() -> Toast.makeText(this, "Warning: ZRAM Size > Total RAM! Risky.", Toast.LENGTH_LONG).show());
+            }
+
+            // FIXED BASH SCRIPT STRUCTURE
             // 1. swapoff
             // 2. reset
-            // 3. set comp_algorithm (zstd/lz4 fallback)
+            // 3. set comp_algorithm (zstd)
             // 4. set disksize
             // 5. mkswap
             // 6. swapon
-            // 7. validasi
-            
-            String script = "swapoff /dev/block/zram0 2>/dev/null\n" +
-                           "echo 1 > /sys/block/zram0/reset 2>/dev/null\n" +
-                           // 3. SET COMP_ALGORITHM (User Requirement: zstd -> lz4 fallback)
-                           "if grep -q 'zstd' /sys/block/zram0/comp_algorithm; then echo 'zstd' > /sys/block/zram0/comp_algorithm 2>/dev/null; elif grep -q 'lz4' /sys/block/zram0/comp_algorithm; then echo 'lz4' > /sys/block/zram0/comp_algorithm 2>/dev/null; else echo 'lzo' > /sys/block/zram0/comp_algorithm 2>/dev/null; fi\n" +
-                           // 4. SET DISKSIZE (User Requirement: MUST BE AFTER ALGO)
-                           "echo " + sizeInBytes + " > /sys/block/zram0/disksize 2>/dev/null\n" +
-                           // 5. mkswap
-                           "mkswap /dev/block/zram0 2>/dev/null\n" +
-                           // 6. swapon
-                           "swapon /dev/block/zram0 2>/dev/null\n" +
-                           // 7. Validation
-                           "grep -q '/dev/block/zram0' /proc/swaps && echo 'OK' || echo 'FAILED'";
+            // 7. validasi (/proc/swaps)
+            String script = 
+                "swapoff /dev/block/zram0 2>/dev/null\n" +
+                "echo 1 > /sys/block/zram0/reset 2>/dev/null\n" +
+                "echo zstd > /sys/block/zram0/comp_algorithm 2>/dev/null\n" +
+                "echo " + sizeInBytes + " > /sys/block/zram0/disksize 2>/dev/null\n" +
+                "mkswap /dev/block/zram0 2>/dev/null\n" +
+                "swapon /dev/block/zram0 2>/dev/null\n" +
+                "grep -q zram /proc/swaps && echo \"OK\" || echo \"FAILED\"";
 
             String output = runSuReturnAll(script);
-
-            if (output.contains("OK")) {
+            
+            // Parse Result
+            if (output.contains("FAILED")) {
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "ZRAM Activation Failed", Toast.LENGTH_LONG).show();
+                    if(tvTerminalLog != null) tvTerminalLog.setText(output);
+                });
+            } else if (output.contains("OK")) {
                 currentZramSizeGB = sizeGB; // Save state
                 runOnUiThread(() -> {
-                    Toast.makeText(this, "ZRAM " + sizeGB + "GB ON ✔", Toast.LENGTH_SHORT).show();
-                    if(tvTerminalLog != null) tvTerminalLog.setText("> ZRAM " + sizeGB + "GB Activated Successfully\n> Order: Swapoff > Reset > Algo > Size > Mkswap > Swapon");
+                    Toast.makeText(this, "ZRAM " + sizeGB + "GB Activated Successfully", Toast.LENGTH_SHORT).show();
+                    if(tvTerminalLog != null) tvTerminalLog.setText("ZRAM " + sizeGB + "GB Activated\nAlgorithm: zstd\nSize: " + sizeInBytes + " bytes");
                     if(tvZram != null) tvZram.setText(sizeGB + " GB");
                 });
             } else {
                 runOnUiThread(() -> {
-                    Toast.makeText(this, "ZRAM FAILED ❌", Toast.LENGTH_LONG).show();
-                    if(tvTerminalLog != null) tvTerminalLog.setText("> ZRAM FAILED.\n" + output);
+                    Toast.makeText(this, "ZRAM Activation Error (Unknown)", Toast.LENGTH_LONG).show();
+                    if(tvTerminalLog != null) tvTerminalLog.setText(output);
                 });
             }
         }).start();
@@ -439,6 +455,7 @@ public class MainActivity extends AppCompatActivity {
         int index = gpuAvailableFreqs.indexOf(currentMax);
         if(index == -1) index = gpuAvailableFreqs.size() - 1;
         seekBar.setProgress(index);
+        
         layout.addView(seekBar);
 
         final TextView finalTvValue = tvValue;
@@ -526,7 +543,7 @@ public class MainActivity extends AppCompatActivity {
         builder.show();
     }
 
-    // --- UPDATED: ZRAM ALGO (FOLLOWS CORRECT ORDER) ---
+    // --- UPDATED: ZRAM ALGO WITH VERIFICATION ---
     private void showZramAlgoMenu() {
         new Thread(() -> {
             String raw = runSuReturn("cat /sys/block/zram0/comp_algorithm");
@@ -549,27 +566,20 @@ public class MainActivity extends AppCompatActivity {
                             if(tvTerminalLog != null) tvTerminalLog.setText("> Applying Algo: " + selected + "...\n> Retaining Size: " + currentZramSizeGB + "GB");
                         });
 
-                        // CORRECT ORDER SCRIPT FOR ALGO CHANGE
-                        // 1. swapoff
-                        // 2. reset
-                        // 3. set comp_algorithm (USER CHOICE)
-                        // 4. set disksize (RESTORE CURRENT SIZE - CRITICAL)
-                        // 5. mkswap
-                        // 6. swapon
-                        // 7. validate
-
-                        long savedSize = (currentZramSizeGB > 0) ? (currentZramSizeGB * 1073741824L) : (4 * 1073741824L);
-
-                        String script = "swapoff /dev/block/zram0 2>/dev/null\n" +
-                                       "echo 1 > /sys/block/zram0/reset 2>/dev/null\n" +
-                                       // 3. Set User Choice Algo
-                                       "echo " + selected + " > /sys/block/zram0/comp_algorithm 2>/dev/null\n" +
-                                       // 4. Restore Size (CRITICAL: Must be AFTER Algo)
-                                       "echo " + savedSize + " > /sys/block/zram0/disksize 2>/dev/null\n" +
-                                       "mkswap /dev/block/zram0\n" +
-                                       "swapon /dev/block/zram0\n" +
-                                       // 7. Validate
-                                       "grep -q '/dev/block/zram0' /proc/swaps && echo 'OK' || echo 'FAILED'";
+                        // Script with Algo Change
+                        // Urutan: swapoff, reset, algo, disksize, mkswap, swapon
+                        String script = 
+                            "swapoff /dev/block/zram0 2>/dev/null\n" +
+                            "echo 1 > /sys/block/zram0/reset 2>/dev/null\n" +
+                            // Try to set user choice
+                            "echo " + selected + " > /sys/block/zram0/comp_algorithm 2>/dev/null\n" +
+                            // Restore Size (Robust)
+                            "SIZE=" + (currentZramSizeGB > 0 ? (currentZramSizeGB * 1073741824L) : (4 * 1073741824L)) + "\n" +
+                            "echo $SIZE > /sys/block/zram0/disksize\n" +
+                            "mkswap /dev/block/zram0\n" +
+                            "swapon /dev/block/zram0\n" +
+                            // Verification
+                            "if grep -q '/dev/block/zram0' /proc/swaps; then echo 'OK'; else echo 'FAILED'; fi";
 
                         String output = runSuReturnAll(script);
 
