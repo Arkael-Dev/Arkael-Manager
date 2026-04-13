@@ -525,7 +525,8 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showIoSchedulerMenu() {
-        final String[] options = {"ssg", "mq-deadline", "kyber", "cpq", "none"};
+        // Tambahan pilihan "adios" di urutan paling akhir sesuai instruksi
+        final String[] options = {"ssg", "mq-deadline", "kyber", "cpq", "none", "adios"};
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("Select IO Scheduler");
         builder.setItems(options, (dialog, which) -> {
