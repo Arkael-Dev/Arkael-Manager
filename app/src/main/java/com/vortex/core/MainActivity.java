@@ -1318,10 +1318,6 @@ public class MainActivity extends AppCompatActivity {
                         while ((len = is.read(buffer)) > 0) os.write(buffer, 0, len);
                         os.close(); is.close();
                         String cmd = "chmod 755 " + scriptPath + " && echo " + selectedMode + " | /system/bin/sh " + scriptPath + " 2>&1";
-                        String output = runSuReturnAll(cmd);
-                        runOnUiThread(() -> {
-                            if(tvTerminalLog != null) tvTerminalLog.setText(output);
-                            Toast.makeText(this, "Mode " + selectedMode + " Complete!", Toast.LENGTH_LONG).show();
                         });
                     } catch (Exception e) {
                         runOnUiThread(() -> {
