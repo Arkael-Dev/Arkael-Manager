@@ -1317,11 +1317,7 @@ public class MainActivity extends AppCompatActivity {
                         byte[] buffer = new byte[1024]; int len;
                         while ((len = is.read(buffer)) > 0) os.write(buffer, 0, len);
                         os.close(); is.close();
-                        runSu("chmod 755 " + scriptPath);
-                        String cmd = "";
-                        if (selectedMode == 1) cmd = "echo \"1\" | sh " + scriptPath + " 2>&1";
-                        else if (selectedMode == 2) cmd = "echo \"2\" | sh " + scriptPath + " 2>&1";
-                        else cmd = "echo \"3\" | sh " + scriptPath + " 2>&1";
+                        String cmd = "chmod 755 " + scriptPath + " && echo " + selectedMode + " | /system/bin/sh " + scriptPath + " 2>&1";
                         String output = runSuReturnAll(cmd);
                         runOnUiThread(() -> {
                             if(tvTerminalLog != null) tvTerminalLog.setText(output);
