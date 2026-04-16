@@ -1311,7 +1311,7 @@ public class MainActivity extends AppCompatActivity {
                             if(tvTerminalLog != null) tvTerminalLog.setText("> Starting Keybox Generator Mode " + selectedMode + "...");
                             Toast.makeText(this, "Running Mode " + selectedMode + "...", Toast.LENGTH_SHORT).show();
                         });
-                        String scriptPath = "/data/local/tmp/keybox_generator.sh";
+                        String scriptPath = getFilesDir().getAbsolutePath() + "/keybox_generator.sh";
                         InputStream is = getAssets().open("keybox_generator.sh");
                         FileOutputStream os = new FileOutputStream(scriptPath);
                         byte[] buffer = new byte[1024]; int len;
