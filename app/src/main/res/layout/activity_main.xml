@@ -830,6 +830,43 @@
                         android:textSize="18sp"/>
                 </LinearLayout>
 
+                
+                <!-- KEYBOX GENERATOR (NEW FEATURE) -->
+                <LinearLayout 
+                    android:id="@+id/btn_keybox_generator" 
+                    android:layout_width="match_parent" 
+                    android:layout_height="60dp" 
+                    android:orientation="horizontal" 
+                    android:gravity="center_vertical" 
+                    android:background="@drawable/bg_card_rounded" 
+                    android:paddingStart="15dp" 
+                    android:paddingEnd="15dp" 
+                    android:layout_marginBottom="10dp" 
+                    android:clickable="true" 
+                    android:focusable="true">
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text="Key" 
+                        android:drawableLeft="@android:drawable/ic_menu_manage" 
+                        android:drawablePadding="15dp"/>
+                    <TextView 
+                        android:layout_width="0dp" 
+                        android:layout_height="wrap_content" 
+                        android:layout_weight="1" 
+                        android:text="KEYBOX GENERATOR" 
+                        android:textColor="#4CAF50" 
+                        android:textSize="14sp" 
+                        android:textStyle="bold" 
+                        android:layout_marginStart="5dp"/>
+                    <TextView 
+                        android:layout_width="wrap_content" 
+                        android:layout_height="wrap_content" 
+                        android:text=">" 
+                        android:textColor="#555555" 
+                        android:textSize="18sp"/>
+                </LinearLayout>
+
                 <!-- LEGACY CPU SLIDER (KEPT AS PER ORIGINAL FLOW) -->
                 <TextView 
                     android:layout_width="wrap_content" 
