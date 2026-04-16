@@ -1299,37 +1299,44 @@ public class MainActivity extends AppCompatActivity {
             p.waitFor(); return output.toString().trim();
         } catch (Exception e) { return ""; }
     }
-
     private void launchKeyboxGenerator() {
-        new Thread(() -> {
-            runOnUiThread(() -> {
-                if(tvTerminalLog != null) tvTerminalLog.setText("> Launching Keybox Generator...");
-                Toast.makeText(this, "Starting Keybox Generator...", Toast.LENGTH_SHORT).show();
-            });
-            try {
-                String scriptPath = "/data/local/tmp/keybox_generator.sh";
-                InputStream is = getAssets().open("keybox_generator.sh");
-                FileOutputStream os = new FileOutputStream(scriptPath);
-                byte[] buffer = new byte[1024];
-                int len;
-                while ((len = is.read(buffer)) > 0) {
-                    os.write(buffer, 0, len);
-                }
-                os.close();
-                is.close();
-                runSu("chmod 755 " + scriptPath);
-                String output = runSuReturnAll("sh " + scriptPath);
-                runOnUiThread(() -> {
-                    if(tvTerminalLog != null) tvTerminalLog.setText(output);
-                    Toast.makeText(this, "Keybox Generator Executed", Toast.LENGTH_LONG).show();
-                });
-            } catch (Exception e) {
-                runOnUiThread(() -> {
-                    if(tvTerminalLog != null) tvTerminalLog.setText("> Error: " + e.getMessage());
-                    Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
-                });
-            }
-        }).start();
+        String[] modes = {"Mode 1: Direct Source (Fast)", "Mode 2: Advanced Engine (Complete)", "Check Integrity Status"};
+        new AlertDialog.Builder(this)
+            .setTitle("KEYBOX GENERATOR")
+            .setItems(modes, (dialog, which) -> {
+                int selectedMode = which + 1;
+                new Thread(() -> {
+                    try {
+                        runOnUiThread(() -> {
+                            if(tvTerminalLog != null) tvTerminalLog.setText("> Starting Keybox Generator Mode " + selectedMode + "...");
+                            Toast.makeText(this, "Running Mode " + selectedMode + "...", Toast.LENGTH_SHORT).show();
+                        });
+                        String scriptPath = "/data/local/tmp/keybox_generator.sh";
+                        InputStream is = getAssets().open("keybox_generator.sh");
+                        FileOutputStream os = new FileOutputStream(scriptPath);
+                        byte[] buffer = new byte[1024]; int len;
+                        while ((len = is.read(buffer)) > 0) os.write(buffer, 0, len);
+                        os.close(); is.close();
+                        runSu("chmod 755 " + scriptPath);
+                        String cmd = "";
+                        if (selectedMode == 1) cmd = "echo \"1\" | sh " + scriptPath + " 2>&1";
+                        else if (selectedMode == 2) cmd = "echo \"2\" | sh " + scriptPath + " 2>&1";
+                        else cmd = "echo \"3\" | sh " + scriptPath + " 2>&1";
+                        String output = runSuReturnAll(cmd);
+                        runOnUiThread(() -> {
+                            if(tvTerminalLog != null) tvTerminalLog.setText(output);
+                            Toast.makeText(this, "Mode " + selectedMode + " Complete!", Toast.LENGTH_LONG).show();
+                        });
+                    } catch (Exception e) {
+                        runOnUiThread(() -> {
+                            if(tvTerminalLog != null) tvTerminalLog.setText("> Error: " + e.getMessage());
+                            Toast.makeText(this, "Error: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                        });
+                    }
+                }).start();
+            })
+            .show();
+    }
     }
     private void cleanRam() {
         new Thread(() -> {
