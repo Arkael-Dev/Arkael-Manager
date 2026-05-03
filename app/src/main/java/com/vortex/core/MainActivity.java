@@ -333,8 +333,8 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_bg_white).setOnClickListener(v -> setBackgroundMode(1));
         findViewById(R.id.btn_bg_transparent).setOnClickListener(v -> setBackgroundMode(3));
 
-        findViewById(R.id.tv_dev_link).setOnClickListener(v -> openUrl("https://t.me/VorteXSU_Dev"));
-        findViewById(R.id.tv_channel_link).setOnClickListener(v -> openUrl("https://t.me/vortexgki"));
+        findViewById(R.id.tv_dev_link).setOnClickListener(v -> openUrl("https://t.me/gki_kernel"));
+        findViewById(R.id.tv_channel_link).setOnClickListener(v -> openUrl("https://t.me/gki_kernel"));
 
         if(tvMaxFreq != null) {
             tvMaxFreq.setOnLongClickListener(v -> {
