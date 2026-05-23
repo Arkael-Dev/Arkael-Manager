@@ -22,7 +22,7 @@
             android:id="@+id/tv_auth_active"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="● AUTH ACTIVE (VORTEX-E-SPORT)"
+            android:text="● AUTH ACTIVE (Arkael Auth activated)"
             android:textColor="#00E676"
             android:textSize="10sp"
             android:textStyle="bold"
