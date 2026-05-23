@@ -130,13 +130,13 @@ public class MainActivity extends AppCompatActivity {
             kernelName = "";
         }
 
-        Log.d("VortexAuth", "Kernel: " + kernelName);
-        boolean isEKernel = kernelName.toLowerCase().contains("vortex");
+        Log.d("ArkaelAuth", "Kernel: " + kernelName);
+        boolean isEKernel = kernelName.toLowerCase().contains("arkael");
 
         if(isEKernel) {
             prefs.edit().putBoolean("is_unlocked", true).apply();
             if(tvAuthActive != null) tvAuthActive.setVisibility(View.VISIBLE);
-            Toast.makeText(this, "VorteX Kernel Detected!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Arkael Kernel Detected!", Toast.LENGTH_SHORT).show();
         } else {
             if(tvAuthActive != null) tvAuthActive.setVisibility(View.GONE);
         }
@@ -181,9 +181,9 @@ public class MainActivity extends AppCompatActivity {
             }
             reader.close();
         } catch (IOException e) {
-            Log.e("VortexAuth", "Error reading passkey from assets", e);
+            Log.e("ArkaelAuth", "Error reading passkey from assets", e);
         }
-        return "vortex"; 
+        return "arkael"; 
     }
 
     private void initViews() {
