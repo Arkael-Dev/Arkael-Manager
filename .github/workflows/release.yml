@@ -1,0 +1,114 @@
+name: Build & Release
+
+# Setiap push ke main (selain perubahan dokumen saja): build -> versi otomatis -> tag -> GitHub Release.
+on:
+  push:
+    branches: [main]
+    paths-ignore: ['**.md', 'LICENSE', '.gitignore']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Check signing secrets
+        env:
+          KS: ${{ secrets.SIGNING_KEY }}
+        run: |
+          if [ -z "$KS" ]; then
+            echo "::error::Secret SIGNING_KEY belum diisi."
+            exit 1
+          fi
+
+      - name: Compute next version
+        id: ver
+        run: |
+          python3 - <<'PY'
+          import os, re, subprocess
+          def vt(s): return tuple(int(x) for x in (s.split('.') + ['0', '0'])[:3])
+          base = 'versionName=3.0'
+          try: base = open('version.properties').read()
+          except Exception: pass
+          m = re.search(r'versionName=(\d+)\.(\d+)', base)
+          bmaj, bmin = (int(m.group(1)), int(m.group(2))) if m else (1, 0)
+          tags = subprocess.check_output(['git', 'tag', '-l', 'v[0-9]*'], text=True).split()
+          tags = [t for t in tags if re.fullmatch(r'v\d+\.\d+(\.\d+)?', t)]
+          last = max(tags, key=lambda t: vt(t[1:])) if tags else None
+          if last is None:
+              new = (bmaj, bmin, 0)
+          else:
+              l = vt(last[1:])
+              new = (bmaj, bmin, 0) if (bmaj, bmin) > l[:2] else (l[0], l[1] + 1, 0)
+          name = '%d.%d' % new[:2]
+          code = new[0] * 10000 + new[1] * 100 + new[2]
+          open('version.properties', 'w').write('versionName=%s\nversionCode=%d\n' % (name, code))
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write('name=%s\ntag=v%s\nlast=%s\n' % (name, name, last or ''))
+          print('last=%s -> v%s (code %d)' % (last, name, code))
+          PY
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Prepare keystore
+        env:
+          KS: ${{ secrets.SIGNING_KEY }}
+        run: |
+          echo "$KS" | base64 -d > app/release.jks || { echo "::error::SIGNING_KEY bukan base64 keystore yang valid."; exit 1; }
+          test -s app/release.jks
+
+      - name: Build signed release APK
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -f ./gradlew ]; then
+            chmod +x ./gradlew && ./gradlew assembleRelease --no-daemon
+          else
+            gradle assembleRelease --no-daemon
+          fi
+
+      - name: Collect APK
+        env:
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          BT="$ANDROID_HOME/build-tools/$(ls "$ANDROID_HOME/build-tools" | sort -V | tail -1)"
+          APK="$(find app/build/outputs/apk/release -name '*.apk' ! -name '*unsigned*' | head -1)"
+          test -n "$APK"
+          cp "$APK" "ArkaelManager-${TAG}.apk"
+          "$BT/apksigner" verify --print-certs "ArkaelManager-${TAG}.apk"
+
+      - name: Release notes from commits
+        env:
+          LAST: ${{ steps.ver.outputs.last }}
+        run: |
+          RANGE="${LAST:+$LAST..}HEAD"
+          { echo "### Changes"; git log "$RANGE" --pretty='- %s' | grep -v '^- Release v' | head -20; } > notes.md
+          [ "$(wc -l < notes.md)" -le 1 ] && echo "- Maintenance release." >> notes.md || true
+          cat notes.md
+
+      - name: Tag & publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.ver.outputs.tag }}
+        run: |
+          gh release create "$TAG" "ArkaelManager-${TAG}.apk" \
+            --target "$GITHUB_SHA" --title "Arkael Manager ${TAG}" --notes-file notes.md
