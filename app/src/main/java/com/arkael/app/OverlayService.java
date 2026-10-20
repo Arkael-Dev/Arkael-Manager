@@ -40,7 +40,10 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Live-stats overlay made of animated rings (FPS, CPU, TEMP, GPU, RAM, BAT).
+ * Live-stats overlay in two styles (Game Mode settings -> "Classic blue list"):
+ *  - RINGS (default): animated rings
+ *  - CLASSIC: the blue text list from before (FPS / CPU / TEMP ... one per line)
+ * Ring style: live-stats overlay made of animated rings (FPS, CPU, TEMP, GPU, RAM, BAT).
  *  - drag with one finger to move it
  *  - drag the pill on the right edge to make it wider or narrower (rings spread out, height stays the same)
  *  - pinch, or drag the corner grip, to change the size of everything
@@ -64,6 +67,10 @@ public class OverlayService extends Service {
     private SparkView spark;
     private TextView titleDot;
     private boolean compact;
+    private boolean classic;
+    private TextView[] values = new TextView[N];
+    private TextView compactText;
+    private final List<TextView> labelViews = new ArrayList<TextView>();
     private int accent;
     private float scale = 1f;
     private int minW;
@@ -183,9 +190,26 @@ public class OverlayService extends Service {
         return t;
     }
 
+    /** Text for the classic list: left aligned, one line (same look as before the rings). */
+    private TextView classicText(String s, int color, float baseSp) {
+        TextView t = text(s, color, baseSp);
+        t.setMaxLines(1);
+        t.setGravity(Gravity.START);
+        return t;
+    }
+
     /** Applies the current scale to the views already on screen (a pinch never rebuilds the overlay). */
     private void applyScale() {
         if (root == null) return;
+        if (classic) {
+            for (TextView t : texts) t.setTextSize(TypedValue.COMPLEX_UNIT_SP, ((Float) t.getTag()).floatValue() * scale);
+            for (TextView t : labelViews) t.setMinWidth(dp(44 * scale));
+            content.setPadding(dp(10 * scale), dp(7 * scale), dp(14 + 2 * scale), dp(7 * scale));
+            if (spark != null) spark.setSizePx(dp(120 * scale), dp(34 * scale));
+            lp.width = WindowManager.LayoutParams.WRAP_CONTENT;
+            try { wm.updateViewLayout(root, lp); } catch (Exception ignored) {}
+            return;
+        }
         int ringPx = dp((compact ? 34 : 46) * scale);
         int cellPx = dp((compact ? 40 : 54) * scale);
         for (RingView r : rings) if (r != null) r.setSizePx(ringPx);
@@ -219,10 +243,14 @@ public class OverlayService extends Service {
         int alpha = Math.max(30, Math.min(100, OverlayPrefs.alpha(this)));
         int mask = OverlayPrefs.mask(this);
         compact = OverlayPrefs.compact(this);
-        final boolean anim = OverlayPrefs.anim(this);
+        final boolean anim = OverlayPrefs.anim(this) && OverlayPrefs.style(this) != OverlayPrefs.STYLE_CLASSIC;
+        classic = OverlayPrefs.style(this) == OverlayPrefs.STYLE_CLASSIC;
         scale = OverlayPrefs.scale(this);
         texts.clear();
         cells.clear();
+        labelViews.clear();
+        values = new TextView[N];
+        compactText = null;
         titleDot = null;
         spark = null;
         for (int i = 0; i < N; i++) { rings[i] = null; subs[i] = null; }
@@ -236,8 +264,37 @@ public class OverlayService extends Service {
 
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        root.addView(content, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        root.addView(content, new FrameLayout.LayoutParams(classic ? ViewGroup.LayoutParams.WRAP_CONTENT : ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
+        if (classic) {
+            if (compact) {
+                compactText = classicText("", Color.WHITE, 11f);
+                content.addView(compactText);
+            } else {
+                TextView title = classicText("\u25CF ARKAEL", accent, 9f);
+                title.setLetterSpacing(0.1f);
+                content.addView(title);
+                for (int i = 0; i < N; i++) {
+                    if ((mask & bits[i]) == 0) continue;
+                    LinearLayout line = new LinearLayout(this);
+                    line.setOrientation(LinearLayout.HORIZONTAL);
+                    line.setPadding(0, dp(2), 0, 0);
+                    TextView l = classicText(labels[i], accent, 11f);
+                    labelViews.add(l);
+                    TextView v = classicText("--", Color.WHITE, 11f);
+                    line.addView(l);
+                    line.addView(v);
+                    content.addView(line);
+                    values[i] = v;
+                }
+                if ((mask & OverlayPrefs.M_GRAPH) != 0) {
+                    spark = new SparkView(this, accent, dp(120), dp(34));
+                    LinearLayout.LayoutParams gp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                    gp.topMargin = dp(5);
+                    content.addView(spark, gp);
+                }
+            }
+        } else {
         if (!compact) {
             LinearLayout head = new LinearLayout(this);
             head.setOrientation(LinearLayout.HORIZONTAL);
@@ -281,6 +338,7 @@ public class OverlayService extends Service {
             gp.topMargin = dp(6);
             content.addView(spark, gp);
         }
+        }
 
         // resize grip (everything gets bigger/smaller), bottom-right corner
         final TextView grip = new TextView(this);
@@ -317,7 +375,7 @@ public class OverlayService extends Service {
         View bar = new View(this);
         bar.setBackground(pill((accent & 0x00FFFFFF) | 0x99000000));
         handle.addView(bar, new FrameLayout.LayoutParams(dp(4), dp(26), Gravity.CENTER));
-        root.addView(handle, new FrameLayout.LayoutParams(dp(16), dp(52), Gravity.END | Gravity.CENTER_VERTICAL));
+        if (!classic) root.addView(handle, new FrameLayout.LayoutParams(dp(16), dp(52), Gravity.END | Gravity.CENTER_VERTICAL));
         handle.setOnTouchListener(new View.OnTouchListener() {
             private float sx; private int w0;
             @Override public boolean onTouch(View v, MotionEvent e) {
@@ -412,8 +470,43 @@ public class OverlayService extends Service {
         if (subs[i] != null) subs[i].setText(sub);
     }
 
+    private static String ghz(int mhz) {
+        return mhz < 0 ? "--" : String.format(Locale.US, "%.2fGHz", mhz / 1000f);
+    }
+
+    /** Classic blue list: same text and FPS format as before ("27 fps", "27~ fps" when it is a best guess). */
+    private void renderClassic(SysProbe.Snapshot s, int fps, float temp) {
+        String cpu = (s.cpuLoad >= 0 ? s.cpuLoad + "% " : "") + (s.cpuMaxMhz > 0 ? ghz(s.cpuMaxMhz) : (s.root ? "" : "no root"));
+        if (cpu.isEmpty()) cpu = "--";
+        float tShown = temp > 0f ? temp : (float) s.cpuTemp;
+        String tempT = tShown > 0 ? String.format(Locale.US, "%.1f\u00B0C", tShown) : "--";
+        String gpu = (s.gpuLoad >= 0 ? s.gpuLoad + "% " : "") + (s.gpuMhz > 0 ? s.gpuMhz + "MHz" : "");
+        if (gpu.isEmpty()) gpu = s.root ? "N/A" : "no root";
+        String ram = s.ramPct < 0 ? "--" : s.ramPct + "% " + String.format(Locale.US, "%.1f/%.1fG", s.ramUsedMb / 1024f, s.ramTotalMb / 1024f);
+        float bt = BatteryInfo.temp(this);
+        if (bt <= 0f && s.batTemp > 0) bt = (float) s.batTemp;
+        String bat = (s.batPct >= 0 ? s.batPct + "% " : "") + (s.batMa != Integer.MIN_VALUE ? s.batMa + "mA " : "")
+                + (bt > 0 ? String.format(Locale.US, "%.1f\u00B0C", bt) : "");
+        String fpsT = fps >= 0 ? fps + fpsProbe.mark() + " fps" : (s.root ? "-- " + fpsProbe.status() : "no root");
+        String[] txt = {fpsT, cpu, tempT, gpu, ram, bat.trim().isEmpty() ? "--" : bat.trim()};
+        if (compactText != null) {
+            int mask = OverlayPrefs.mask(this);
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < N; i++) {
+                if ((mask & bits[i]) == 0) continue;
+                if (sb.length() > 0) sb.append(" | ");
+                sb.append(labels[i]).append(' ').append(txt[i]);
+            }
+            compactText.setText(sb.toString());
+        } else {
+            for (int i = 0; i < N; i++) if (values[i] != null) values[i].setText(txt[i]);
+            if (spark != null) spark.push(s.cpuLoad, tShown > 0 ? tShown : -1f, fps);
+        }
+    }
+
     private void render(SysProbe.Snapshot s, int fps, float temp) {
         if (root == null) return;
+        if (classic) { renderClassic(s, fps, temp); return; }
         float tShown = temp > 0f ? temp : (float) s.cpuTemp;
         float bt = BatteryInfo.temp(this);
         if (bt <= 0f && s.batTemp > 0) bt = (float) s.batTemp;

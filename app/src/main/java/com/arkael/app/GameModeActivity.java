@@ -366,6 +366,17 @@ public class GameModeActivity extends Activity {
             }
         });
         c4.addView(ca);
+        CheckBox cs = new CheckBox(this);
+        cs.setText("Classic blue list (instead of rings)");
+        cs.setTextColor(Color.WHITE);
+        cs.setChecked(OverlayPrefs.style(this) == OverlayPrefs.STYLE_CLASSIC);
+        cs.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(CompoundButton v, boolean on) {
+                OverlayPrefs.sp(GameModeActivity.this).edit().putInt("style", on ? OverlayPrefs.STYLE_CLASSIC : OverlayPrefs.STYLE_RINGS).apply();
+                OverlayService.refresh(GameModeActivity.this);
+            }
+        });
+        c4.addView(cs);
         col.addView(c4);
 
         setContentView(sv);
