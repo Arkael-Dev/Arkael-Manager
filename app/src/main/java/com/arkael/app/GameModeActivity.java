@@ -330,6 +330,14 @@ public class GameModeActivity extends Activity {
             }
         });
         cR.addView(cbAudio);
+        CheckBox cbClean = new CheckBox(this);
+        cbClean.setText("Clean video: hide handle, bar and panel while recording (stop from the notification)");
+        cbClean.setTextColor(Color.WHITE);
+        cbClean.setChecked(Recorder.clean(this));
+        cbClean.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(CompoundButton v, boolean on) { Recorder.setClean(GameModeActivity.this, on); }
+        });
+        cR.addView(cbClean);
         CheckBox cbHide = new CheckBox(this);
         cbHide.setText("Hide the edge handle while recording");
         cbHide.setTextColor(Color.WHITE);

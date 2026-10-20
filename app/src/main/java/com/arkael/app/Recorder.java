@@ -55,6 +55,8 @@ final class Recorder {
     static void setHideHandle(Context c, boolean v) { sp(c).edit().putBoolean("hide", v).apply(); }
     static boolean showBar(Context c) { return sp(c).getBoolean("bar", true); }
     static void setShowBar(Context c, boolean v) { sp(c).edit().putBoolean("bar", v).apply(); }
+    static boolean clean(Context c) { return sp(c).getBoolean("clean", true); }
+    static void setClean(Context c, boolean v) { sp(c).edit().putBoolean("clean", v).apply(); }
     static boolean showTouches(Context c) { return sp(c).getBoolean("touch", false); }
     static void setShowTouches(Context c, boolean v) { sp(c).edit().putBoolean("touch", v).apply(); }
     static boolean audio(Context c) { return sp(c).getBoolean("audio", true); }
