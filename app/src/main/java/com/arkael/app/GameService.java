@@ -7,6 +7,7 @@ import android.app.PendingIntent;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.ServiceInfo;
 import android.graphics.Color;
 import android.graphics.PixelFormat;
@@ -42,6 +43,7 @@ public class GameService extends Service {
     static final String ACTION_STOP = "com.arkael.app.GAME_STOP";
     static final String ACTION_PANEL_ON = "com.arkael.app.GAME_PANEL_ON";
     static final String ACTION_PANEL_OFF = "com.arkael.app.GAME_PANEL_OFF";
+    static final String ACTION_HANDLE_SHOW = "com.arkael.app.GAME_HANDLE_SHOW";
     private static final String CHANNEL = "arkael_game";
     private static final int NOTIF_ID = 4712;
     private static final float HEAT_LIMIT_C = 78f;
@@ -55,6 +57,7 @@ public class GameService extends Service {
 
     private WindowManager wm;
     private View handle;
+    private WindowManager.LayoutParams handleLp;
     private LinearLayout panel;
     private TextView status;
 
@@ -68,6 +71,7 @@ public class GameService extends Service {
     static void stop(Context c) { c.stopService(new Intent(c, GameService.class)); }
     static void panelOn(Context c) {
         GameProfiles.setManual(c, true);
+        c.getSharedPreferences("arkael_handle", Context.MODE_PRIVATE).edit().putBoolean("hidden", false).apply();
         ContextCompat.startForegroundService(c, new Intent(c, GameService.class).setAction(ACTION_PANEL_ON));
     }
     static void panelOff(Context c) {
@@ -87,6 +91,10 @@ public class GameService extends Service {
             GameProfiles.setManual(this, false);
             stopSelf();
             return START_NOT_STICKY;
+        }
+        if (ACTION_HANDLE_SHOW.equals(act)) {
+            hp().edit().putBoolean("hidden", false).apply();
+            main.post(new Runnable() { @Override public void run() { removeHandle(); addHandle(); } });
         }
         if (ACTION_PANEL_OFF.equals(act)) {
             main.post(new Runnable() { @Override public void run() { closePanel(); if (active.isEmpty()) removeHandle(); } });
@@ -168,7 +176,7 @@ public class GameService extends Service {
     }
 
     private void checkHeat() {
-        float t = temp.read(true);
+        float t = temp.read(true, TempProbe.CPU_MAX, BatteryInfo.temp(this));
         if (t <= 0f) t = (float) probe.read(this).cpuTemp;
         if (t >= HEAT_LIMIT_C) {
             Booster.setThermalRelax(this, false);
@@ -183,27 +191,94 @@ public class GameService extends Service {
         return (int) TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v, getResources().getDisplayMetrics());
     }
 
+    // The handle: drag it anywhere, it snaps to the nearest edge (left, right, top or bottom).
+    // Resize it and hide it from the panel; "Show handle" in the notification brings it back.
+
+    private SharedPreferences hp() { return getSharedPreferences("arkael_handle", MODE_PRIVATE); }
+
     private void addHandle() {
-        if (handle != null || !Settings.canDrawOverlays(this)) return;
+        if (handle != null || hp().getBoolean("hidden", false) || !Settings.canDrawOverlays(this)) return;
         wm = (WindowManager) getSystemService(WINDOW_SERVICE);
-        View h = new View(this);
+        final int edge = hp().getInt("edge", 0);               // 0 left, 1 right, 2 top, 3 bottom
+        float pos = hp().getFloat("pos", 0.30f);               // 0..1 along that edge
+        float sz = hp().getFloat("size", 1f);
+        DisplayMetrics dm = getResources().getDisplayMetrics();
+        int len = dp(90 * sz), th = dp(14 * sz);
+        boolean vertical = edge < 2;
+        int w = vertical ? th : len, h = vertical ? len : th;
+        float r = dp(6);
+        float[] radii;
+        if (edge == 0) radii = new float[]{0, 0, r, r, r, r, 0, 0};
+        else if (edge == 1) radii = new float[]{r, r, 0, 0, 0, 0, r, r};
+        else if (edge == 2) radii = new float[]{0, 0, 0, 0, r, r, r, r};
+        else radii = new float[]{r, r, r, r, 0, 0, 0, 0};
+        View v = new View(this);
         GradientDrawable g = new GradientDrawable();
         g.setColor((OverlayPrefs.color(this) & 0x00FFFFFF) | 0x99000000);
-        g.setCornerRadii(new float[]{0, 0, dp(5), dp(5), dp(5), dp(5), 0, 0});
-        h.setBackground(g);
-        h.setOnTouchListener(new View.OnTouchListener() {
-            @Override public boolean onTouch(View v, MotionEvent e) {
-                if (e.getAction() == MotionEvent.ACTION_DOWN) return true;
-                if (e.getAction() == MotionEvent.ACTION_UP) openPanel();      // tap or swipe both open it
+        g.setCornerRadii(radii);
+        v.setBackground(g);
+
+        final WindowManager.LayoutParams lp = params(w, h, false);
+        lp.gravity = Gravity.TOP | Gravity.START;
+        if (edge == 0) { lp.x = 0; lp.y = (int) ((dm.heightPixels - h) * pos); }
+        else if (edge == 1) { lp.x = dm.widthPixels - w; lp.y = (int) ((dm.heightPixels - h) * pos); }
+        else if (edge == 2) { lp.y = 0; lp.x = (int) ((dm.widthPixels - w) * pos); }
+        else { lp.y = dm.heightPixels - h; lp.x = (int) ((dm.widthPixels - w) * pos); }
+        final int hw = w, hh = h;
+        v.setOnTouchListener(new View.OnTouchListener() {
+            private float downX, downY; private int sx, sy; private boolean moved;
+            @Override public boolean onTouch(View view, MotionEvent e) {
+                DisplayMetrics m = getResources().getDisplayMetrics();
+                switch (e.getActionMasked()) {
+                    case MotionEvent.ACTION_DOWN:
+                        downX = e.getRawX(); downY = e.getRawY(); sx = lp.x; sy = lp.y; moved = false;
+                        return true;
+                    case MotionEvent.ACTION_MOVE: {
+                        float dx = e.getRawX() - downX, dy = e.getRawY() - downY;
+                        if (!moved && Math.hypot(dx, dy) < dp(8)) return true;
+                        moved = true;
+                        lp.x = Math.max(0, Math.min(m.widthPixels - hw, sx + (int) dx));
+                        lp.y = Math.max(0, Math.min(m.heightPixels - hh, sy + (int) dy));
+                        try { wm.updateViewLayout(handle, lp); } catch (Exception ignored) {}
+                        return true;
+                    }
+                    case MotionEvent.ACTION_UP:
+                        if (!moved) { openPanel(); return true; }
+                        snap(lp.x + hw / 2f, lp.y + hh / 2f, hw, hh);
+                        return true;
+                }
                 return true;
             }
         });
-        DisplayMetrics dm = getResources().getDisplayMetrics();
-        WindowManager.LayoutParams lp = params(dp(14), dp(90), false);
-        lp.gravity = Gravity.TOP | Gravity.START;
-        lp.x = 0;
-        lp.y = (int) (dm.heightPixels * 0.30f);
-        try { wm.addView(h, lp); handle = h; } catch (Exception ignored) {}
+        try { wm.addView(v, lp); handle = v; handleLp = lp; } catch (Exception ignored) {}
+    }
+
+    /** Remember the nearest edge and where along it, then draw the handle again in the right orientation. */
+    private void snap(float cx, float cy, int w, int h) {
+        DisplayMetrics m = getResources().getDisplayMetrics();
+        float dl = cx, dr = m.widthPixels - cx, dt = cy, db = m.heightPixels - cy;
+        int edge = 0; float best = dl;
+        if (dr < best) { best = dr; edge = 1; }
+        if (dt < best) { best = dt; edge = 2; }
+        if (db < best) { edge = 3; }
+        boolean vertical = edge < 2;
+        float pos = vertical ? (cy - h / 2f) / Math.max(1f, m.heightPixels - h) : (cx - w / 2f) / Math.max(1f, m.widthPixels - w);
+        hp().edit().putInt("edge", edge).putFloat("pos", Math.max(0f, Math.min(1f, pos))).apply();
+        main.post(new Runnable() { @Override public void run() { removeHandle(); addHandle(); } });
+    }
+
+    private void resizeHandle(float delta) {
+        float sz = Math.max(0.5f, Math.min(3f, hp().getFloat("size", 1f) + delta));
+        hp().edit().putFloat("size", sz).apply();
+        removeHandle(); addHandle();
+        say("Handle size " + Math.round(sz * 100) + "%");
+    }
+
+    private void hideHandle() {
+        hp().edit().putBoolean("hidden", true).apply();
+        closePanel();
+        removeHandle();
+        toast("Handle hidden. Tap \"Show handle\" in the Arkael notification to bring it back");
     }
 
     private WindowManager.LayoutParams params(int w, int h, boolean watchOutside) {
@@ -217,6 +292,7 @@ public class GameService extends Service {
     private void removeHandle() {
         if (wm != null && handle != null) { try { wm.removeView(handle); } catch (Exception ignored) {} }
         handle = null;
+        handleLp = null;
     }
 
     private void closePanel() {
@@ -493,6 +569,19 @@ public class GameService extends Service {
             }
         });
         grid.addView(tileRow(tRestore, tReset));
+        LinearLayout hMinus = tile("➖", "Handle smaller", false, new View.OnClickListener() {
+            @Override public void onClick(View v) { resizeHandle(-0.25f); }
+        });
+        LinearLayout hPlus = tile("➕", "Handle bigger", false, new View.OnClickListener() {
+            @Override public void onClick(View v) { resizeHandle(0.25f); }
+        });
+        LinearLayout hHide = tile("🙈", "Hide handle", false, new View.OnClickListener() {
+            @Override public void onClick(View v) { hideHandle(); }
+        });
+        LinearLayout tDiag = tile("🧾", "Diagnose FPS / temp", false, new View.OnClickListener() {
+            @Override public void onClick(View v) { diagnose(); }
+        });
+        grid.addView(tileRow(hMinus, hPlus, hHide, tDiag));
         body.addView(grid);
 
         status = txt("", MUTED, 11, false);
@@ -510,9 +599,35 @@ public class GameService extends Service {
         boolean land = dm.widthPixels > dm.heightPixels;
         int w = Math.min(dp(340), (int) (dm.widthPixels * (land ? 0.55f : 0.92f)));
         WindowManager.LayoutParams lp = params(w, WindowManager.LayoutParams.WRAP_CONTENT, true);
-        lp.gravity = Gravity.CENTER_VERTICAL | Gravity.START;
-        lp.x = dp(12);
+        int edge = hp().getInt("edge", 0);
+        if (edge == 1) { lp.gravity = Gravity.CENTER_VERTICAL | Gravity.END; lp.x = dp(12); }
+        else if (edge == 2) { lp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL; lp.y = dp(24); }
+        else if (edge == 3) { lp.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL; lp.y = dp(24); }
+        else { lp.gravity = Gravity.CENTER_VERTICAL | Gravity.START; lp.x = dp(12); }
         try { wm.addView(p, lp); panel = p; } catch (Exception ignored) {}
+    }
+
+    /** One tap while the game is on screen: writes the raw sensor and frame data to Download/arkael_diag_ingame.txt. */
+    private void diagnose() {
+        final String p = Foreground.pkg();
+        say("Collecting data for ~6 s, keep the game on screen...");
+        bgRun(new Runnable() { @Override public void run() {
+            String grep = p.matches("[A-Za-z0-9_.]+") && !p.isEmpty() ? "SurfaceView|" + p : "SurfaceView";
+            RootShell.run(
+                "dumpsys SurfaceFlinger --timestats -enable >/dev/null 2>&1\n" +
+                "sleep 2\n" +
+                "{\n" +
+                "echo '### FOREGROUND'; echo '" + (p.matches("[A-Za-z0-9_.]*") ? p : "?") + "'; dumpsys activity activities | grep -m1 topResumedActivity\n" +
+                "echo '### THERMAL'; for z in /sys/class/thermal/thermal_zone*; do echo \"$(basename $z)|$(cat $z/type 2>/dev/null)|$(cat $z/temp 2>/dev/null)\"; done\n" +
+                "echo '### BATTERY'; cat /sys/class/power_supply/battery/temp; dumpsys battery | grep -E 'level|temperature'\n" +
+                "echo '### LIST'; dumpsys SurfaceFlinger --list | grep -i -E '" + grep + "'\n" +
+                "echo '### TS1'; dumpsys SurfaceFlinger --timestats -dump | grep -E 'layerName|totalFrames'\n" +
+                "sleep 3\n" +
+                "echo '### TS2'; dumpsys SurfaceFlinger --timestats -dump | grep -E 'layerName|totalFrames'\n" +
+                "echo '### FOREGROUND AFTER'; dumpsys activity activities | grep -m1 topResumedActivity\n" +
+                "} > /sdcard/Download/arkael_diag_ingame.txt 2>&1");
+            say("Saved: Download/arkael_diag_ingame.txt");
+        } });
     }
 
     // ---------------------------------------------------------------- plumbing
@@ -529,12 +644,14 @@ public class GameService extends Service {
         Intent stop = new Intent(this, GameService.class).setAction(ACTION_STOP);
         int pf = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0);
         PendingIntent pi = PendingIntent.getService(this, 1, stop, pf);
+        PendingIntent showPi = PendingIntent.getService(this, 2, new Intent(this, GameService.class).setAction(ACTION_HANDLE_SHOW), pf);
         Notification n = new NotificationCompat.Builder(this, CHANNEL)
                 .setSmallIcon(R.drawable.ic_cpu)
                 .setContentTitle("Arkael Manager")
                 .setContentText("Game mode is ready")
                 .setOngoing(true)
                 .addAction(0, "Stop", pi)
+                .addAction(0, "Show handle", showPi)
                 .build();
         if (Build.VERSION.SDK_INT >= 29) startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MANIFEST);
         else startForeground(NOTIF_ID, n);

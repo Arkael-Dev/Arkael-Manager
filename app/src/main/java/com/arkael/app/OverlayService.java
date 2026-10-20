@@ -120,7 +120,8 @@ public class OverlayService extends Service {
                 final SysProbe.Snapshot s = probe.read(OverlayService.this);
                 int m = OverlayPrefs.mask(OverlayService.this);
                 final int fps = (s.root && (m & (OverlayPrefs.M_FPS | OverlayPrefs.M_GRAPH)) != 0) ? fpsProbe.read() : -1;
-                final float temp = (s.root && (m & (OverlayPrefs.M_TEMP | OverlayPrefs.M_GRAPH)) != 0) ? tempProbe.read(true) : -1f;
+                final float temp = (m & (OverlayPrefs.M_TEMP | OverlayPrefs.M_GRAPH)) != 0
+                        ? tempProbe.read(s.root, OverlayPrefs.tempSrc(OverlayService.this), BatteryInfo.temp(OverlayService.this)) : -1f;
                 main.post(new Runnable() { @Override public void run() { render(s, fps, temp); } });
             } catch (Exception ignored) {}
             if (bg != null && running) bg.postDelayed(this, 1000);
@@ -330,8 +331,10 @@ public class OverlayService extends Service {
         String gpu = (s.gpuLoad >= 0 ? s.gpuLoad + "% " : "") + (s.gpuMhz > 0 ? s.gpuMhz + "MHz" : "");
         if (gpu.isEmpty()) gpu = s.root ? "N/A" : "no root";
         String ram = s.ramPct < 0 ? "--" : s.ramPct + "% " + String.format(Locale.US, "%.1f/%.1fG", s.ramUsedMb / 1024f, s.ramTotalMb / 1024f);
+        float bt = BatteryInfo.temp(this);
+        if (bt <= 0f && s.batTemp > 0) bt = (float) s.batTemp;
         String bat = (s.batPct >= 0 ? s.batPct + "% " : "") + (s.batMa != Integer.MIN_VALUE ? s.batMa + "mA " : "")
-                + (s.batTemp > 0 ? String.format(Locale.US, "%.0f°", s.batTemp) : "");
+                + (bt > 0 ? String.format(Locale.US, "%.1f°C", bt) : "");
         String fpsT = fps >= 0 ? fps + " fps" : (s.root ? "-- " + fpsProbe.status() : "no root");
         String[] txt = {fpsT, cpu, tempT, gpu, ram, bat.trim().isEmpty() ? "--" : bat.trim()};
 

@@ -298,6 +298,29 @@ public class GameModeActivity extends Activity {
         c3.addView(bReset);
         col.addView(c3);
 
+        // --- temperature source ---
+        LinearLayout cT = card();
+        cT.addView(label("TEMPERATURE SOURCE", Color.parseColor("#00E5FF"), 11, true));
+        final TextView tvSrc = label("", Color.parseColor("#8B95A3"), 11, false);
+        tvSrc.setPadding(0, dp(4), 0, dp(6));
+        cT.addView(tvSrc);
+        tvSrc.setText("Now: " + TempProbe.NAMES[OverlayPrefs.tempSrc(this)] + ". Phones expose different sensors, so pick the one that matches what you expect. The battery temperature is always shown in the BAT row.");
+        for (int i = 0; i < TempProbe.NAMES.length; i++) {
+            final int idx = i;
+            Button bt = new Button(this);
+            bt.setText(TempProbe.NAMES[i]);
+            bt.setAllCaps(false);
+            bt.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    OverlayPrefs.setTempSrc(GameModeActivity.this, idx);
+                    tvSrc.setText("Now: " + TempProbe.NAMES[idx] + ". Phones expose different sensors, so pick the one that matches what you expect. The battery temperature is always shown in the BAT row.");
+                    OverlayService.refresh(GameModeActivity.this);
+                }
+            });
+            cT.addView(bt);
+        }
+        col.addView(cT);
+
         // --- metrics ---
         LinearLayout c4 = card();
         c4.addView(label("SHOW", Color.parseColor("#00E5FF"), 11, true));
