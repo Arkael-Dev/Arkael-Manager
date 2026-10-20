@@ -27,17 +27,19 @@ final class Recorder {
     private static final String TAG = "ArkaelRec";
     static final String[] Q_NAMES = {"720p", "1080p", "Native"};
     private static final int[] Q_SHORT = {720, 1080, 0};      // short side in px, 0 = screen size
-    private static final int[] Q_MBPS = {6, 10, 16};
+    private static final int[] Q_MBPS = {12, 20, 32};
     private static final int SEGMENT_SEC = 170;
     private static final long MIN_FREE = 300L * 1024 * 1024;
 
     private static volatile boolean rec, stopReq;
+    private static volatile long startedAt;
     private static volatile String error;
     private static Thread worker;
 
     private Recorder() {}
 
     static boolean isRecording() { return rec; }
+    static long startedAt() { return startedAt; }
     static String lastError() { return error; }
 
     private static SharedPreferences sp(Context c) { return c.getSharedPreferences("arkael_rec", Context.MODE_PRIVATE); }
@@ -45,6 +47,10 @@ final class Recorder {
     static void setQuality(Context c, int q) { sp(c).edit().putInt("q", q).apply(); }
     static boolean hideHandle(Context c) { return sp(c).getBoolean("hide", false); }
     static void setHideHandle(Context c, boolean v) { sp(c).edit().putBoolean("hide", v).apply(); }
+    static boolean showBar(Context c) { return sp(c).getBoolean("bar", true); }
+    static void setShowBar(Context c, boolean v) { sp(c).edit().putBoolean("bar", v).apply(); }
+    static boolean showTouches(Context c) { return sp(c).getBoolean("touch", true); }
+    static void setShowTouches(Context c, boolean v) { sp(c).edit().putBoolean("touch", v).apply(); }
 
     static String describe(Context c) {
         int q = quality(c);
@@ -57,12 +63,14 @@ final class Recorder {
         rec = true;
         stopReq = false;
         error = null;
+        startedAt = System.currentTimeMillis();
         final Context app = ctx.getApplicationContext();
         worker = new Thread(new Runnable() {
             @Override public void run() {
                 try { loop(app); }
                 catch (Exception e) { error = "Recording failed: " + e.getMessage(); }
                 finally {
+                    try { restoreTouches(app); } catch (Exception ignored) {}
                     rec = false;
                     if (onEnd != null) { try { onEnd.run(); } catch (Exception ignored) {} }
                 }
@@ -90,6 +98,7 @@ final class Recorder {
     private static void loop(Context ctx) throws Exception {
         if (!RootShell.hasRoot()) { error = "Recording needs root"; return; }
         RootShell.run("mkdir -p " + DIR);
+        if (showTouches(ctx)) enableTouches(ctx);
         String ts = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
         int wanted = quality(ctx);
         int q = wanted;
@@ -119,6 +128,23 @@ final class Recorder {
         if (error == null && q != wanted) {
             error = "Device refused " + Q_NAMES[wanted] + ", recorded at " + Q_NAMES[q] + " instead. Saved in Movies/Arkael";
         }
+    }
+
+    /** Turns on Android's "Show touches" (white circles that follow taps and swipes, they end up in the video). */
+    private static void enableTouches(Context c) {
+        SharedPreferences s = sp(c);
+        int prev = s.getInt("touch_prev", -1);        // left over from a session that ended badly: that is the real original
+        if (prev < 0) prev = "1".equals(su("settings get system show_touches").trim()) ? 1 : 0;
+        s.edit().putInt("touch_prev", prev).apply();
+        su("settings put system show_touches 1");
+    }
+
+    private static void restoreTouches(Context c) {
+        SharedPreferences s = sp(c);
+        int prev = s.getInt("touch_prev", -1);
+        if (prev < 0) return;
+        su("settings put system show_touches " + prev);
+        s.edit().remove("touch_prev").apply();
     }
 
     /** One su process per segment; returns everything screenrecord printed. */

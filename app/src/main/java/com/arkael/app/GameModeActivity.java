@@ -327,6 +327,22 @@ public class GameModeActivity extends Activity {
             @Override public void onCheckedChanged(CompoundButton v, boolean on) { Recorder.setHideHandle(GameModeActivity.this, on); }
         });
         cR.addView(cbHide);
+        CheckBox cbBar = new CheckBox(this);
+        cbBar.setText("Floating bar with timer and Stop while recording");
+        cbBar.setTextColor(Color.WHITE);
+        cbBar.setChecked(Recorder.showBar(this));
+        cbBar.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(CompoundButton v, boolean on) { Recorder.setShowBar(GameModeActivity.this, on); }
+        });
+        cR.addView(cbBar);
+        CheckBox cbTouch = new CheckBox(this);
+        cbTouch.setText("Show touches (circle on every tap and swipe) in the video");
+        cbTouch.setTextColor(Color.WHITE);
+        cbTouch.setChecked(Recorder.showTouches(this));
+        cbTouch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(CompoundButton v, boolean on) { Recorder.setShowTouches(GameModeActivity.this, on); }
+        });
+        cR.addView(cbTouch);
         TextView rh = label("Start it with the Record screen tile in the GAME MODE panel (needs root). While recording the handle turns red; stop it from the panel or the Stop recording button in the notification. Files go to Movies/Arkael.", Color.parseColor("#8B95A3"), 11, false);
         rh.setPadding(0, dp(6), 0, 0);
         cR.addView(rh);

@@ -56,6 +56,7 @@ public class GameService extends Service {
     private volatile boolean running;
     private boolean rootChecked;
     private volatile boolean recDead;
+    private RecOverlay recOv;
 
     private WindowManager wm;
     private View handle;
@@ -408,6 +409,7 @@ public class GameService extends Service {
     // ---- screen recording
     private Runnable recDone() {
         return new Runnable() { @Override public void run() {
+            hideRecBar();
             if (recDead) return;
             String e = Recorder.lastError();
             toast(e != null ? e : "Recording saved in Movies/Arkael");
@@ -430,14 +432,29 @@ public class GameService extends Service {
             Recorder.stopAsync();
             return;
         }
+        if (recOv != null && recOv.counting()) return;
         closePanel();                                                  // keep the panel out of the video
         if (Recorder.hideHandle(this)) removeHandle();
-        bgRun(new Runnable() { @Override public void run() {
-            try { Thread.sleep(700); } catch (InterruptedException ignored) {}
+        if (recOv == null) recOv = new RecOverlay(this, main, new Runnable() { @Override public void run() {
+            toast("Stopping recording...");
+            Recorder.stopAsync();
+        } });
+        recOv.countdown(3, new Runnable() { @Override public void run() {
             Recorder.start(GameService.this, recDone());
-            toast("Recording started");
+            main.post(new Runnable() { @Override public void run() { showRecBar(); } });
+            refreshRecUi();
+        } }, new Runnable() { @Override public void run() {
+            toast("Recording cancelled");
             refreshRecUi();
         } });
+    }
+
+    private void showRecBar() {
+        if (recOv != null && Recorder.isRecording() && Recorder.showBar(this)) recOv.showBar();
+    }
+
+    private void hideRecBar() {
+        main.post(new Runnable() { @Override public void run() { if (recOv != null) recOv.hideBar(); } });
     }
 
     private void openActivity(Class<?> cls) {
@@ -710,6 +727,7 @@ public class GameService extends Service {
         if (worker != null) worker.quitSafely();
         recDead = true;
         Recorder.stopAsync();
+        if (recOv != null) { recOv.cancelCountdown(); recOv.hideBar(); }
         closePanel();
         removeHandle();
         if (startedOverlay) stopService(new Intent(this, OverlayService.class));
