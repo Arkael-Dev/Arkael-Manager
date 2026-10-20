@@ -473,11 +473,11 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView 
+                    <TextView android:visibility="gone" 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="Gov" 
-                        android:drawableLeft="@android:drawable/ic_menu_manage" 
+                        android:drawableLeft="@drawable/ic_cpu" 
                         android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
@@ -509,11 +509,11 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView 
+                    <TextView android:visibility="gone" 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="Zram" 
-                        android:drawableLeft="@android:drawable/ic_menu_save" 
+                        android:drawableLeft="@drawable/ic_ram" 
                         android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
@@ -545,11 +545,11 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView 
+                    <TextView android:visibility="gone" 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="Heat" 
-                        android:drawableLeft="@android:drawable/ic_menu_sort_by_size" 
+                        android:drawableLeft="@drawable/ic_thermal" 
                         android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
@@ -581,11 +581,11 @@
                     android:layout_marginBottom="20dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView 
+                    <TextView android:visibility="gone" 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="Del" 
-                        android:drawableLeft="@android:drawable/ic_menu_delete" 
+                        android:drawableLeft="@drawable/ic_trash" 
                         android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
@@ -627,11 +627,11 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView 
+                    <TextView android:visibility="gone" 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="GPU" 
-                        android:drawableLeft="@android:drawable/ic_menu_mapmode" 
+                        android:drawableLeft="@drawable/ic_gpu" 
                         android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
@@ -663,11 +663,11 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView 
+                    <TextView android:visibility="gone" 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="IO" 
-                        android:drawableLeft="@android:drawable/ic_menu_agenda" 
+                        android:drawableLeft="@drawable/ic_storage" 
                         android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
@@ -699,11 +699,11 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView 
+                    <TextView android:visibility="gone" 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="Algo" 
-                        android:drawableLeft="@android:drawable/ic_menu_preferences" 
+                        android:drawableLeft="@drawable/ic_ram" 
                         android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
@@ -735,11 +735,11 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView 
+                    <TextView android:visibility="gone" 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="Col" 
-                        android:drawableLeft="@android:drawable/ic_menu_info_details" 
+                        android:drawableLeft="@drawable/ic_palette" 
                         android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
@@ -771,11 +771,11 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView 
+                    <TextView android:visibility="gone" 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="GL" 
-                        android:drawableLeft="@android:drawable/ic_menu_edit" 
+                        android:drawableLeft="@drawable/ic_gpu" 
                         android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
@@ -807,11 +807,11 @@
                     android:layout_marginBottom="20dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView 
+                    <TextView android:visibility="gone" 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="Sync" 
-                        android:drawableLeft="@android:drawable/ic_menu_share" 
+                        android:drawableLeft="@drawable/ic_sync" 
                         android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
@@ -844,11 +844,11 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView 
+                    <TextView android:visibility="gone" 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
                         android:text="Key" 
-                        android:drawableLeft="@android:drawable/ic_menu_manage" 
+                        android:drawableLeft="@drawable/ic_key" 
                         android:drawablePadding="15dp"/>
                     <TextView 
                         android:layout_width="0dp" 
@@ -959,7 +959,7 @@
                         android:textColor="#FF6B35" 
                         android:textSize="14sp" 
                         android:layout_marginBottom="10dp" 
-                        android:drawableLeft="@android:drawable/ic_menu_gallery" 
+                        android:drawableLeft="@drawable/ic_image" 
                         android:drawablePadding="10dp"/>
                     <TextView 
                         android:id="@+id/btn_reset_banner" 
@@ -968,7 +968,7 @@
                         android:text="Reset Banner to Default" 
                         android:textColor="#8B95A3" 
                         android:textSize="12sp" 
-                        android:drawableLeft="@android:drawable/ic_menu_revert" 
+                        android:drawableLeft="@drawable/ic_sync" 
                         android:drawablePadding="10dp" 
                         android:visibility="gone"/>
                 </LinearLayout>
@@ -999,7 +999,7 @@
                         android:layout_marginBottom="10dp" 
                         android:clickable="true" 
                         android:focusable="true" 
-                        android:drawableLeft="@android:drawable/ic_menu_gallery" 
+                        android:drawableLeft="@drawable/ic_palette" 
                         android:drawablePadding="10dp"/>
                     
                     <TextView 
@@ -1012,7 +1012,7 @@
                         android:layout_marginBottom="10dp" 
                         android:clickable="true" 
                         android:focusable="true" 
-                        android:drawableLeft="@android:drawable/ic_menu_edit" 
+                        android:drawableLeft="@drawable/ic_palette" 
                         android:drawablePadding="10dp"/>
                     
                     <TextView 
@@ -1089,7 +1089,7 @@
                         android:layout_marginBottom="5dp" 
                         android:clickable="true" 
                         android:focusable="true" 
-                        android:drawableLeft="@android:drawable/ic_menu_send" 
+                        android:drawableLeft="@drawable/ic_send" 
                         android:drawablePadding="10dp"/>
                     <TextView 
                         android:id="@+id/tv_channel_link" 
@@ -1100,7 +1100,7 @@
                         android:textSize="12sp" 
                         android:clickable="true" 
                         android:focusable="true" 
-                        android:drawableLeft="@android:drawable/ic_menu_view" 
+                        android:drawableLeft="@drawable/ic_send" 
                         android:drawablePadding="10dp"/>
                 </LinearLayout>
 
