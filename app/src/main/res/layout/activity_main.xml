@@ -1095,7 +1095,7 @@
                         android:id="@+id/tv_channel_link" 
                         android:layout_width="match_parent" 
                         android:layout_height="wrap_content" 
-                        android:text="Channel: t.me/vortexgki (Click to Join)" 
+                        android:text="Channel: t.me/arkaelkernel (Click to Join)" 
                         android:textColor="#AAAAAA" 
                         android:textSize="12sp" 
                         android:clickable="true" 

@@ -104,7 +104,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        prefs = getSharedPreferences("VortexPrefs", 0);
+        prefs = getSharedPreferences("ArkaelPrefs", 0);
         
         pickImageLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -119,27 +119,6 @@ public class MainActivity extends AppCompatActivity {
         initViews();
         loadThemeSettings();
 
-        // --- AUTH LOGIC ---
-        String kernelName = "";
-        try {
-            Process p = Runtime.getRuntime().exec("uname -r");
-            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
-            kernelName = reader.readLine();
-            if(kernelName == null) kernelName = "";
-        } catch (Exception e) {
-            kernelName = "";
-        }
-
-        Log.d("ArkaelAuth", "Kernel: " + kernelName);
-        boolean isEKernel = kernelName.toLowerCase().contains("arkael");
-
-        if(isEKernel) {
-            prefs.edit().putBoolean("is_unlocked", true).apply();
-            if(tvAuthActive != null) tvAuthActive.setVisibility(View.VISIBLE);
-            Toast.makeText(this, "Arkael Kernel Detected!", Toast.LENGTH_SHORT).show();
-        } else {
-            if(tvAuthActive != null) tvAuthActive.setVisibility(View.GONE);
-        }
 
         setupClickListeners();
         refreshUI();
@@ -166,25 +145,6 @@ public class MainActivity extends AppCompatActivity {
         return mi.totalMem;
     }
 
-    private String getPasskeyFromAssets() {
-        try {
-            AssetManager am = getAssets();
-            InputStream is = am.open("VORTEX_PASSKEY.txt");
-            BufferedReader reader = new BufferedReader(new InputStreamReader(is));
-            String line;
-            while ((line = reader.readLine()) != null) {
-                if (line.startsWith("PASSKEY:")) {
-                    String key = line.substring("PASSKEY:".length()).trim();
-                    reader.close();
-                    return key;
-                }
-            }
-            reader.close();
-        } catch (IOException e) {
-            Log.e("ArkaelAuth", "Error reading passkey from assets", e);
-        }
-        return "arkael"; 
-    }
 
     private void initViews() {
         tvRam = findViewById(R.id.tv_ram);
@@ -252,21 +212,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupClickListeners() {
-        Button btnUnlock = findViewById(R.id.btn_unlock);
-        if(btnUnlock != null) {
-            btnUnlock.setOnClickListener(v -> {
-                if(inputCode == null) inputCode = findViewById(R.id.input_code);
-                String userInput = inputCode.getText().toString().trim();
-                String validKey = getPasskeyFromAssets(); 
-                if (userInput.equals(validKey)) {
-                    prefs.edit().putBoolean("is_unlocked", true).apply();
-                    refreshUI();
-                    Toast.makeText(this, "ACCESS GRANTED", Toast.LENGTH_SHORT).show();
-                } else {
-                    Toast.makeText(this, "DENIED: Invalid Key", Toast.LENGTH_SHORT).show();
-                }
-            });
-        }
 
         findViewById(R.id.btn_cpu_gov).setOnClickListener(v -> pickGov()); 
         findViewById(R.id.btn_set_zram).setOnClickListener(v -> showZramMenu());
@@ -333,8 +278,8 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_bg_white).setOnClickListener(v -> setBackgroundMode(1));
         findViewById(R.id.btn_bg_transparent).setOnClickListener(v -> setBackgroundMode(3));
 
-        findViewById(R.id.tv_dev_link).setOnClickListener(v -> openUrl("https://t.me/gki_kernel"));
-        findViewById(R.id.tv_channel_link).setOnClickListener(v -> openUrl("https://t.me/gki_kernel"));
+        findViewById(R.id.tv_dev_link).setOnClickListener(v -> openUrl("https://t.me/arkaelkernel"));
+        findViewById(R.id.tv_channel_link).setOnClickListener(v -> openUrl("https://t.me/arkaelkernel"));
 
         if(tvMaxFreq != null) {
             tvMaxFreq.setOnLongClickListener(v -> {
@@ -1337,9 +1282,9 @@ public class MainActivity extends AppCompatActivity {
         new Thread(() -> {
             String script = "cache_cleared=0\ncache_total_kb=0\nget_size() { du -sk \"$1\" 2>/dev/null | awk '{print $1}'; }\nshow_cleaning_progress() {\n    local duration=10\n    local i=1\n    local spinner=\"123456789\"\n    local spinner_len=10\n    while [ $i -le $duration ]; do\n        spinner_char=$(echo $spinner | cut -c $(( ( ($i-1) % spinner_len ) + 1 )) )\n        echo -ne \"🧹 [CLEANING CACHE] $i $spinner_char\\r\"\n        sleep 1\n        i=$((i+1))\n    done\n    echo -ne \"\\n\"\n}\nshow_cleaning_progress\napp_cache_dirs=(\n    \"/data/data/*/cache\"\n    \"/data/data/*/code_cache\"\n    \"/data/user_de/*/*/cache\"\n    \"/data/user_de/*/*/code_cache\"\n    \"/sdcard/Android/data/*/cache\"\n    \"/data/system/dropbox\"\n)\nstep=1\ntotal_steps=$(( ${#app_cache_dirs[@]} + 6 ))\nfor dir in \"${app_cache_dirs[@]}\"\ndo\n    size=$(du -cs $dir 2>/dev/null | grep total | cut -f 1)\n    [ -n \"$size\" ] && cache_total_kb=$((cache_total_kb + size))\n    echo -ne \" [$step/$total_steps] Cleaning: $dir ${size:-0} KB\\r\"\n    find $dir/* -delete &>/dev/null\n    sleep 1\n    echo -ne \"\\n\"\n    step=$((step+1))\ndone\nsystem_cache_dirs=(\n    \"/cache\"\n    \"/data/dalvik-cache\"\n    \"/data/system/gpu\"\n    \"/system/cache\"\n    \"/vendor/cache\"\n)\nfor sysdir in \"${system_cache_dirs[@]}\"\ndo\n    [ -d \"$sysdir\" ] && cache_total_kb=$((cache_total_kb + $(get_size \"$sysdir\")))\ndone\n[ -d /cache ] && rm -rf /cache/* && echo \"[$step/$total_steps]  Clearing /cache...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\n[ -d /data/dalvik-cache ] && rm -rf /data/dalvik-cache/* && echo \"[$step/$total_steps] Clearing /data/dalvik-cache...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\nsync; echo 3 > /proc/sys/vm/drop_caches && echo \"[$step/$total_steps] Dropping system caches...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\n[ -d /data/system/gpu ] && rm -rf /data/system/gpu/* && echo \"[$step/$total_steps] Clearing /data/system/gpu...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\n[ -d /system/cache ] && rm -rf /system/cache/* && echo \"[$step/$total_steps] Clearing /system/cache...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\n[ -d /vendor/cache ] && rm -rf /vendor/cache/* && echo \"[$step/$total_steps] Clearing /vendor/cache...\" && cache_cleared=$((cache_cleared + 1)) && sleep 1 && step=$((step+1))\ncache_total_mb=$(awk \"BEGIN {printf \\\"%.2f\\\", $cache_total_kb/1024}\")\necho \"[OK] Cache Cleanup: Cleared $cache_cleared cache directories.\"\necho \"[OK] Estimated cache cleaned: $cache_total_mb MB\"";
             runOnUiThread(() -> tvTerminalLog.setText("> Starting Advanced Clean..."));
-            runSu("echo '" + script + "' > /data/local/tmp/vortex_clean.sh");
-            runSu("chmod 755 /data/local/tmp/vortex_clean.sh");
-            String output = runSuReturnAll("sh /data/local/tmp/vortex_clean.sh");
+            runSu("echo '" + script + "' > /data/local/tmp/arkael_clean.sh");
+            runSu("chmod 755 /data/local/tmp/arkael_clean.sh");
+            String output = runSuReturnAll("sh /data/local/tmp/arkael_clean.sh");
             runOnUiThread(() -> {
                 tvTerminalLog.setText(output);
                 Toast.makeText(this, "Clean Success", Toast.LENGTH_SHORT).show();
