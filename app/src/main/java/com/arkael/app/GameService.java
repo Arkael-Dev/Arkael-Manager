@@ -44,6 +44,7 @@ public class GameService extends Service {
     static final String ACTION_PANEL_ON = "com.arkael.app.GAME_PANEL_ON";
     static final String ACTION_PANEL_OFF = "com.arkael.app.GAME_PANEL_OFF";
     static final String ACTION_HANDLE_SHOW = "com.arkael.app.GAME_HANDLE_SHOW";
+    static final String ACTION_REC_STOP = "com.arkael.app.GAME_REC_STOP";
     private static final String CHANNEL = "arkael_game";
     private static final int NOTIF_ID = 4712;
     private static final float HEAT_LIMIT_C = 78f;
@@ -54,6 +55,7 @@ public class GameService extends Service {
     private Handler bg;
     private volatile boolean running;
     private boolean rootChecked;
+    private volatile boolean recDead;
 
     private WindowManager wm;
     private View handle;
@@ -86,6 +88,7 @@ public class GameService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         startAsForeground();
         String act = intent != null ? intent.getAction() : null;
+        if (ACTION_REC_STOP.equals(act)) Recorder.stopAsync();
         if (ACTION_STOP.equals(act)) {
             GameProfiles.setAuto(this, false);
             GameProfiles.setManual(this, false);
@@ -198,6 +201,7 @@ public class GameService extends Service {
 
     private void addHandle() {
         if (handle != null || hp().getBoolean("hidden", false) || !Settings.canDrawOverlays(this)) return;
+        if (Recorder.isRecording() && Recorder.hideHandle(this)) return;
         wm = (WindowManager) getSystemService(WINDOW_SERVICE);
         final int edge = hp().getInt("edge", 0);               // 0 left, 1 right, 2 top, 3 bottom
         float pos = hp().getFloat("pos", 0.30f);               // 0..1 along that edge
@@ -214,7 +218,7 @@ public class GameService extends Service {
         else radii = new float[]{r, r, r, r, 0, 0, 0, 0};
         View v = new View(this);
         GradientDrawable g = new GradientDrawable();
-        g.setColor((OverlayPrefs.color(this) & 0x00FFFFFF) | 0x99000000);
+        g.setColor(((Recorder.isRecording() ? 0xFFFF3B30 : OverlayPrefs.color(this)) & 0x00FFFFFF) | 0x99000000);
         g.setCornerRadii(radii);
         v.setBackground(g);
 
@@ -401,6 +405,41 @@ public class GameService extends Service {
 
     private void bgRun(Runnable r) { new Thread(r).start(); }
 
+    // ---- screen recording
+    private Runnable recDone() {
+        return new Runnable() { @Override public void run() {
+            if (recDead) return;
+            String e = Recorder.lastError();
+            toast(e != null ? e : "Recording saved in Movies/Arkael");
+            refreshRecUi();
+        } };
+    }
+
+    private void refreshRecUi() {
+        main.post(new Runnable() { @Override public void run() {
+            if (recDead) return;
+            startAsForeground();
+            removeHandle(); addHandle();
+        } });
+    }
+
+    private void toggleRecord() {
+        if (Recorder.isRecording()) {
+            closePanel();
+            toast("Stopping recording...");
+            Recorder.stopAsync();
+            return;
+        }
+        closePanel();                                                  // keep the panel out of the video
+        if (Recorder.hideHandle(this)) removeHandle();
+        bgRun(new Runnable() { @Override public void run() {
+            try { Thread.sleep(700); } catch (InterruptedException ignored) {}
+            Recorder.start(GameService.this, recDone());
+            toast("Recording started");
+            refreshRecUi();
+        } });
+    }
+
     private void openActivity(Class<?> cls) {
         closePanel();
         try { startActivity(new Intent(this, cls).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
@@ -555,6 +594,9 @@ public class GameService extends Service {
             }
         });
         grid.addView(tileRow(tClean, tDnd, tHeads, tShot));
+        LinearLayout tRec = tile(Recorder.isRecording() ? "⏹" : "⏺", Recorder.isRecording() ? "Stop recording" : "Record screen", Recorder.isRecording(), new View.OnClickListener() {
+            @Override public void onClick(View v) { toggleRecord(); }
+        });
         LinearLayout tRestore = tile("↩", "Restore settings", false, new View.OnClickListener() {
             @Override public void onClick(View v) {
                 say("Restoring...");
@@ -568,7 +610,7 @@ public class GameService extends Service {
                 say("Overlay position and size reset");
             }
         });
-        grid.addView(tileRow(tRestore, tReset));
+        grid.addView(tileRow(tRestore, tReset, tRec));
         LinearLayout hMinus = tile("➖", "Handle smaller", false, new View.OnClickListener() {
             @Override public void onClick(View v) { resizeHandle(-0.25f); }
         });
@@ -645,14 +687,18 @@ public class GameService extends Service {
         int pf = PendingIntent.FLAG_UPDATE_CURRENT | (Build.VERSION.SDK_INT >= 23 ? PendingIntent.FLAG_IMMUTABLE : 0);
         PendingIntent pi = PendingIntent.getService(this, 1, stop, pf);
         PendingIntent showPi = PendingIntent.getService(this, 2, new Intent(this, GameService.class).setAction(ACTION_HANDLE_SHOW), pf);
-        Notification n = new NotificationCompat.Builder(this, CHANNEL)
+        NotificationCompat.Builder nb = new NotificationCompat.Builder(this, CHANNEL)
                 .setSmallIcon(R.drawable.ic_cpu)
                 .setContentTitle("Arkael Manager")
                 .setContentText("Game mode is ready")
                 .setOngoing(true)
                 .addAction(0, "Stop", pi)
-                .addAction(0, "Show handle", showPi)
-                .build();
+                .addAction(0, "Show handle", showPi);
+        if (Recorder.isRecording()) {
+            PendingIntent recPi = PendingIntent.getService(this, 3, new Intent(this, GameService.class).setAction(ACTION_REC_STOP), pf);
+            nb.setContentText("Recording screen...").addAction(0, "Stop recording", recPi);
+        }
+        Notification n = nb.build();
         if (Build.VERSION.SDK_INT >= 29) startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MANIFEST);
         else startForeground(NOTIF_ID, n);
     }
@@ -662,6 +708,8 @@ public class GameService extends Service {
         running = false;
         if (bg != null) bg.removeCallbacksAndMessages(null);
         if (worker != null) worker.quitSafely();
+        recDead = true;
+        Recorder.stopAsync();
         closePanel();
         removeHandle();
         if (startedOverlay) stopService(new Intent(this, OverlayService.class));
