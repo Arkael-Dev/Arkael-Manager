@@ -32,5 +32,11 @@
             </intent-filter>
         </activity>
 
+            <activity android:name=".GameModeActivity" android:exported="false" android:label="Game Mode"/>
+
+        <service android:name=".OverlayService" android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="performance_overlay"/>
+        </service>
+
     </application>
 </manifest>

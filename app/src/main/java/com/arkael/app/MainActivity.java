@@ -105,6 +105,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         UpdateChecker.check(this);
+        GameModeEntry.attach(this);
 
         prefs = getSharedPreferences("ArkaelPrefs", 0);
         
