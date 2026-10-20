@@ -30,5 +30,7 @@ final class OverlayPrefs {
     static void setScale(Context c, float v) {
         sp(c).edit().putFloat("scale", Math.max(SCALE_MIN, Math.min(SCALE_MAX, v))).apply();
     }
+    static int tempSrc(Context c) { return sp(c).getInt("tsrc", TempProbe.CPU_MAX); }
+    static void setTempSrc(Context c, int v) { sp(c).edit().putInt("tsrc", v).apply(); }
     static void resetLayout(Context c) { sp(c).edit().remove("scale").remove("size").remove("x").remove("y").apply(); }
 }
