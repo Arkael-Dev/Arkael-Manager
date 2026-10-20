@@ -291,6 +291,7 @@ public class GameService extends Service {
         int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
                 | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN;
         if (watchOutside) flags |= WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH;
+        if (Recorder.isRecording()) flags |= WindowManager.LayoutParams.FLAG_SECURE;   // keep it out of the video
         return new WindowManager.LayoutParams(w, h, type, flags, PixelFormat.TRANSLUCENT);
     }
 
