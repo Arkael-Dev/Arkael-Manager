@@ -188,6 +188,10 @@ public class MainActivity extends AppCompatActivity {
         gaugeGpu = findViewById(R.id.gauge_gpu);
         gaugeRam = findViewById(R.id.gauge_ram);
         gaugeBat = findViewById(R.id.gauge_bat);
+        if (gaugeCpu != null) gaugeCpu.setAccent(0xFF00E5FF);
+        if (gaugeGpu != null) gaugeGpu.setAccent(0xFF39FF88);
+        if (gaugeRam != null) gaugeRam.setBaseColor(0xFFB388FF);
+        if (gaugeBat != null) { gaugeBat.setBaseColor(0xFF39FF88); gaugeBat.setInverted(true); }
 
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
 
@@ -1012,7 +1016,7 @@ public class MainActivity extends AppCompatActivity {
                         if (gaugeBat != null && fLevel >= 0) { gaugeBat.setInverted(true); gaugeBat.setValue(fLevel, fLevel + "%", fIsCharging ? "CHARGING" : "BATTERY"); }
                         if (gaugeCpu != null && fCpuCur > 0 && cpuMaxFreqKhz > 0) gaugeCpu.setValue(fCpuCur * 100f / cpuMaxFreqKhz, String.valueOf(fCpuCur / 1000), "CPU MHz");
                         if (gaugeGpu != null) {
-                            if (fGpuCur > 0 && gpuMaxFreqKhz > 0) gaugeGpu.setValue(fGpuCur * 100f / gpuMaxFreqKhz, String.valueOf(fGpuCur / 1000), "GPU MHz");
+                            if (fGpuCur > 0 && gpuMaxFreqKhz > 0) { long mx = gpuMaxFreqKhz; while (mx > fGpuCur * 20L) mx /= 1000; if (mx < fGpuCur) mx = fGpuCur; gaugeGpu.setValue(fGpuCur * 100f / mx, String.valueOf(fGpuCur / 1000), "GPU MHz"); }
                             else gaugeGpu.setValue(0f, "N/A", "GPU");
                         }
                         if(tvBattery != null) {
@@ -1056,9 +1060,15 @@ public class MainActivity extends AppCompatActivity {
     }
     private void tintIconsIn(View v, int color) {
         if (v == null) return;
-        if ("ic".equals(v.getTag())) {
-            if (v instanceof ImageView) ((ImageView) v).setColorFilter(color, PorterDuff.Mode.SRC_IN);
-            else if (v instanceof TextView) androidx.core.widget.TextViewCompat.setCompoundDrawableTintList((TextView) v, android.content.res.ColorStateList.valueOf(color));
+        Object tg = v.getTag();
+        if (tg instanceof String && ((String) tg).startsWith("ic")) {
+            String ts = (String) tg;
+            int c = color;
+            if (iconColorMode == 0 && ts.indexOf(':') > 0) {
+                try { c = Color.parseColor(ts.substring(ts.indexOf(':') + 1)); } catch (Exception ignored) {}
+            }
+            if (v instanceof ImageView) ((ImageView) v).setColorFilter(c, PorterDuff.Mode.SRC_IN);
+            else if (v instanceof TextView) androidx.core.widget.TextViewCompat.setCompoundDrawableTintList((TextView) v, android.content.res.ColorStateList.valueOf(c));
         }
         if (v instanceof android.view.ViewGroup) {
             android.view.ViewGroup g = (android.view.ViewGroup) v;
@@ -1102,7 +1112,7 @@ public class MainActivity extends AppCompatActivity {
         if(tvRam != null) tvRam.setTextColor(finalText); if(tvBattery != null) tvBattery.setTextColor(finalText);
         applyIconColor();
     }
-    private void applyThemeSettings() { int savedMode = prefs.getInt("bg_mode", 0); setBackgroundMode(savedMode); applyCardStyle(rootLayout); }
+    private void applyThemeSettings() { int savedMode = prefs.getInt("bg_mode", 0); setBackgroundMode(savedMode); applyCardStyle(rootLayout); if (viewFlipper != null) updateNavUI(viewFlipper.getDisplayedChild()); }
     private void applyIconColor() {
         int color = Color.GRAY; 
         switch(iconColorMode) {
@@ -1110,9 +1120,6 @@ public class MainActivity extends AppCompatActivity {
             case 3: color = Color.parseColor("#FF9100"); break; case 4: color = Color.parseColor("#D500F9"); break;
             default: color = Color.parseColor("#00E5FF"); break;
         }
-        if(navSystem != null && navSystem.getChildCount() > 0) tintCompoundDrawables(navSystem.getChildAt(0), color);
-        if(navTools != null && navTools.getChildCount() > 0) tintCompoundDrawables(navTools.getChildAt(0), color);
-        if(navSettings != null && navSettings.getChildCount() > 0) tintCompoundDrawables(navSettings.getChildAt(0), color);
         tintIconsIn(rootLayout, color);
     }
     private void tintCompoundDrawables(View view, int color) {
