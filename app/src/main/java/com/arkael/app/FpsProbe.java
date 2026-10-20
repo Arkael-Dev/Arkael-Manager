@@ -24,6 +24,9 @@ final class FpsProbe {
     private final Map<String, Long> prev = new HashMap<String, Long>();
     private String lastLayer = "";
     private int drmState;            // 0 = untried, 1 = works, 2 = not available
+    private long flipPrev = -1, flipAt;
+    private int failStreak;
+    private boolean diagWritten;
 
     /** Short reason when read() returned -1. */
     String status() { return status; }
@@ -36,9 +39,13 @@ final class FpsProbe {
     int read() {
         String p = Foreground.pkg();
         int t = timeStats(p);
-        if (t >= 0) return t;
+        if (t >= 0) { failStreak = 0; return t; }
+        int f = pageFlips();
+        if (f >= 0) { failStreak = 0; approx = true; lastLayer = "display flips"; status = ""; return f; }
         int d = drm();
-        if (d >= 0) { approx = true; lastLayer = "display"; status = ""; return d; }
+        if (d >= 0) { failStreak = 0; approx = true; lastLayer = "display"; status = ""; return d; }
+        if (++failStreak >= 8 && !diagWritten) { diagWritten = true; writeDiag(p); }
+        if (diagWritten) status = "diag file";
         return -1;
     }
 
@@ -158,5 +165,38 @@ final class FpsProbe {
         }
         if (drmState == 0) drmState = 2;
         return -1;
+    }
+
+    // ---------------------------------------------------------------- display page flips (works on most Android versions)
+
+    private static final Pattern PARCEL = Pattern.compile("Parcel\\(([0-9a-fA-F]{8})\\s+([0-9a-fA-F]{8})");
+
+    /** service call SurfaceFlinger 1013 = number of frames the display has shown; its growth per second is the screen's frame rate. */
+    private int pageFlips() {
+        String o = RootShell.run("service call SurfaceFlinger 1013 2>/dev/null");
+        Matcher m = PARCEL.matcher(o);
+        if (!m.find()) return -1;
+        long v;
+        try { v = Long.parseLong(m.group(2), 16); } catch (NumberFormatException e) { return -1; }
+        long now = System.nanoTime();
+        long pv = flipPrev, pt = flipAt;
+        flipPrev = v; flipAt = now;
+        if (pv < 0 || v < pv) return -1;
+        double dt = (now - pt) / 1e9;
+        if (dt < 0.2) return -1;
+        int fps = (int) Math.round((v - pv) / dt);
+        return fps > 480 ? -1 : fps;
+    }
+
+    // ---------------------------------------------------------------- raw data for debugging
+
+    /** Saved once, automatically, when every method failed: Download/arkael_fps_auto.txt */
+    private void writeDiag(String pkg) {
+        RootShell.run("{ echo \"pkg=" + pkg.replaceAll("[^A-Za-z0-9_.]", "") + "\"; getprop ro.build.version.release; getprop ro.product.model; getprop ro.build.version.sdk\n" +
+            "echo '=== timestats (first 150 lines)'; dumpsys SurfaceFlinger --timestats -dump 2>&1 | head -150\n" +
+            "echo '=== SurfaceFlinger --list (first 80)'; dumpsys SurfaceFlinger --list 2>&1 | head -80\n" +
+            "echo '=== service call 1013'; service call SurfaceFlinger 1013 2>&1\n" +
+            "echo '=== measured_fps'; cat /sys/class/drm/sde-crtc-0/measured_fps 2>&1\n" +
+            "} > /sdcard/Download/arkael_fps_auto.txt 2>&1");
     }
 }
