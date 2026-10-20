@@ -15,7 +15,7 @@ final class SparkView extends View {
     private final Paint[] p = new Paint[3];
     private final Paint grid = new Paint();
     private final Path path = new Path();
-    private final int w, h;
+    private int w, h;
     private int count;
 
     SparkView(Context c, int accent, int widthPx, int heightPx) {
@@ -26,11 +26,23 @@ final class SparkView extends View {
             p[i] = new Paint(Paint.ANTI_ALIAS_FLAG);
             p[i].setColor(col[i]);
             p[i].setStyle(Paint.Style.STROKE);
-            p[i].setStrokeWidth(Math.max(2f, h / 16f));
             for (int k = 0; k < N; k++) d[i][k] = -1f;
         }
         grid.setColor(0x33FFFFFF);
         grid.setStrokeWidth(1f);
+        stroke();
+    }
+
+    private void stroke() {
+        for (int i = 0; i < 3; i++) p[i].setStrokeWidth(Math.max(2f, h / 16f));
+    }
+
+    /** Resize without losing the history (used while the overlay is being scaled). */
+    void setSizePx(int widthPx, int heightPx) {
+        w = Math.max(1, widthPx); h = Math.max(1, heightPx);
+        stroke();
+        requestLayout();
+        invalidate();
     }
 
     void push(float cpu, float temp, float fps) {
