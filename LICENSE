@@ -1,0 +1,26 @@
+Arkael Manager - Source-Available License (All Rights Reserved)
+
+Copyright (c) 2026 Arkael-Dev. All rights reserved.
+
+This repository is published for viewing and reference only.
+
+Permitted:
+  - Viewing the source code for personal, non-commercial reference.
+  - Installing and using official release builds of Arkael Manager.
+
+Not permitted without prior written permission from the copyright holder:
+  - Copying, modifying, merging, publishing, distributing, sublicensing
+    or selling the source code or any substantial portion of it.
+  - Creating derivative works or forks intended for redistribution.
+  - Removing or altering copyright notices.
+  - Using the name "Arkael", the Arkael Manager logo, banner or other
+    branding assets.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+COPYRIGHT HOLDER BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY ARISING
+FROM THE USE OF THE SOFTWARE. This software modifies low-level system
+settings and requires root; you use it at your own risk.
+
+Violation of these terms terminates any permission granted above.
