@@ -55,9 +55,13 @@ final class SparkView extends View {
         invalidate();
     }
 
-    @Override protected void onMeasure(int wm, int hm) { setMeasuredDimension(w, h); }
+    @Override protected void onMeasure(int wm, int hm) {
+        int mw = View.MeasureSpec.getMode(wm) == View.MeasureSpec.EXACTLY ? View.MeasureSpec.getSize(wm) : w;
+        setMeasuredDimension(mw, h);
+    }
 
     @Override protected void onDraw(Canvas c) {
+        float w = getWidth() > 0 ? getWidth() : this.w;
         c.drawLine(0, h - 1, w, h - 1, grid);
         float step = w / (float) (N - 1);
         for (int s = 0; s < 3; s++) {

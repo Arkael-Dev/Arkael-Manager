@@ -71,7 +71,7 @@ public class GameModeActivity extends Activity {
         sv.addView(col);
 
         col.addView(label("Game Mode", Color.WHITE, 24, true));
-        TextView sub = label("Live CPU, GPU, RAM, temperature and battery on top of any game. Drag it anywhere, pinch it (or drag its corner grip) to resize, double-tap to switch between full and compact.", Color.parseColor("#8B95A3"), 12, false);
+        TextView sub = label("Live CPU, GPU, RAM, temperature and battery on top of any game. Drag it anywhere. Drag the pill on its right edge to make it wider, pinch or drag the corner grip to change its size, double-tap for the compact ring bar.", Color.parseColor("#8B95A3"), 12, false);
         sub.setPadding(0, dp(4), 0, dp(16));
         col.addView(sub);
 
@@ -345,7 +345,7 @@ public class GameModeActivity extends Activity {
             c4.addView(cb);
         }
         CheckBox cc = new CheckBox(this);
-        cc.setText("Compact (single line)");
+        cc.setText("Compact (small rings only)");
         cc.setTextColor(Color.WHITE);
         cc.setChecked(OverlayPrefs.compact(this));
         cc.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
@@ -355,6 +355,17 @@ public class GameModeActivity extends Activity {
             }
         });
         c4.addView(cc);
+        CheckBox ca = new CheckBox(this);
+        ca.setText("Animations (ring sweep, glow, light streak)");
+        ca.setTextColor(Color.WHITE);
+        ca.setChecked(OverlayPrefs.anim(this));
+        ca.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(CompoundButton v, boolean on) {
+                OverlayPrefs.sp(GameModeActivity.this).edit().putBoolean("anim", on).apply();
+                OverlayService.refresh(GameModeActivity.this);
+            }
+        });
+        c4.addView(ca);
         col.addView(c4);
 
         setContentView(sv);

@@ -17,6 +17,7 @@ import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.IBinder;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.provider.Settings;
 import android.util.DisplayMetrics;
 import android.util.TypedValue;
@@ -39,32 +40,39 @@ import java.util.List;
 import java.util.Locale;
 
 /**
- * Live-stats overlay.
+ * Live-stats overlay made of animated rings (FPS, CPU, TEMP, GPU, RAM, BAT).
  *  - drag with one finger to move it
- *  - pinch with two fingers, or drag the little corner grip, to resize it freely
- *  - double-tap toggles compact mode
+ *  - drag the pill on the right edge to make it wider or narrower (rings spread out, height stays the same)
+ *  - pinch, or drag the corner grip, to change the size of everything
+ *  - double-tap switches between the full card and the compact ring bar
  */
 public class OverlayService extends Service {
     static final String ACTION_STOP = "com.arkael.app.OVERLAY_STOP";
     static final String ACTION_REFRESH = "com.arkael.app.OVERLAY_REFRESH";
     private static final String CHANNEL = "arkael_overlay";
     private static final int NOTIF_ID = 4711;
+    private static final int N = 6;
 
     private WindowManager wm;
     private FrameLayout root;
     private LinearLayout content;
     private WindowManager.LayoutParams lp;
-    private TextView[] values = new TextView[6];
+    private final RingView[] rings = new RingView[N];
+    private final TextView[] subs = new TextView[N];
+    private final List<LinearLayout> cells = new ArrayList<LinearLayout>();
     private final List<TextView> texts = new ArrayList<TextView>();
-    private final List<TextView> labelViews = new ArrayList<TextView>();
     private SparkView spark;
-    private TextView compactText;
+    private TextView titleDot;
+    private boolean compact;
+    private int accent;
     private float scale = 1f;
+    private int minW;
 
     private final FpsProbe fpsProbe = new FpsProbe();
     private final TempProbe tempProbe = new TempProbe();
     private final int[] bits = {OverlayPrefs.M_FPS, OverlayPrefs.M_CPU, OverlayPrefs.M_TEMP, OverlayPrefs.M_GPU, OverlayPrefs.M_RAM, OverlayPrefs.M_BAT};
     private final String[] labels = {"FPS", "CPU", "TEMP", "GPU", "RAM", "BAT"};
+    private final int[] ringColors = {0, 0xFF00E5FF, 0xFFFF6B35, 0xFF00E676, 0xFFB388FF, 0xFFFFC107};   // [0] = user accent
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private HandlerThread worker;
@@ -128,6 +136,17 @@ public class OverlayService extends Service {
         }
     };
 
+    /** Light animation clock (about 15 frames per second): moves the light streak on each ring and the glow. */
+    private final Runnable tick = new Runnable() {
+        @Override public void run() {
+            if (root == null) return;
+            float ph = (SystemClock.uptimeMillis() % 2600L) / 2600f;
+            for (RingView r : rings) if (r != null) r.setPhase(ph);
+            if (titleDot != null) titleDot.setAlpha(0.55f + 0.45f * (float) Math.sin(ph * 2.0 * Math.PI));
+            main.postDelayed(this, 66);
+        }
+    };
+
     private void startAsForeground() {
         NotificationManager nm = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= 26 && nm != null) {
@@ -157,81 +176,119 @@ public class OverlayService extends Service {
         t.setTextColor(color);
         t.setTag(Float.valueOf(baseSp));
         t.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        t.setSingleLine(false);
+        t.setMaxLines(2);
+        t.setGravity(Gravity.CENTER_HORIZONTAL);
         texts.add(t);
         return t;
     }
 
-    /** Applies the current scale to the views already on screen, so a pinch never rebuilds (and never loses) the touch. */
+    /** Applies the current scale to the views already on screen (a pinch never rebuilds the overlay). */
     private void applyScale() {
         if (root == null) return;
+        int ringPx = dp((compact ? 34 : 46) * scale);
+        int cellPx = dp((compact ? 40 : 54) * scale);
+        for (RingView r : rings) if (r != null) r.setSizePx(ringPx);
+        for (LinearLayout c : cells) {
+            LinearLayout.LayoutParams cl = (LinearLayout.LayoutParams) c.getLayoutParams();
+            cl.width = cellPx;
+            c.setLayoutParams(cl);
+        }
         for (TextView t : texts) t.setTextSize(TypedValue.COMPLEX_UNIT_SP, ((Float) t.getTag()).floatValue() * scale);
-        for (TextView t : labelViews) t.setMinWidth(dp(44 * scale));
-        content.setPadding(dp(10 * scale), dp(7 * scale), dp(14 + 2 * scale), dp(7 * scale));
-        if (spark != null) spark.setSizePx(dp(120 * scale), dp(34 * scale));
+        int padL = dp(10 * scale), padR = dp(16 * scale), padV = dp(7 * scale);
+        content.setPadding(padL, padV, padR, padV);
+        minW = Math.max(dp(90), cells.size() * cellPx + padL + padR);
+        if (spark != null) spark.setSizePx(Math.max(dp(80), minW - padL - padR), dp(34 * scale));
+        int explicit = OverlayPrefs.widthPx(this);
+        lp.width = explicit > 0 ? Math.max(explicit, minW) : WindowManager.LayoutParams.WRAP_CONTENT;
         try { wm.updateViewLayout(root, lp); } catch (Exception ignored) {}
+    }
+
+    private GradientDrawable pill(int color) {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(color);
+        g.setCornerRadius(dp(6));
+        return g;
     }
 
     private void buildOverlay() {
         removeOverlay();
         wm = (WindowManager) getSystemService(WINDOW_SERVICE);
-        final int accent = OverlayPrefs.color(this);
+        accent = OverlayPrefs.color(this);
+        ringColors[0] = accent;
         int alpha = Math.max(30, Math.min(100, OverlayPrefs.alpha(this)));
         int mask = OverlayPrefs.mask(this);
-        boolean compact = OverlayPrefs.compact(this);
+        compact = OverlayPrefs.compact(this);
+        final boolean anim = OverlayPrefs.anim(this);
         scale = OverlayPrefs.scale(this);
         texts.clear();
-        labelViews.clear();
+        cells.clear();
+        titleDot = null;
+        spark = null;
+        for (int i = 0; i < N; i++) { rings[i] = null; subs[i] = null; }
 
         root = new FrameLayout(this);
         GradientDrawable bgd = new GradientDrawable();
         bgd.setColor(Color.argb(alpha * 255 / 100, 10, 13, 18));
-        bgd.setCornerRadius(dp(12));
+        bgd.setCornerRadius(dp(14));
         bgd.setStroke(dp(1), (accent & 0x00FFFFFF) | 0xAA000000);
         root.setBackground(bgd);
 
         content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        root.addView(content, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        root.addView(content, new FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        values = new TextView[6];
-        spark = null;
-        compactText = null;
-        if (compact) {
-            compactText = text("", Color.WHITE, 11f);
-            content.addView(compactText);
-        } else {
-            TextView title = text("● ARKAEL", accent, 9f);
-            title.setLetterSpacing(0.1f);
-            content.addView(title);
-            for (int i = 0; i < 6; i++) {
-                if ((mask & bits[i]) == 0) continue;
-                LinearLayout row = new LinearLayout(this);
-                row.setOrientation(LinearLayout.HORIZONTAL);
-                row.setPadding(0, dp(2), 0, 0);
-                TextView l = text(labels[i], accent, 11f);
-                labelViews.add(l);
-                TextView v = text("--", Color.WHITE, 11f);
-                row.addView(l);
-                row.addView(v);
-                content.addView(row);
-                values[i] = v;
-            }
-            if ((mask & OverlayPrefs.M_GRAPH) != 0) {
-                spark = new SparkView(this, accent, dp(120), dp(34));
-                LinearLayout.LayoutParams gp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-                gp.topMargin = dp(5);
-                content.addView(spark, gp);
-            }
+        if (!compact) {
+            LinearLayout head = new LinearLayout(this);
+            head.setOrientation(LinearLayout.HORIZONTAL);
+            head.setGravity(Gravity.CENTER_VERTICAL);
+            titleDot = text("●", accent, 8f);
+            TextView title = text(" ARKAEL", accent, 9f);
+            title.setLetterSpacing(0.12f);
+            head.addView(titleDot);
+            head.addView(title);
+            content.addView(head, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         }
 
-        // resize grip, bottom-right corner
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.TOP);
+        row.setPadding(0, dp(compact ? 0 : 4), 0, 0);
+        for (int i = 0; i < N; i++) {
+            if ((mask & bits[i]) == 0) continue;
+            LinearLayout cell = new LinearLayout(this);
+            cell.setOrientation(LinearLayout.VERTICAL);
+            cell.setGravity(Gravity.CENTER_HORIZONTAL);
+            RingView r = new RingView(this, dp(46));
+            r.setAnimated(anim);
+            TextView lab = text(labels[i], ringColors[i], compact ? 7.5f : 8.5f);
+            cell.addView(r, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            cell.addView(lab, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            if (!compact) {
+                TextView sub = text("", 0xFF8B95A3, 7.5f);
+                cell.addView(sub, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+                subs[i] = sub;
+            }
+            rings[i] = r;
+            cells.add(cell);
+            row.addView(cell, new LinearLayout.LayoutParams(dp(54), ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        }
+        content.addView(row, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        if (!compact && (mask & OverlayPrefs.M_GRAPH) != 0) {
+            spark = new SparkView(this, accent, dp(120), dp(34));
+            LinearLayout.LayoutParams gp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            gp.topMargin = dp(6);
+            content.addView(spark, gp);
+        }
+
+        // resize grip (everything gets bigger/smaller), bottom-right corner
         final TextView grip = new TextView(this);
         grip.setText("◢");
         grip.setTextColor((accent & 0x00FFFFFF) | 0xCC000000);
         grip.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
         grip.setGravity(Gravity.BOTTOM | Gravity.END);
-        FrameLayout.LayoutParams gl = new FrameLayout.LayoutParams(dp(26), dp(26), Gravity.BOTTOM | Gravity.END);
-        root.addView(grip, gl);
+        root.addView(grip, new FrameLayout.LayoutParams(dp(26), dp(26), Gravity.BOTTOM | Gravity.END));
         grip.setOnTouchListener(new View.OnTouchListener() {
             private float sx, sy, s0; private int sw, sh;
             @Override public boolean onTouch(View v, MotionEvent e) {
@@ -249,6 +306,35 @@ public class OverlayService extends Service {
                     case MotionEvent.ACTION_UP:
                     case MotionEvent.ACTION_CANCEL:
                         OverlayPrefs.setScale(OverlayService.this, scale);
+                        return true;
+                }
+                return false;
+            }
+        });
+
+        // width handle: a pill on the right edge. Drag sideways to widen; height stays the same.
+        FrameLayout handle = new FrameLayout(this);
+        View bar = new View(this);
+        bar.setBackground(pill((accent & 0x00FFFFFF) | 0x99000000));
+        handle.addView(bar, new FrameLayout.LayoutParams(dp(4), dp(26), Gravity.CENTER));
+        root.addView(handle, new FrameLayout.LayoutParams(dp(16), dp(52), Gravity.END | Gravity.CENTER_VERTICAL));
+        handle.setOnTouchListener(new View.OnTouchListener() {
+            private float sx; private int w0;
+            @Override public boolean onTouch(View v, MotionEvent e) {
+                switch (e.getActionMasked()) {
+                    case MotionEvent.ACTION_DOWN:
+                        sx = e.getRawX(); w0 = Math.max(1, root.getWidth());
+                        return true;
+                    case MotionEvent.ACTION_MOVE: {
+                        DisplayMetrics dm = getResources().getDisplayMetrics();
+                        int nw = w0 + (int) (e.getRawX() - sx);
+                        lp.width = Math.max(minW, Math.min(dm.widthPixels - lp.x, nw));
+                        try { wm.updateViewLayout(root, lp); } catch (Exception ignored) {}
+                        return true;
+                    }
+                    case MotionEvent.ACTION_UP:
+                    case MotionEvent.ACTION_CANCEL:
+                        if (lp.width > 0) OverlayPrefs.setWidthPx(OverlayService.this, lp.width);
                         return true;
                 }
                 return false;
@@ -309,48 +395,47 @@ public class OverlayService extends Service {
         });
         try { wm.addView(root, lp); } catch (Exception e) { stopSelf(); return; }
         applyScale();
+        main.removeCallbacks(tick);
+        if (anim) main.post(tick);
     }
 
     private void removeOverlay() {
+        main.removeCallbacks(tick);
         if (wm != null && root != null) {
             try { wm.removeView(root); } catch (Exception ignored) {}
         }
         root = null;
     }
 
-    private static String ghz(int mhz) {
-        return mhz < 0 ? "--" : String.format(Locale.US, "%.2fGHz", mhz / 1000f);
+    private void setRing(int i, float pct, String center, String sub, boolean heat, boolean inverted) {
+        if (rings[i] != null) rings[i].set(pct, center, ringColors[i], heat, inverted);
+        if (subs[i] != null) subs[i].setText(sub);
     }
 
     private void render(SysProbe.Snapshot s, int fps, float temp) {
         if (root == null) return;
-        String cpu = (s.cpuLoad >= 0 ? s.cpuLoad + "% " : "") + (s.cpuMaxMhz > 0 ? ghz(s.cpuMaxMhz) : (s.root ? "" : "no root"));
-        if (cpu.isEmpty()) cpu = "--";
         float tShown = temp > 0f ? temp : (float) s.cpuTemp;
-        String tempT = tShown > 0 ? String.format(Locale.US, "%.1f°C", tShown) : "--";
-        String gpu = (s.gpuLoad >= 0 ? s.gpuLoad + "% " : "") + (s.gpuMhz > 0 ? s.gpuMhz + "MHz" : "");
-        if (gpu.isEmpty()) gpu = s.root ? "N/A" : "no root";
-        String ram = s.ramPct < 0 ? "--" : s.ramPct + "% " + String.format(Locale.US, "%.1f/%.1fG", s.ramUsedMb / 1024f, s.ramTotalMb / 1024f);
         float bt = BatteryInfo.temp(this);
         if (bt <= 0f && s.batTemp > 0) bt = (float) s.batTemp;
-        String bat = (s.batPct >= 0 ? s.batPct + "% " : "") + (s.batMa != Integer.MIN_VALUE ? s.batMa + "mA " : "")
-                + (bt > 0 ? String.format(Locale.US, "%.1f°C", bt) : "");
-        String fpsT = fps >= 0 ? fps + fpsProbe.mark() + " fps" : (s.root ? "-- " + fpsProbe.status() : "no root");
-        String[] txt = {fpsT, cpu, tempT, gpu, ram, bat.trim().isEmpty() ? "--" : bat.trim()};
 
-        if (compactText != null) {
-            int mask = OverlayPrefs.mask(this);
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < 6; i++) {
-                if ((mask & bits[i]) == 0) continue;
-                if (sb.length() > 0) sb.append(" | ");
-                sb.append(labels[i]).append(' ').append(txt[i]);
-            }
-            compactText.setText(sb.toString());
-        } else {
-            for (int i = 0; i < 6; i++) if (values[i] != null) values[i].setText(txt[i]);
-            if (spark != null) spark.push(s.cpuLoad, tShown > 0 ? tShown : -1f, fps);
-        }
+        // FPS ring: full ring = 60 fps (or 120 / 240 on high-refresh games)
+        int target = fps > 125 ? 240 : (fps > 66 ? 120 : 60);
+        if (fps >= 0) setRing(0, fps * 100f / target, String.valueOf(fps), fpsProbe.mark().isEmpty() ? "" : "approx", true, true);
+        else setRing(0, -1f, "--", s.root ? fpsProbe.status() : "no root", false, false);
+
+        setRing(1, s.cpuLoad, s.cpuLoad >= 0 ? s.cpuLoad + "%" : "--",
+                s.cpuMaxMhz > 0 ? String.format(Locale.US, "%.2fGHz", s.cpuMaxMhz / 1000f) : (s.root ? "" : "no root"), true, false);
+        setRing(2, tShown > 0 ? tShown : -1f, tShown > 0 ? String.format(Locale.US, "%.0f°", tShown) : "--",
+                tShown > 0 ? String.format(Locale.US, "%.1f°C", tShown) : "", true, false);
+        setRing(3, s.gpuLoad, s.gpuLoad >= 0 ? s.gpuLoad + "%" : "--",
+                s.gpuMhz > 0 ? s.gpuMhz + "MHz" : (s.root ? "N/A" : "no root"), true, false);
+        setRing(4, s.ramPct, s.ramPct >= 0 ? s.ramPct + "%" : "--",
+                s.ramPct >= 0 ? String.format(Locale.US, "%.1f/%.0fG", s.ramUsedMb / 1024f, s.ramTotalMb / 1024f) : "", true, false);
+        String batSub = (s.batMa != Integer.MIN_VALUE ? s.batMa + "mA" : "")
+                + (bt > 0 ? (s.batMa != Integer.MIN_VALUE ? "\n" : "") + String.format(Locale.US, "%.1f°C", bt) : "");
+        setRing(5, s.batPct, s.batPct >= 0 ? s.batPct + "%" : "--", batSub, true, true);
+
+        if (spark != null) spark.push(s.cpuLoad, tShown > 0 ? tShown : -1f, fps);
     }
 
     @Override

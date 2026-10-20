@@ -30,7 +30,10 @@ final class OverlayPrefs {
     static void setScale(Context c, float v) {
         sp(c).edit().putFloat("scale", Math.max(SCALE_MIN, Math.min(SCALE_MAX, v))).apply();
     }
+    static boolean anim(Context c) { return sp(c).getBoolean("anim", true); }
+    static int widthPx(Context c) { return sp(c).getInt("wpx", 0); }          // 0 = automatic width
+    static void setWidthPx(Context c, int v) { sp(c).edit().putInt("wpx", v).apply(); }
     static int tempSrc(Context c) { return sp(c).getInt("tsrc", TempProbe.CPU_MAX); }
     static void setTempSrc(Context c, int v) { sp(c).edit().putInt("tsrc", v).apply(); }
-    static void resetLayout(Context c) { sp(c).edit().remove("scale").remove("size").remove("x").remove("y").apply(); }
+    static void resetLayout(Context c) { sp(c).edit().remove("scale").remove("wpx").remove("size").remove("x").remove("y").apply(); }
 }
