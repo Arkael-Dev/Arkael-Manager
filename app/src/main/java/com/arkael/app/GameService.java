@@ -409,6 +409,7 @@ public class GameService extends Service {
     // ---- screen recording
     private Runnable recDone() {
         return new Runnable() { @Override public void run() {
+            Recorder.stopKeyWatch();
             hideRecBar();
             if (recDead) return;
             String e = Recorder.lastError();
@@ -441,6 +442,10 @@ public class GameService extends Service {
         } });
         recOv.countdown(3, new Runnable() { @Override public void run() {
             Recorder.start(GameService.this, recDone());
+            if (Recorder.clean(GameService.this)) Recorder.watchStopKeys(new Runnable() { @Override public void run() {
+                toast("Stopping recording...");
+                Recorder.stopAsync();
+            } });
             main.post(new Runnable() { @Override public void run() { showRecBar(); } });
             refreshRecUi();
         } }, new Runnable() { @Override public void run() {
@@ -727,6 +732,7 @@ public class GameService extends Service {
         if (worker != null) worker.quitSafely();
         recDead = true;
         Recorder.stopAsync();
+        Recorder.stopKeyWatch();
         if (recOv != null) { recOv.cancelCountdown(); recOv.hideBar(); }
         closePanel();
         removeHandle();
