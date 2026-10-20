@@ -131,19 +131,19 @@ public class BannerFxView extends View {
         }
     }
 
-    /** true bila banner yang tampil adalah bawaan (bitmap rasio 2.4:1). */
+    /** false hanya bila jelas banner custom (bitmap rasio lain); selain itu dianggap bawaan. */
     private boolean isDefaultBanner() {
         View p = (View) getParent();
-        if (p == null) return false;
+        if (p == null) return true;
         View v = p.findViewById(R.id.header_banner);
-        if (!(v instanceof ImageView)) return false;
+        if (!(v instanceof ImageView)) return true;
         Drawable d = ((ImageView) v).getDrawable();
         if (d instanceof BitmapDrawable) {
             Bitmap b = ((BitmapDrawable) d).getBitmap();
             if (b != null && b.getHeight() > 0)
                 return Math.abs(b.getWidth() / (float) b.getHeight() - ASPECT) < 0.01f;
         }
-        return false;
+        return true;
     }
 
     @Override protected void onDraw(Canvas c) {
