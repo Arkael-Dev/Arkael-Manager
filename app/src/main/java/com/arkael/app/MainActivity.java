@@ -62,6 +62,7 @@ public class MainActivity extends AppCompatActivity {
     private ViewFlipper viewFlipper;
     private LinearLayout navSystem, navTools, navSettings;
     private EditText inputCode; 
+    private GaugeView gaugeCpu, gaugeGpu, gaugeRam, gaugeBat;
 
     // System Vars
     private SharedPreferences prefs;
@@ -125,6 +126,8 @@ public class MainActivity extends AppCompatActivity {
         setupClickListeners();
         refreshUI();
         loadCustomBanner();
+        startLiveBlink();
+        animateIn(findViewById(R.id.monitor_content));
     }
 
     // --- HELPER: SAFE INT PARSING ---
@@ -181,6 +184,10 @@ public class MainActivity extends AppCompatActivity {
         navSettings = findViewById(R.id.nav_settings);
 
         inputCode = findViewById(R.id.input_code);
+        gaugeCpu = findViewById(R.id.gauge_cpu);
+        gaugeGpu = findViewById(R.id.gauge_gpu);
+        gaugeRam = findViewById(R.id.gauge_ram);
+        gaugeBat = findViewById(R.id.gauge_bat);
 
         if(tvTerminalLog != null) tvTerminalLog.setMovementMethod(new ScrollingMovementMethod());
 
@@ -232,17 +239,17 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_keybox_generator).setOnClickListener(v -> launchKeyboxGenerator());
 
         navSystem.setOnClickListener(v -> { 
-            viewFlipper.setDisplayedChild(0); 
+            viewFlipper.setDisplayedChild(0); animateIn(findViewById(R.id.monitor_content)); 
             updateNavUI(0);
             bannerContainer.setVisibility(View.VISIBLE); 
         });
         navTools.setOnClickListener(v -> { 
-            viewFlipper.setDisplayedChild(1); 
+            viewFlipper.setDisplayedChild(1); animateIn(findViewById(R.id.tools_content)); 
             updateNavUI(1);
             bannerContainer.setVisibility(View.GONE); 
         });
         navSettings.setOnClickListener(v -> { 
-            viewFlipper.setDisplayedChild(2); 
+            viewFlipper.setDisplayedChild(2); animateIn(findViewById(R.id.settings_content)); 
             updateNavUI(2);
             bannerContainer.setVisibility(View.GONE); 
         });
@@ -267,7 +274,7 @@ public class MainActivity extends AppCompatActivity {
             applyThemeSettings();
             String modeName = "";
             switch(iconColorMode) {
-                case 0: modeName = "Default Gray"; break;
+                case 0: modeName = "Default Cyan"; break;
                 case 1: modeName = "Rainbow Pink"; break;
                 case 2: modeName = "Neon Cyan"; break;
                 case 3: modeName = "Bright Orange"; break;
@@ -888,10 +895,11 @@ public class MainActivity extends AppCompatActivity {
                     String curFreq = "N/A";
                     String maxTools = "N/A";
                     String govStr = "Unknown";
+                    float ramPct = 0f; int cpuCurKhz = 0; int gpuCurKhz = 0;
 
                     int level = -1;
                     boolean isCharging = false;
-                    int iconId = android.R.drawable.ic_menu_info_details;
+                    int iconId = R.drawable.ic_battery;
                     int batColor = Color.WHITE;
 
                     try {
@@ -901,6 +909,7 @@ public class MainActivity extends AppCompatActivity {
                         double totalGB = mi.totalMem / (1024.0 * 1024.0 * 1024.0);
                         double usedGB = (mi.totalMem - mi.availMem) / (1024.0 * 1024.0 * 1024.0);
                         ramStr = String.format("%.1f / %.1f GB", usedGB, totalGB);
+                        ramPct = (float)(usedGB * 100.0 / totalGB);
 
                         IntentFilter ifilter = new IntentFilter(Intent.ACTION_BATTERY_CHANGED);
                         Intent batteryStatus = registerReceiver(null, ifilter);
@@ -915,16 +924,16 @@ public class MainActivity extends AppCompatActivity {
                             batStr = (int)batteryPct + "% (" + statusText + ")";
 
                             if(isCharging) {
-                                iconId = android.R.drawable.ic_menu_upload; 
+                                iconId = R.drawable.ic_battery; 
                                 batColor = Color.CYAN;
                             } else if(level <= 20) {
-                                iconId = android.R.drawable.ic_dialog_alert; 
+                                iconId = R.drawable.ic_battery; 
                                 batColor = Color.RED;
                             } else if(level <= 50) {
-                                iconId = android.R.drawable.ic_menu_sort_by_size; 
+                                iconId = R.drawable.ic_battery; 
                                 batColor = Color.parseColor("#FFD700"); 
                             } else {
-                                iconId = android.R.drawable.ic_menu_info_details; 
+                                iconId = R.drawable.ic_battery; 
                                 batColor = Color.parseColor("#00E676"); 
                             }
 
@@ -968,11 +977,20 @@ public class MainActivity extends AppCompatActivity {
                                     if(val > maxCurFreqVal) maxCurFreqVal = val;
                                 }
                                 if(maxCurFreqVal > 0) curFreq = (maxCurFreqVal/1000) + " MHz";
+                                cpuCurKhz = maxCurFreqVal;
                             }
                         }
                     } catch (Exception e) {
                         curFreq = "Err";
                     }
+
+                    try {
+                        if (isGpuControlReady && gpuCurFreqPath != null && !gpuCurFreqPath.isEmpty()) {
+                            int gv = parseIntSafe(runSuReturn("cat " + gpuCurFreqPath));
+                            if (gv > 0 && gpuMaxFreqKhz > 0 && gv > gpuMaxFreqKhz * 100) gv = gv / 1000;
+                            if (gv > 0) gpuCurKhz = gv;
+                        }
+                    } catch (Exception ignored) {}
 
                     final String fRam = ramStr;
                     final String fBat = batStr;
@@ -983,19 +1001,31 @@ public class MainActivity extends AppCompatActivity {
                     final int fIcon = iconId;
                     final int fBatColor = batColor;
                     final boolean fIsCharging = isCharging;
+                    final float fRamPct = ramPct;
+                    final int fLevel = level;
+                    final int fCpuCur = cpuCurKhz;
+                    final int fGpuCur = gpuCurKhz;
 
                     runOnUiThread(() -> {
                         if(tvRam != null) tvRam.setText(fRam);
+                        if (gaugeRam != null) gaugeRam.setValue(fRamPct, Math.round(fRamPct) + "%", "RAM");
+                        if (gaugeBat != null && fLevel >= 0) { gaugeBat.setInverted(true); gaugeBat.setValue(fLevel, fLevel + "%", fIsCharging ? "CHARGING" : "BATTERY"); }
+                        if (gaugeCpu != null && fCpuCur > 0 && cpuMaxFreqKhz > 0) gaugeCpu.setValue(fCpuCur * 100f / cpuMaxFreqKhz, String.valueOf(fCpuCur / 1000), "CPU MHz");
+                        if (gaugeGpu != null) {
+                            if (fGpuCur > 0 && gpuMaxFreqKhz > 0) gaugeGpu.setValue(fGpuCur * 100f / gpuMaxFreqKhz, String.valueOf(fGpuCur / 1000), "GPU MHz");
+                            else gaugeGpu.setValue(0f, "N/A", "GPU");
+                        }
                         if(tvBattery != null) {
                             tvBattery.setText(fBat);
                             tvBattery.setTextColor(fBatColor);
                             tvBattery.setCompoundDrawablesRelativeWithIntrinsicBounds(fIcon, 0, 0, 0);
+                            androidx.core.widget.TextViewCompat.setCompoundDrawableTintList(tvBattery, android.content.res.ColorStateList.valueOf(fBatColor));
                             
                             if(fIsCharging) {
                                 batteryBlinkState = !batteryBlinkState;
                                 Drawable icon = getDrawable(fIcon);
                                 if(icon != null) {
-                                    icon.mutate(); 
+                                    icon.mutate(); icon.setTint(fBatColor); 
                                     icon.setAlpha(batteryBlinkState ? 255 : 80); 
                                 }
                                 tvBattery.setCompoundDrawablesRelativeWithIntrinsicBounds(icon, null, null, null);
@@ -1013,10 +1043,51 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // --- THEME & UI LOGIC ---
+    // --- UI v2: gaya kartu, tint ikon, animasi ---
+    private void applyCardStyle(View v) {
+        if (v == null) return;
+        if ("card".equals(v.getTag())) {
+            v.setBackground(ContextCompat.getDrawable(this, isGlassTheme ? R.drawable.bg_card_glass : R.drawable.bg_card_rounded));
+        }
+        if (v instanceof android.view.ViewGroup) {
+            android.view.ViewGroup g = (android.view.ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) applyCardStyle(g.getChildAt(i));
+        }
+    }
+    private void tintIconsIn(View v, int color) {
+        if (v == null) return;
+        if ("ic".equals(v.getTag())) {
+            if (v instanceof ImageView) ((ImageView) v).setColorFilter(color, PorterDuff.Mode.SRC_IN);
+            else if (v instanceof TextView) androidx.core.widget.TextViewCompat.setCompoundDrawableTintList((TextView) v, android.content.res.ColorStateList.valueOf(color));
+        }
+        if (v instanceof android.view.ViewGroup) {
+            android.view.ViewGroup g = (android.view.ViewGroup) v;
+            for (int i = 0; i < g.getChildCount(); i++) tintIconsIn(g.getChildAt(i), color);
+        }
+    }
+    private void animateIn(View container) {
+        if (!(container instanceof android.view.ViewGroup)) return;
+        android.view.ViewGroup g = (android.view.ViewGroup) container;
+        for (int i = 0; i < g.getChildCount(); i++) {
+            View c = g.getChildAt(i);
+            c.setAlpha(0f); c.setTranslationY(48f);
+            c.animate().alpha(1f).translationY(0f).setStartDelay(i * 55L).setDuration(380)
+                .setInterpolator(new android.view.animation.DecelerateInterpolator()).start();
+        }
+    }
+    private void startLiveBlink() {
+        View live = findViewById(R.id.tv_live);
+        if (live == null) return;
+        android.animation.ObjectAnimator a = android.animation.ObjectAnimator.ofFloat(live, "alpha", 1f, 0.35f);
+        a.setDuration(900); a.setRepeatMode(android.animation.ValueAnimator.REVERSE);
+        a.setRepeatCount(android.animation.ValueAnimator.INFINITE); a.start();
+    }
+
+
     private void setBackgroundMode(int mode) {
         int bgCol, cardCol, textCol;
         boolean isDark = true;
-        if(mode == 0) { bgCol = Color.parseColor("#121212"); cardCol = Color.parseColor("#1E1E1E"); textCol = Color.WHITE; }
+        if(mode == 0) { bgCol = Color.parseColor("#0A0D12"); cardCol = Color.parseColor("#1E1E1E"); textCol = Color.WHITE; }
         else if (mode == 1) { bgCol = Color.parseColor("#F0F0F0"); cardCol = Color.parseColor("#FFFFFF"); textCol = Color.BLACK; isDark = false; }
         else if (mode == 3) { bgCol = Color.parseColor("#00000000"); cardCol = Color.parseColor("#DD000000"); textCol = Color.WHITE; isDark = true; }
         else { bgCol = Color.parseColor("#808080"); cardCol = Color.parseColor("#909090"); textCol = Color.WHITE; }
@@ -1026,22 +1097,23 @@ public class MainActivity extends AppCompatActivity {
         GradientDrawable gd = new GradientDrawable();
         gd.setShape(GradientDrawable.RECTANGLE); gd.setColor(cardCol); gd.setCornerRadius(20);
         if(isGlassTheme) gd.setStroke(2, Color.parseColor("#33FFFFFF")); else gd.setStroke(0, Color.TRANSPARENT);
-        if(cardRam != null) cardRam.setBackground(gd); if(cardBat != null) cardBat.setBackground(gd);
+        
         int finalText = isDark ? Color.WHITE : Color.BLACK;
         if(tvRam != null) tvRam.setTextColor(finalText); if(tvBattery != null) tvBattery.setTextColor(finalText);
         applyIconColor();
     }
-    private void applyThemeSettings() { int savedMode = prefs.getInt("bg_mode", 0); setBackgroundMode(savedMode); }
+    private void applyThemeSettings() { int savedMode = prefs.getInt("bg_mode", 0); setBackgroundMode(savedMode); applyCardStyle(rootLayout); }
     private void applyIconColor() {
         int color = Color.GRAY; 
         switch(iconColorMode) {
             case 1: color = Color.parseColor("#FF4081"); break; case 2: color = Color.parseColor("#00E5FF"); break;
             case 3: color = Color.parseColor("#FF9100"); break; case 4: color = Color.parseColor("#D500F9"); break;
-            default: color = Color.parseColor("#AAAAAA"); break;
+            default: color = Color.parseColor("#00E5FF"); break;
         }
         if(navSystem != null && navSystem.getChildCount() > 0) tintCompoundDrawables(navSystem.getChildAt(0), color);
         if(navTools != null && navTools.getChildCount() > 0) tintCompoundDrawables(navTools.getChildAt(0), color);
         if(navSettings != null && navSettings.getChildCount() > 0) tintCompoundDrawables(navSettings.getChildAt(0), color);
+        tintIconsIn(rootLayout, color);
     }
     private void tintCompoundDrawables(View view, int color) {
         if(view instanceof TextView) {
@@ -1092,11 +1164,11 @@ public class MainActivity extends AppCompatActivity {
         }
     }
     private void updateNavUI(int activeIndex) {
-        int colorActive = Color.parseColor("#4CAF50"); int colorInactive = Color.GRAY;
+        int colorActive = Color.parseColor("#00E5FF"); int colorInactive = Color.GRAY;
         switch(iconColorMode) { case 1: colorInactive = Color.parseColor("#FF4081"); break; case 2: colorInactive = Color.parseColor("#00E5FF"); break; case 3: colorInactive = Color.parseColor("#FF9100"); break; case 4: colorInactive = Color.parseColor("#D500F9"); break; }
-        if(navSystem != null && navSystem.getChildCount() > 0) { TextView navIc=(TextView)navSystem.getChildAt(0); navIc.setTextColor(activeIndex == 0 ? colorActive : colorInactive); navIc.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(activeIndex == 0 ? colorActive : colorInactive)); }
-        if(navTools != null && navTools.getChildCount() > 0) { TextView navIc=(TextView)navTools.getChildAt(0); navIc.setTextColor(activeIndex == 1 ? colorActive : colorInactive); navIc.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(activeIndex == 1 ? colorActive : colorInactive)); }
-        if(navSettings != null && navSettings.getChildCount() > 0) { TextView navIc=(TextView)navSettings.getChildAt(0); navIc.setTextColor(activeIndex == 2 ? colorActive : colorInactive); navIc.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(activeIndex == 2 ? colorActive : colorInactive)); }
+        if(navSystem != null && navSystem.getChildCount() > 0) { TextView navIc=(TextView)navSystem.getChildAt(0); navIc.setTextColor(activeIndex == 0 ? colorActive : colorInactive); androidx.core.widget.TextViewCompat.setCompoundDrawableTintList(navIc, android.content.res.ColorStateList.valueOf(activeIndex == 0 ? colorActive : colorInactive)); }
+        if(navTools != null && navTools.getChildCount() > 0) { TextView navIc=(TextView)navTools.getChildAt(0); navIc.setTextColor(activeIndex == 1 ? colorActive : colorInactive); androidx.core.widget.TextViewCompat.setCompoundDrawableTintList(navIc, android.content.res.ColorStateList.valueOf(activeIndex == 1 ? colorActive : colorInactive)); }
+        if(navSettings != null && navSettings.getChildCount() > 0) { TextView navIc=(TextView)navSettings.getChildAt(0); navIc.setTextColor(activeIndex == 2 ? colorActive : colorInactive); androidx.core.widget.TextViewCompat.setCompoundDrawableTintList(navIc, android.content.res.ColorStateList.valueOf(activeIndex == 2 ? colorActive : colorInactive)); }
         applyIconColor();
     }
     
