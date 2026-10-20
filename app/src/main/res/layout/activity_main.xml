@@ -126,13 +126,12 @@
                             android:textSize="11sp" 
                             android:drawableLeft="@android:drawable/ic_lock_idle_lock" 
                             android:drawablePadding="5dp"/>
-                        <TextView 
+                        <TextView android:maxLines="1" android:autoSizeTextType="uniform" android:autoSizeMinTextSize="9sp" android:autoSizeMaxTextSize="20sp" android:autoSizeStepGranularity="1sp" 
                             android:id="@+id/tv_battery" 
                             android:layout_width="wrap_content" 
                             android:layout_height="wrap_content" 
                             android:text="..." 
                             android:textColor="#FFFFFF" 
-                            android:textSize="20sp" 
                             android:textStyle="bold" 
                             android:layout_marginTop="5dp"/>
                     </LinearLayout>
