@@ -55,8 +55,48 @@ final class Recorder {
     static void setHideHandle(Context c, boolean v) { sp(c).edit().putBoolean("hide", v).apply(); }
     static boolean showBar(Context c) { return sp(c).getBoolean("bar", true); }
     static void setShowBar(Context c, boolean v) { sp(c).edit().putBoolean("bar", v).apply(); }
-    static boolean clean(Context c) { return sp(c).getBoolean("clean", true); }
+    static boolean clean(Context c) { return sp(c).getBoolean("clean", false); }
     static void setClean(Context c, boolean v) { sp(c).edit().putBoolean("clean", v).apply(); }
+    private static Process keyProc;
+    private static volatile boolean keyWatch;
+
+    /** Clean-video mode: Volume Up + Volume Down pressed together calls onCombo (root getevent). */
+    static void watchStopKeys(final Runnable onCombo) {
+        stopKeyWatch();
+        keyWatch = true;
+        new Thread(new Runnable() { @Override public void run() {
+            Process p = null;
+            try {
+                p = Runtime.getRuntime().exec("su");
+                keyProc = p;
+                OutputStream o = p.getOutputStream();
+                o.write("getevent -l\n".getBytes("UTF-8")); o.flush();
+                BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
+                boolean up = false, down = false; String line;
+                while (keyWatch && (line = r.readLine()) != null) {
+                    if (!line.contains("EV_KEY")) continue;
+                    boolean isUp = line.contains("KEY_VOLUMEUP"), isDn = line.contains("KEY_VOLUMEDOWN");
+                    if (!isUp && !isDn) continue;
+                    boolean pressed = line.trim().endsWith("DOWN");
+                    if (isUp) up = pressed; else down = pressed;
+                    if (up && down) { up = false; down = false; if (onCombo != null) onCombo.run(); }
+                }
+            } catch (Exception ignored) {
+            } finally { if (p != null) { try { p.destroy(); } catch (Exception ignored) {} } }
+        } }).start();
+    }
+
+    static void stopKeyWatch() {
+        keyWatch = false;
+        Process p = keyProc; keyProc = null;
+        if (p != null) {
+            try { p.destroy(); } catch (Exception ignored) {}
+            new Thread(new Runnable() { @Override public void run() {
+                RootShell.run("pkill -x getevent 2>/dev/null; killall getevent 2>/dev/null");
+            } }).start();
+        }
+    }
+
     static boolean showTouches(Context c) { return sp(c).getBoolean("touch", false); }
     static void setShowTouches(Context c, boolean v) { sp(c).edit().putBoolean("touch", v).apply(); }
     static boolean audio(Context c) { return sp(c).getBoolean("audio", true); }
