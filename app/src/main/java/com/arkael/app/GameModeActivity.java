@@ -298,6 +298,40 @@ public class GameModeActivity extends Activity {
         c3.addView(bReset);
         col.addView(c3);
 
+        // --- screen recording ---
+        LinearLayout cR = card();
+        cR.addView(label("SCREEN RECORDING", Color.parseColor("#00E5FF"), 11, true));
+        final TextView tvQ = label(Recorder.describe(this), Color.parseColor("#8B95A3"), 11, false);
+        tvQ.setPadding(0, dp(4), 0, dp(6));
+        cR.addView(tvQ);
+        LinearLayout qrow = new LinearLayout(this);
+        for (int i = 0; i < Recorder.Q_NAMES.length; i++) {
+            final int idx = i;
+            Button bq = new Button(this);
+            bq.setText(Recorder.Q_NAMES[i]);
+            bq.setAllCaps(false);
+            bq.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    Recorder.setQuality(GameModeActivity.this, idx);
+                    tvQ.setText(Recorder.describe(GameModeActivity.this));
+                }
+            });
+            qrow.addView(bq, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        }
+        cR.addView(qrow);
+        CheckBox cbHide = new CheckBox(this);
+        cbHide.setText("Hide the edge handle while recording");
+        cbHide.setTextColor(Color.WHITE);
+        cbHide.setChecked(Recorder.hideHandle(this));
+        cbHide.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(CompoundButton v, boolean on) { Recorder.setHideHandle(GameModeActivity.this, on); }
+        });
+        cR.addView(cbHide);
+        TextView rh = label("Start it with the Record screen tile in the GAME MODE panel (needs root). While recording the handle turns red; stop it from the panel or the Stop recording button in the notification. Files go to Movies/Arkael.", Color.parseColor("#8B95A3"), 11, false);
+        rh.setPadding(0, dp(6), 0, 0);
+        cR.addView(rh);
+        col.addView(cR);
+
         // --- temperature source ---
         LinearLayout cT = card();
         cT.addView(label("TEMPERATURE SOURCE", Color.parseColor("#00E5FF"), 11, true));
