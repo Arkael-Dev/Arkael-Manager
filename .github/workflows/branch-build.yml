@@ -42,14 +42,16 @@ jobs:
           if [ -f ./gradlew ]; then chmod +x ./gradlew && ./gradlew assembleRelease --no-daemon; else gradle assembleRelease --no-daemon; fi
 
       - name: Name the APK
+        id: nm
         run: |
           APK="$(find app/build/outputs/apk/release -name '*.apk' ! -name '*unsigned*' | head -1)"
           test -n "$APK"
           BR="$(echo "${GITHUB_REF_NAME}" | tr '/' '-')"
-          cp "$APK" "ArkaelManager-${BR}-${GITHUB_RUN_NUMBER}.apk"
+          cp "$APK" "ArkaelManager.apk"
+          echo "br=${BR}" >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@v4
         with:
-          name: ArkaelManager-test
-          path: ArkaelManager-*.apk
+          name: ArkaelManager-${{ steps.nm.outputs.br }}-${{ github.run_number }}
+          path: ArkaelManager.apk
           retention-days: 14
