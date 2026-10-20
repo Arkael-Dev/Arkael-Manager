@@ -473,10 +473,10 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView android:visibility="gone" 
+                    <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
-                        android:text="Gov" 
+                        android:text="" 
                         android:drawableLeft="@drawable/ic_cpu" 
                         android:drawablePadding="15dp"/>
                     <TextView 
@@ -509,10 +509,10 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView android:visibility="gone" 
+                    <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
-                        android:text="Zram" 
+                        android:text="" 
                         android:drawableLeft="@drawable/ic_ram" 
                         android:drawablePadding="15dp"/>
                     <TextView 
@@ -545,10 +545,10 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView android:visibility="gone" 
+                    <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
-                        android:text="Heat" 
+                        android:text="" 
                         android:drawableLeft="@drawable/ic_thermal" 
                         android:drawablePadding="15dp"/>
                     <TextView 
@@ -581,10 +581,10 @@
                     android:layout_marginBottom="20dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView android:visibility="gone" 
+                    <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
-                        android:text="Del" 
+                        android:text="" 
                         android:drawableLeft="@drawable/ic_trash" 
                         android:drawablePadding="15dp"/>
                     <TextView 
@@ -627,10 +627,10 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView android:visibility="gone" 
+                    <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
-                        android:text="GPU" 
+                        android:text="" 
                         android:drawableLeft="@drawable/ic_gpu" 
                         android:drawablePadding="15dp"/>
                     <TextView 
@@ -663,10 +663,10 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView android:visibility="gone" 
+                    <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
-                        android:text="IO" 
+                        android:text="" 
                         android:drawableLeft="@drawable/ic_storage" 
                         android:drawablePadding="15dp"/>
                     <TextView 
@@ -699,10 +699,10 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView android:visibility="gone" 
+                    <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
-                        android:text="Algo" 
+                        android:text="" 
                         android:drawableLeft="@drawable/ic_ram" 
                         android:drawablePadding="15dp"/>
                     <TextView 
@@ -735,10 +735,10 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView android:visibility="gone" 
+                    <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
-                        android:text="Col" 
+                        android:text="" 
                         android:drawableLeft="@drawable/ic_palette" 
                         android:drawablePadding="15dp"/>
                     <TextView 
@@ -771,10 +771,10 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView android:visibility="gone" 
+                    <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
-                        android:text="GL" 
+                        android:text="" 
                         android:drawableLeft="@drawable/ic_gpu" 
                         android:drawablePadding="15dp"/>
                     <TextView 
@@ -807,10 +807,10 @@
                     android:layout_marginBottom="20dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView android:visibility="gone" 
+                    <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
-                        android:text="Sync" 
+                        android:text="" 
                         android:drawableLeft="@drawable/ic_sync" 
                         android:drawablePadding="15dp"/>
                     <TextView 
@@ -844,10 +844,10 @@
                     android:layout_marginBottom="10dp" 
                     android:clickable="true" 
                     android:focusable="true">
-                    <TextView android:visibility="gone" 
+                    <TextView 
                         android:layout_width="wrap_content" 
                         android:layout_height="wrap_content" 
-                        android:text="Key" 
+                        android:text="" 
                         android:drawableLeft="@drawable/ic_key" 
                         android:drawablePadding="15dp"/>
                     <TextView 
