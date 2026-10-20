@@ -20,6 +20,8 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
         <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <application
         android:label="Arkael Manager"
         android:icon="@mipmap/ic_arkael"
@@ -45,5 +47,9 @@
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="game_mode"/>
         </service>
 
+            <service android:name=".AudioCapService" android:exported="false" android:foregroundServiceType="mediaProjection" />
+        <activity android:name=".AudioConsentActivity" android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true" android:taskAffinity="" />
     </application>
 </manifest>
