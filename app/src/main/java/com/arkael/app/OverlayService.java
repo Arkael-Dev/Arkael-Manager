@@ -24,6 +24,7 @@ import android.view.Gravity;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -43,10 +44,12 @@ public class OverlayService extends Service {
     private WindowManager wm;
     private LinearLayout root;
     private WindowManager.LayoutParams lp;
-    private TextView[] values = new TextView[5];
+    private TextView[] values = new TextView[6];
+    private SparkView spark;
+    private final FpsProbe fpsProbe = new FpsProbe();
     private TextView compactText;
-    private final int[] bits = {OverlayPrefs.M_CPU, OverlayPrefs.M_TEMP, OverlayPrefs.M_GPU, OverlayPrefs.M_RAM, OverlayPrefs.M_BAT};
-    private final String[] labels = {"CPU", "TEMP", "GPU", "RAM", "BAT"};
+    private final int[] bits = {OverlayPrefs.M_FPS, OverlayPrefs.M_CPU, OverlayPrefs.M_TEMP, OverlayPrefs.M_GPU, OverlayPrefs.M_RAM, OverlayPrefs.M_BAT};
+    private final String[] labels = {"FPS", "CPU", "TEMP", "GPU", "RAM", "BAT"};
 
     private final Handler main = new Handler(Looper.getMainLooper());
     private HandlerThread worker;
@@ -99,7 +102,9 @@ public class OverlayService extends Service {
         @Override public void run() {
             if (!running) return;
             final SysProbe.Snapshot s = probe.read(OverlayService.this);
-            main.post(new Runnable() { @Override public void run() { render(s); } });
+            int m = OverlayPrefs.mask(OverlayService.this);
+            final int fps = (s.root && (m & (OverlayPrefs.M_FPS | OverlayPrefs.M_GRAPH)) != 0) ? fpsProbe.read() : -1;
+            main.post(new Runnable() { @Override public void run() { render(s, fps); } });
             if (bg != null) bg.postDelayed(this, 1000);
         }
     };
@@ -153,7 +158,8 @@ public class OverlayService extends Service {
         title.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
         title.setLetterSpacing(0.1f);
 
-        values = new TextView[5];
+        values = new TextView[6];
+        spark = null;
         compactText = null;
         if (compact) {
             compactText = new TextView(this);
@@ -163,7 +169,7 @@ public class OverlayService extends Service {
             root.addView(compactText);
         } else {
             root.addView(title);
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < 6; i++) {
                 if ((mask & bits[i]) == 0) continue;
                 LinearLayout row = new LinearLayout(this);
                 row.setOrientation(LinearLayout.HORIZONTAL);
@@ -183,6 +189,13 @@ public class OverlayService extends Service {
                 row.addView(v);
                 root.addView(row);
                 values[i] = v;
+            }
+            if ((mask & OverlayPrefs.M_GRAPH) != 0) {
+                float sc = scale[Math.max(0, Math.min(2, OverlayPrefs.size(this)))];
+                spark = new SparkView(this, accent, dp(120 * sc), dp(34 * sc));
+                LinearLayout.LayoutParams gp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+                gp.topMargin = dp(5);
+                root.addView(spark, gp);
             }
         }
 
@@ -239,7 +252,7 @@ public class OverlayService extends Service {
         return mhz < 0 ? "--" : String.format(Locale.US, "%.2fGHz", mhz / 1000f);
     }
 
-    private void render(SysProbe.Snapshot s) {
+    private void render(SysProbe.Snapshot s, int fps) {
         if (root == null) return;
         String cpu = (s.cpuLoad >= 0 ? s.cpuLoad + "% " : "") + (s.cpuMaxMhz > 0 ? ghz(s.cpuMaxMhz) : (s.root ? "" : "no root"));
         if (cpu.isEmpty()) cpu = "--";
@@ -249,19 +262,21 @@ public class OverlayService extends Service {
         String ram = s.ramPct < 0 ? "--" : s.ramPct + "% " + String.format(Locale.US, "%.1f/%.1fG", s.ramUsedMb / 1024f, s.ramTotalMb / 1024f);
         String bat = (s.batPct >= 0 ? s.batPct + "% " : "") + (s.batMa != Integer.MIN_VALUE ? s.batMa + "mA " : "")
                 + (s.batTemp > 0 ? String.format(Locale.US, "%.0f°", s.batTemp) : "");
-        String[] txt = {cpu, temp, gpu, ram, bat.trim().isEmpty() ? "--" : bat.trim()};
+        String fpsT = fps >= 0 ? fps + " fps" : "--";
+        String[] txt = {fpsT, cpu, temp, gpu, ram, bat.trim().isEmpty() ? "--" : bat.trim()};
 
         if (compactText != null) {
             int mask = OverlayPrefs.mask(this);
             StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < 5; i++) {
+            for (int i = 0; i < 6; i++) {
                 if ((mask & bits[i]) == 0) continue;
                 if (sb.length() > 0) sb.append(" | ");
                 sb.append(labels[i]).append(' ').append(txt[i]);
             }
             compactText.setText(sb.toString());
         } else {
-            for (int i = 0; i < 5; i++) if (values[i] != null) values[i].setText(txt[i]);
+            for (int i = 0; i < 6; i++) if (values[i] != null) values[i].setText(txt[i]);
+            if (spark != null) spark.push(s.cpuLoad, s.cpuTemp, fps);
         }
     }
 

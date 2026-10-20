@@ -56,7 +56,7 @@ final class GameModeEntry {
             t1.setTextSize(14);
             t1.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
             TextView t2 = new TextView(a);
-            t2.setText("Live performance overlay");
+            t2.setText("Overlay, boost and game profiles");
             t2.setTextColor(Color.parseColor("#8B95A3"));
             t2.setTextSize(11);
             txt.addView(t1);

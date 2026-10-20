@@ -19,6 +19,7 @@
     <!-- Izin Notifikasi (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
+        <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>
     <application
         android:label="Arkael Manager"
         android:icon="@mipmap/ic_arkael"
@@ -36,6 +37,12 @@
 
         <service android:name=".OverlayService" android:exported="false" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="performance_overlay"/>
+        </service>
+
+            <activity android:name=".GameListActivity" android:exported="false" android:label="Games"/>
+
+        <service android:name=".GameService" android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="game_mode"/>
         </service>
 
     </application>
