@@ -4,8 +4,6 @@ import android.animation.ObjectAnimator;
 import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.*;
-import android.graphics.drawable.BitmapDrawable;
-import android.graphics.drawable.Drawable;
 import android.os.Build;
 import android.os.SystemClock;
 import android.util.AttributeSet;
@@ -17,8 +15,8 @@ import android.widget.ImageView;
 
 /**
  * Overlay transparan di atas banner (id header_banner):
- *  - banner bawaan (rasio 2.4:1): gauge 3 busur digambar live (intro sweep, napas, comet orbit, ripple tengah)
- *  - semua banner (termasuk custom): kilau diagonal tiap beberapa detik
+ *  - gauge 3 busur digambar live (intro sweep, napas, comet orbit, ripple tengah)
+ *  - kilau diagonal tiap beberapa detik
  *  - sudut banner dipotong rounded, titik "LIVE" berkedip
  * Berhenti otomatis saat tidak terlihat / animasi sistem dimatikan.
  */
@@ -65,6 +63,7 @@ public class BannerFxView extends View {
         super.onAttachedToWindow();
         animOk = Build.VERSION.SDK_INT < 26 || ValueAnimator.areAnimatorsEnabled();
         roundParent();
+        forceDefaultBanner();
         liveView = getRootView().findViewById(R.id.tv_live);
         updateRunning();
     }
@@ -82,6 +81,14 @@ public class BannerFxView extends View {
     @Override protected void onWindowVisibilityChanged(int visibility) {
         super.onWindowVisibilityChanged(visibility);
         updateRunning();
+    }
+
+    /** Fitur Change Banner dihapus: apa pun yang tersimpan, tampilkan banner bawaan. */
+    private void forceDefaultBanner() {
+        View p = (View) getParent();
+        if (p == null) return;
+        View v = p.findViewById(R.id.header_banner);
+        if (v instanceof ImageView) ((ImageView) v).setImageResource(R.drawable.header_bg);
     }
 
     /** Potong sudut banner (gambar + overlay) mengikuti card rounded. */
@@ -131,28 +138,12 @@ public class BannerFxView extends View {
         }
     }
 
-    /** false hanya bila jelas banner custom (bitmap rasio lain); selain itu dianggap bawaan. */
-    private boolean isDefaultBanner() {
-        View p = (View) getParent();
-        if (p == null) return true;
-        View v = p.findViewById(R.id.header_banner);
-        if (!(v instanceof ImageView)) return true;
-        Drawable d = ((ImageView) v).getDrawable();
-        if (d instanceof BitmapDrawable) {
-            Bitmap b = ((BitmapDrawable) d).getBitmap();
-            if (b != null && b.getHeight() > 0)
-                return Math.abs(b.getWidth() / (float) b.getHeight() - ASPECT) < 0.01f;
-        }
-        return true;
-    }
-
     @Override protected void onDraw(Canvas c) {
         float w = getWidth(), h = getHeight();
         if (w <= 0 || h <= 0) return;
         float t01 = animOk ? t : 0.25f;
 
         drawShine(c, w, h, t01);
-        if (!isDefaultBanner()) return;
 
         float s = Math.max(w / IMG_W, h / IMG_H);
         float cx = (w - IMG_W * s) / 2f + CX * s;
@@ -168,7 +159,7 @@ public class BannerFxView extends View {
             track.setStrokeWidth(sw);
             c.drawArc(box, START, SWEEP, false, track);
 
-            float breath = animOk ? 0.035f * (float) Math.sin(2 * Math.PI * (t01 * (i + 1) + i * 0.3f)) : 0f;
+            float breath = animOk ? 0.10f * (float) Math.sin(2 * Math.PI * (t01 * (i + 1) + i * 0.3f)) : 0f;
             float f = Math.max(0.02f, Math.min(1f, (FILL[i] + breath) * e));
             glow.setColor(COL[i]); glow.setAlpha(46); glow.setStrokeWidth(sw * 1.9f);
             c.drawArc(box, START, SWEEP * f, false, glow);
