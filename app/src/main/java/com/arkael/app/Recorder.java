@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.os.Environment;
 import android.os.StatFs;
 import android.util.DisplayMetrics;
+import android.util.Log;
 import android.view.WindowManager;
 
 import java.io.BufferedReader;
@@ -13,6 +14,8 @@ import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Screen recording with root "screenrecord". It runs in its own su process per segment (never in
@@ -21,6 +24,7 @@ import java.util.Locale;
  */
 final class Recorder {
     static final String DIR = "/sdcard/Movies/Arkael";
+    private static final String TAG = "ArkaelRec";
     static final String[] Q_NAMES = {"720p", "1080p", "Native"};
     private static final int[] Q_SHORT = {720, 1080, 0};      // short side in px, 0 = screen size
     private static final int[] Q_MBPS = {6, 10, 16};
@@ -87,15 +91,24 @@ final class Recorder {
         if (!RootShell.hasRoot()) { error = "Recording needs root"; return; }
         RootShell.run("mkdir -p " + DIR);
         String ts = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
+        int wanted = quality(ctx);
+        int q = wanted;
         int n = 0;
         while (!stopReq) {
             if (freeBytes() < MIN_FREE) { error = "Storage almost full, recording stopped"; break; }
             n++;
             String file = DIR + "/rec_" + ts + "_" + (n < 10 ? "0" : "") + n + ".mp4";
             long t0 = System.currentTimeMillis();
-            String out = runSegment(ctx, file);
+            String out = runSegment(ctx, file, q);
             RootShell.run("[ -s " + file + " ] && am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file://" + file + " >/dev/null 2>&1");
             if (!stopReq && System.currentTimeMillis() - t0 < 3000) {
+                RootShell.run("[ -s " + file + " ] || rm -f " + file);
+                if (q > 0) {                         // encoder refused this size: step down one tier and retry
+                    Log.w(TAG, "screenrecord failed at " + Q_NAMES[q] + ", falling back. Output: " + out.trim());
+                    q--;
+                    n--;
+                    continue;
+                }
                 String first = out.trim();
                 int nl = first.indexOf('\n');
                 if (nl > 0) first = first.substring(0, nl);
@@ -103,12 +116,13 @@ final class Recorder {
                 break;
             }
         }
+        if (error == null && q != wanted) {
+            error = "Device refused " + Q_NAMES[wanted] + ", recorded at " + Q_NAMES[q] + " instead. Saved in Movies/Arkael";
+        }
     }
 
-    private static String runSegment(Context ctx, String file) {
-        int q = quality(ctx);
-        String cmd = "screenrecord --time-limit " + SEGMENT_SEC + " --bit-rate " + (Q_MBPS[q] * 1000000)
-                + sizeArg(ctx, Q_SHORT[q]) + " " + file + " 2>&1";
+    /** One su process per segment; returns everything screenrecord printed. */
+    private static String su(String cmd) {
         StringBuilder sb = new StringBuilder();
         try {
             Process p = new ProcessBuilder("su").redirectErrorStream(true).start();
@@ -125,22 +139,63 @@ final class Recorder {
         return sb.toString();
     }
 
-    /** " --size WxH" in the screen's current orientation, or "" for the native size. */
-    private static String sizeArg(Context ctx, int shortSide) {
-        if (shortSide <= 0) return "";
+    private static String runSegment(Context ctx, String file, int q) {
+        String cmd = "screenrecord --time-limit " + SEGMENT_SEC + " --bit-rate " + (Q_MBPS[q] * 1000000)
+                + sizeArg(ctx, Q_SHORT[q]) + " " + file + " 2>&1";
+        Log.i(TAG, cmd);
+        return su(cmd);
+    }
+
+    /**
+     * Screen size in the CURRENT orientation. "wm size" (root) gives the real panel size; the app's own
+     * DisplayMetrics only decide portrait vs landscape. Falls back to DisplayMetrics, or null if unknown.
+     */
+    private static int[] screenSize(Context ctx) {
+        int pw = 0, ph = 0, ow = 0, oh = 0;
+        try {
+            Matcher m = Pattern.compile("(Physical|Override) size:\\s*(\\d+)x(\\d+)").matcher(su("wm size"));
+            while (m.find()) {
+                int a = Integer.parseInt(m.group(2)), b = Integer.parseInt(m.group(3));
+                if ("Override".equals(m.group(1))) { ow = a; oh = b; } else { pw = a; ph = b; }
+            }
+        } catch (Exception ignored) {}
+        int w = ow > 0 ? ow : pw, h = ow > 0 ? oh : ph;
+        int mw = 0, mh = 0;
         try {
             WindowManager wm = (WindowManager) ctx.getSystemService(Context.WINDOW_SERVICE);
             DisplayMetrics dm = new DisplayMetrics();
             wm.getDefaultDisplay().getRealMetrics(dm);
-            int w = dm.widthPixels, h = dm.heightPixels;
-            int s = Math.min(w, h);
-            if (s <= shortSide) return "";
-            float k = shortSide / (float) s;
-            int ow = Math.round(w * k) & ~1, oh = Math.round(h * k) & ~1;
-            return " --size " + ow + "x" + oh;
-        } catch (Exception e) {
-            return "";
+            mw = dm.widthPixels; mh = dm.heightPixels;
+        } catch (Exception ignored) {}
+        if (w <= 0 || h <= 0) {
+            if (mw <= 0 || mh <= 0) return null;
+            return new int[]{mw, mh};
         }
+        if (mw > 0 && mh > 0) {                       // match the current orientation
+            boolean land = mw > mh;
+            int lo = Math.min(w, h), hi = Math.max(w, h);
+            w = land ? hi : lo;
+            h = land ? lo : hi;
+        }
+        return new int[]{w, h};
+    }
+
+    /**
+     * Always an explicit " --size WxH". Without it screenrecord falls back to 1280x720 on many devices,
+     * which is why 1080p and Native used to come out as 720p.
+     */
+    private static String sizeArg(Context ctx, int shortSide) {
+        int[] s = screenSize(ctx);
+        if (s == null) return "";
+        int w = s[0], h = s[1];
+        int sh = Math.min(w, h);
+        if (shortSide > 0 && sh > shortSide) {
+            float k = shortSide / (float) sh;
+            w = Math.round(w * k);
+            h = Math.round(h * k);
+        }
+        w &= ~1; h &= ~1;
+        return " --size " + w + "x" + h;
     }
 
     private static long freeBytes() {
