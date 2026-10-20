@@ -319,6 +319,17 @@ public class GameModeActivity extends Activity {
             qrow.addView(bq, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         }
         cR.addView(qrow);
+        CheckBox cbAudio = new CheckBox(this);
+        cbAudio.setText("Record game audio (internal sound)");
+        cbAudio.setTextColor(Color.WHITE);
+        cbAudio.setChecked(Recorder.audio(this));
+        cbAudio.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(CompoundButton v, boolean on) {
+                Recorder.setAudio(GameModeActivity.this, on);
+                tvQ.setText(Recorder.describe(GameModeActivity.this));
+            }
+        });
+        cR.addView(cbAudio);
         CheckBox cbHide = new CheckBox(this);
         cbHide.setText("Hide the edge handle while recording");
         cbHide.setTextColor(Color.WHITE);
@@ -336,7 +347,7 @@ public class GameModeActivity extends Activity {
         });
         cR.addView(cbBar);
         CheckBox cbTouch = new CheckBox(this);
-        cbTouch.setText("Show touches (circle on every tap and swipe) in the video");
+        cbTouch.setText("Show touches: white circle on every tap (off by default)");
         cbTouch.setTextColor(Color.WHITE);
         cbTouch.setChecked(Recorder.showTouches(this));
         cbTouch.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {

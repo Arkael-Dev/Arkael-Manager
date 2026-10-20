@@ -9,18 +9,23 @@ import android.util.Log;
 import android.view.WindowManager;
 
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
  * Screen recording with root "screenrecord". It runs in its own su process per segment (never in
  * RootShell, which would freeze the live stats), is cut into ~170 s files because screenrecord
- * stops at 180 s, and is stopped with SIGINT so every MP4 is closed properly. No game audio.
+ * stops at 180 s, and is stopped with SIGINT so every MP4 is closed properly. Game audio comes from AudioPlaybackCapture (AudioCapService), is encoded to AAC and
+ * muxed into each MP4 afterwards (AudioMux). If audio cannot start, the video-only file is kept.
  */
 final class Recorder {
     static final String DIR = "/sdcard/Movies/Arkael";
@@ -34,6 +39,7 @@ final class Recorder {
     private static volatile boolean rec, stopReq;
     private static volatile long startedAt;
     private static volatile String error;
+    private static volatile boolean audioFailed;
     private static Thread worker;
 
     private Recorder() {}
@@ -49,12 +55,14 @@ final class Recorder {
     static void setHideHandle(Context c, boolean v) { sp(c).edit().putBoolean("hide", v).apply(); }
     static boolean showBar(Context c) { return sp(c).getBoolean("bar", true); }
     static void setShowBar(Context c, boolean v) { sp(c).edit().putBoolean("bar", v).apply(); }
-    static boolean showTouches(Context c) { return sp(c).getBoolean("touch", true); }
+    static boolean showTouches(Context c) { return sp(c).getBoolean("touch", false); }
     static void setShowTouches(Context c, boolean v) { sp(c).edit().putBoolean("touch", v).apply(); }
+    static boolean audio(Context c) { return sp(c).getBoolean("audio", true); }
+    static void setAudio(Context c, boolean v) { sp(c).edit().putBoolean("audio", v).apply(); }
 
     static String describe(Context c) {
         int q = quality(c);
-        return "Now: " + Q_NAMES[q] + " · " + Q_MBPS[q] + " Mbps · new file about every 3 min, no game audio";
+        return "Now: " + Q_NAMES[q] + " · " + Q_MBPS[q] + " Mbps · new file about every 3 min" + (audio(c) ? " · game audio on" : " · no audio");
     }
 
     /** Starts recording and returns at once. onEnd runs (on a worker thread) when recording has ended for any reason. */
@@ -63,6 +71,7 @@ final class Recorder {
         rec = true;
         stopReq = false;
         error = null;
+        audioFailed = false;
         startedAt = System.currentTimeMillis();
         final Context app = ctx.getApplicationContext();
         worker = new Thread(new Runnable() {
@@ -71,6 +80,7 @@ final class Recorder {
                 catch (Exception e) { error = "Recording failed: " + e.getMessage(); }
                 finally {
                     try { restoreTouches(app); } catch (Exception ignored) {}
+                    try { AudioCapService.close(app); } catch (Exception ignored) {}
                     rec = false;
                     if (onEnd != null) { try { onEnd.run(); } catch (Exception ignored) {} }
                 }
@@ -95,38 +105,70 @@ final class Recorder {
         }, "ark-rec-stop").start();
     }
 
-    private static void loop(Context ctx) throws Exception {
+    private static void loop(final Context ctx) throws Exception {
         if (!RootShell.hasRoot()) { error = "Recording needs root"; return; }
         RootShell.run("mkdir -p " + DIR);
         if (showTouches(ctx)) enableTouches(ctx);
+        final boolean useAudio = audio(ctx) && AudioCapService.open(ctx);
+        if (audio(ctx) && !useAudio) audioFailed = true;
+        File cache = ctx.getCacheDir();
+        ExecutorService post = Executors.newSingleThreadExecutor();   // mux + copy run here so the next segment starts at once
         String ts = new SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(new Date());
         int wanted = quality(ctx);
         int q = wanted;
         int n = 0;
-        while (!stopReq) {
-            if (freeBytes() < MIN_FREE) { error = "Storage almost full, recording stopped"; break; }
-            n++;
-            String file = DIR + "/rec_" + ts + "_" + (n < 10 ? "0" : "") + n + ".mp4";
-            long t0 = System.currentTimeMillis();
-            String out = runSegment(ctx, file, q);
-            RootShell.run("[ -s " + file + " ] && am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file://" + file + " >/dev/null 2>&1");
-            if (!stopReq && System.currentTimeMillis() - t0 < 3000) {
-                RootShell.run("[ -s " + file + " ] || rm -f " + file);
-                if (q > 0) {                         // encoder refused this size: step down one tier and retry
-                    Log.w(TAG, "screenrecord failed at " + Q_NAMES[q] + ", falling back. Output: " + out.trim());
-                    q--;
-                    n--;
-                    continue;
+        try {
+            while (!stopReq) {
+                if (freeBytes() < (useAudio ? 2 * MIN_FREE : MIN_FREE)) { error = "Storage almost full, recording stopped"; break; }
+                n++;
+                final String finalFile = DIR + "/rec_" + ts + "_" + (n < 10 ? "0" : "") + n + ".mp4";
+                final String work = useAudio ? cache + "/seg_" + n + ".mp4" : finalFile;
+                final String aud = useAudio ? cache + "/seg_" + n + ".m4a" : null;
+                long t0 = System.currentTimeMillis();
+                String out = runSegment(ctx, work, aud, q);
+                if (useAudio) AudioCapService.end();
+                if (!stopReq && System.currentTimeMillis() - t0 < 3000) {
+                    RootShell.run("[ -s " + work + " ] || rm -f " + work);
+                    if (q > 0) {                         // encoder refused this size: step down one tier and retry
+                        Log.w(TAG, "screenrecord failed at " + Q_NAMES[q] + ", falling back. Output: " + out.trim());
+                        q--;
+                        n--;
+                        continue;
+                    }
+                    String first = out.trim();
+                    int nl = first.indexOf('\n');
+                    if (nl > 0) first = first.substring(0, nl);
+                    error = "screenrecord failed" + (first.isEmpty() ? "" : ": " + first);
+                    break;
                 }
-                String first = out.trim();
-                int nl = first.indexOf('\n');
-                if (nl > 0) first = first.substring(0, nl);
-                error = "screenrecord failed" + (first.isEmpty() ? "" : ": " + first);
-                break;
+                post.submit(new Runnable() { @Override public void run() { finish(ctx, work, aud, finalFile); } });
             }
+        } finally {
+            post.shutdown();
+            try { post.awaitTermination(180, TimeUnit.SECONDS); } catch (InterruptedException ignored) {}
         }
         if (error == null && q != wanted) {
             error = "Device refused " + Q_NAMES[wanted] + ", recorded at " + Q_NAMES[q] + " instead. Saved in Movies/Arkael";
+        }
+        if (error == null && audioFailed) {
+            error = "Saved in Movies/Arkael, but without sound (audio capture was not allowed or failed)";
+        }
+    }
+
+    /** Joins video + audio into the final file (or just moves the video when there is no usable audio), then scans it. */
+    private static void finish(Context ctx, String work, String aud, String finalFile) {
+        try {
+            if (aud != null) {
+                String joined = work + ".joined.mp4";
+                RootShell.run("chmod 666 " + work + " " + aud + " 2>/dev/null");
+                boolean ok = AudioMux.join(work, aud, joined);
+                if (ok) RootShell.run("cp " + joined + " " + finalFile);
+                else { audioFailed = true; RootShell.run("cp " + work + " " + finalFile); }
+                RootShell.run("rm -f " + work + " " + aud + " " + joined);
+            }
+            RootShell.run("[ -s " + finalFile + " ] && am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE -d file://" + finalFile + " >/dev/null 2>&1");
+        } catch (Exception e) {
+            Log.w(TAG, "finish failed", e);
         }
     }
 
@@ -165,11 +207,43 @@ final class Recorder {
         return sb.toString();
     }
 
-    private static String runSegment(Context ctx, String file, int q) {
-        String cmd = "screenrecord --time-limit " + SEGMENT_SEC + " --bit-rate " + (Q_MBPS[q] * 1000000)
+    private static String runSegment(Context ctx, String file, String audioFile, int q) {
+        String sr = "screenrecord --time-limit " + SEGMENT_SEC + " --bit-rate " + (Q_MBPS[q] * 1000000)
                 + sizeArg(ctx, Q_SHORT[q]) + " " + file + " 2>&1";
+        if (audioFile == null) {
+            Log.i(TAG, sr);
+            return su(sr);
+        }
+        // Start the audio exactly when the first video bytes appear, so sound and picture stay in sync.
+        String cmd = sr.substring(0, sr.length() - 5) + " 2>&1 &\n"
+                + "P=$!\ni=0\n"
+                + "while [ ! -s " + file + " ] && [ $i -lt 100 ] && kill -0 $P 2>/dev/null; do sleep 0.05; i=$((i+1)); done\n"
+                + "echo ARK_VIDEO_STARTED\nwait $P";
         Log.i(TAG, cmd);
-        return su(cmd);
+        final String af = audioFile;
+        return suMarker(cmd, "ARK_VIDEO_STARTED", new Runnable() { @Override public void run() {
+            if (!AudioCapService.begin(af)) audioFailed = true;
+        } });
+    }
+
+    private static String suMarker(String cmd, String marker, Runnable onMarker) {
+        StringBuilder sb = new StringBuilder();
+        try {
+            Process p = new ProcessBuilder("su").redirectErrorStream(true).start();
+            OutputStream o = p.getOutputStream();
+            o.write((cmd + "\nexit\n").getBytes("UTF-8"));
+            o.flush();
+            BufferedReader r = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            String l;
+            while ((l = r.readLine()) != null) {
+                if (marker.equals(l.trim())) { if (onMarker != null) onMarker.run(); }
+                else sb.append(l).append('\n');
+            }
+            p.waitFor();
+        } catch (Exception e) {
+            sb.append(String.valueOf(e.getMessage()));
+        }
+        return sb.toString();
     }
 
     /**
