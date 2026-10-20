@@ -30,6 +30,10 @@ final class GameProfiles {
     static boolean panel(Context c) { return sp(c).getBoolean("panel", true); }
     static void setPanel(Context c, boolean v) { sp(c).edit().putBoolean("panel", v).apply(); }
 
+    /** Side handle shown in every app, without a game being detected (to try the panel out or use it anywhere). */
+    static boolean manual(Context c) { return sp(c).getBoolean("manual_panel", false); }
+    static void setManual(Context c, boolean v) { sp(c).edit().putBoolean("manual_panel", v).apply(); }
+
     static Set<String> games(Context c) { return new HashSet<String>(sp(c).getStringSet("games", new HashSet<String>())); }
     static boolean isGame(Context c, String pkg) { return sp(c).getStringSet("games", new HashSet<String>()).contains(pkg); }
 

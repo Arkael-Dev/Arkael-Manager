@@ -27,7 +27,7 @@ import android.widget.Toast;
 
 /** Control screen for the performance overlay. Built in code, no layout XML. */
 public class GameModeActivity extends Activity {
-    private Switch swOverlay, swAuto;
+    private Switch swOverlay, swAuto, swPanel;
     private TextView tvBoost, tvGames;
     private TextView tvPerm, tvRoot;
     private boolean ignore;
@@ -71,7 +71,7 @@ public class GameModeActivity extends Activity {
         sv.addView(col);
 
         col.addView(label("Game Mode", Color.WHITE, 24, true));
-        TextView sub = label("Live CPU, GPU, RAM, temperature and battery on top of any game. Drag it anywhere, double-tap to switch between full and compact.", Color.parseColor("#8B95A3"), 12, false);
+        TextView sub = label("Live CPU, GPU, RAM, temperature and battery on top of any game. Drag it anywhere, pinch it (or drag its corner grip) to resize, double-tap to switch between full and compact.", Color.parseColor("#8B95A3"), 12, false);
         sub.setPadding(0, dp(4), 0, dp(16));
         col.addView(sub);
 
@@ -114,6 +114,36 @@ public class GameModeActivity extends Activity {
         });
         cAuto.addView(cbPanel);
         col.addView(cAuto);
+
+        // --- game panel in any app ---
+        LinearLayout cPanel = card();
+        LinearLayout rowP = new LinearLayout(this);
+        rowP.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout tp = new LinearLayout(this);
+        tp.setOrientation(LinearLayout.VERTICAL);
+        tp.addView(label("GAME MODE panel", Color.WHITE, 15, true));
+        tp.addView(label("Shows the edge handle in every app right now, no game list needed. Tap or swipe the handle to open the GAME MODE panel (boost, clean RAM, do not disturb, screenshot...). Needs root for the tools.", Color.parseColor("#8B95A3"), 11, false));
+        rowP.addView(tp, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        swPanel = new Switch(this);
+        rowP.addView(swPanel);
+        cPanel.addView(rowP);
+        col.addView(cPanel);
+        swPanel.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(CompoundButton v, boolean on) {
+                if (ignore) return;
+                if (on) {
+                    if (!Settings.canDrawOverlays(GameModeActivity.this)) {
+                        askOverlayPermission();
+                        ignore = true; swPanel.setChecked(false); ignore = false;
+                        return;
+                    }
+                    askNotificationPermission();
+                    GameService.panelOn(GameModeActivity.this);
+                } else {
+                    GameService.panelOff(GameModeActivity.this);
+                }
+            }
+        });
 
         swAuto.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
             @Override public void onCheckedChanged(CompoundButton v, boolean on) {
@@ -238,6 +268,7 @@ public class GameModeActivity extends Activity {
         c3.addView(sz);
         LinearLayout sizes = new LinearLayout(this);
         String[] names = {"Small", "Medium", "Large"};
+        final float[] scales = {0.8f, 1f, 1.3f};
         for (int i = 0; i < 3; i++) {
             final int idx = i;
             Button bt = new Button(this);
@@ -245,13 +276,26 @@ public class GameModeActivity extends Activity {
             bt.setAllCaps(false);
             bt.setOnClickListener(new View.OnClickListener() {
                 @Override public void onClick(View v) {
-                    OverlayPrefs.sp(GameModeActivity.this).edit().putInt("size", idx).apply();
+                    OverlayPrefs.setScale(GameModeActivity.this, scales[idx]);
                     OverlayService.refresh(GameModeActivity.this);
                 }
             });
             sizes.addView(bt, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         }
         c3.addView(sizes);
+        TextView hint = label("In a game you can also pinch the overlay with two fingers, or drag the little ◢ in its corner, to make it any size.", Color.parseColor("#8B95A3"), 11, false);
+        hint.setPadding(0, dp(6), 0, 0);
+        c3.addView(hint);
+        Button bReset = new Button(this);
+        bReset.setText("Reset position and size");
+        bReset.setAllCaps(false);
+        bReset.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                OverlayPrefs.resetLayout(GameModeActivity.this);
+                OverlayService.refresh(GameModeActivity.this);
+            }
+        });
+        c3.addView(bReset);
         col.addView(c3);
 
         // --- metrics ---
@@ -344,6 +388,9 @@ public class GameModeActivity extends Activity {
         boolean auto = can && GameProfiles.auto(this);
         ignore = true; swAuto.setChecked(auto); ignore = false;
         if (auto) GameService.start(this);
+        boolean pan = can && GameProfiles.manual(this);
+        ignore = true; swPanel.setChecked(pan); ignore = false;
+        if (pan) GameService.panelOn(this);
         int n = GameProfiles.games(this).size();
         tvGames.setText(n == 0 ? "Choose your games and set a profile for each" : n + (n == 1 ? " game" : " games") + " · tap to edit profiles or start one");
         new Thread(new Runnable() {
