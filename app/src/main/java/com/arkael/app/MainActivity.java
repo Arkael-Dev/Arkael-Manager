@@ -119,6 +119,8 @@ public class MainActivity extends AppCompatActivity {
         initViews();
         loadThemeSettings();
 
+        prefs.edit().putBoolean("is_unlocked", true).apply();
+        if(tvAuthActive != null) tvAuthActive.setVisibility(View.GONE);
 
         setupClickListeners();
         refreshUI();
