@@ -335,7 +335,7 @@ public class OverlayService extends Service {
         if (bt <= 0f && s.batTemp > 0) bt = (float) s.batTemp;
         String bat = (s.batPct >= 0 ? s.batPct + "% " : "") + (s.batMa != Integer.MIN_VALUE ? s.batMa + "mA " : "")
                 + (bt > 0 ? String.format(Locale.US, "%.1f°C", bt) : "");
-        String fpsT = fps >= 0 ? fps + " fps" : (s.root ? "-- " + fpsProbe.status() : "no root");
+        String fpsT = fps >= 0 ? fps + fpsProbe.mark() + " fps" : (s.root ? "-- " + fpsProbe.status() : "no root");
         String[] txt = {fpsT, cpu, tempT, gpu, ram, bat.trim().isEmpty() ? "--" : bat.trim()};
 
         if (compactText != null) {
