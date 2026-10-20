@@ -1,4 +1,4 @@
-name: VORTEX FRESH BUILD
+name: ARKAEL FRESH BUILD
 
 on:
   workflow_dispatch:

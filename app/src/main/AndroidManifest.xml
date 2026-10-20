@@ -20,9 +20,9 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:label="VORTEX CORE"
+        android:label="Arkael Manager"
         android:icon="@drawable/ic_launcher"
-        android:theme="@style/Theme.Vortex"
+        android:theme="@style/Theme.Arkael"
         android:requestLegacyExternalStorage="true">
 
         <activity android:name=".MainActivity" android:exported="true">
