@@ -195,15 +195,15 @@ public class MainActivity extends AppCompatActivity {
 
         if (navSystem != null && navSystem.getChildCount() > 0) {
             View child = navSystem.getChildAt(0);
-            if(child instanceof TextView) ((TextView) child).setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_info_details, 0, 0, 0);
+            if(child instanceof TextView) ((TextView) child).setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_monitor, 0, 0, 0);
         }
         if (navTools != null && navTools.getChildCount() > 0) {
             View child = navTools.getChildAt(0);
-            if(child instanceof TextView) ((TextView) child).setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_manage, 0, 0, 0);
+            if(child instanceof TextView) ((TextView) child).setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_tools, 0, 0, 0);
         }
         if (navSettings != null && navSettings.getChildCount() > 0) {
             View child = navSettings.getChildAt(0);
-            if(child instanceof TextView) ((TextView) child).setCompoundDrawablesRelativeWithIntrinsicBounds(android.R.drawable.ic_menu_preferences, 0, 0, 0);
+            if(child instanceof TextView) ((TextView) child).setCompoundDrawablesRelativeWithIntrinsicBounds(R.drawable.ic_settings, 0, 0, 0);
         }
     }
 
@@ -1094,9 +1094,9 @@ public class MainActivity extends AppCompatActivity {
     private void updateNavUI(int activeIndex) {
         int colorActive = Color.parseColor("#4CAF50"); int colorInactive = Color.GRAY;
         switch(iconColorMode) { case 1: colorInactive = Color.parseColor("#FF4081"); break; case 2: colorInactive = Color.parseColor("#00E5FF"); break; case 3: colorInactive = Color.parseColor("#FF9100"); break; case 4: colorInactive = Color.parseColor("#D500F9"); break; }
-        if(navSystem != null && navSystem.getChildCount() > 0) ((TextView)navSystem.getChildAt(0)).setTextColor(activeIndex == 0 ? colorActive : colorInactive);
-        if(navTools != null && navTools.getChildCount() > 0) ((TextView)navTools.getChildAt(0)).setTextColor(activeIndex == 1 ? colorActive : colorInactive);
-        if(navSettings != null && navSettings.getChildCount() > 0) ((TextView)navSettings.getChildAt(0)).setTextColor(activeIndex == 2 ? colorActive : colorInactive);
+        if(navSystem != null && navSystem.getChildCount() > 0) { TextView navIc=(TextView)navSystem.getChildAt(0); navIc.setTextColor(activeIndex == 0 ? colorActive : colorInactive); navIc.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(activeIndex == 0 ? colorActive : colorInactive)); }
+        if(navTools != null && navTools.getChildCount() > 0) { TextView navIc=(TextView)navTools.getChildAt(0); navIc.setTextColor(activeIndex == 1 ? colorActive : colorInactive); navIc.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(activeIndex == 1 ? colorActive : colorInactive)); }
+        if(navSettings != null && navSettings.getChildCount() > 0) { TextView navIc=(TextView)navSettings.getChildAt(0); navIc.setTextColor(activeIndex == 2 ? colorActive : colorInactive); navIc.setCompoundDrawableTintList(android.content.res.ColorStateList.valueOf(activeIndex == 2 ? colorActive : colorInactive)); }
         applyIconColor();
     }
     

@@ -1,0 +1,11 @@
+<!-- Tempel di tab Monitor (activity_main.xml), gantikan kartu RAM/BATTERY lama -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="wrap_content"
+    android:orientation="horizontal" android:padding="12dp"
+    android:layout_marginTop="12dp" android:background="@drawable/bg_card_glass"
+    android:weightSum="4">
+  <com.arkael.app.GaugeView android:id="@+id/gauge_cpu" android:layout_width="0dp" android:layout_height="96dp" android:layout_weight="1"/>
+  <com.arkael.app.GaugeView android:id="@+id/gauge_gpu" android:layout_width="0dp" android:layout_height="96dp" android:layout_weight="1"/>
+  <com.arkael.app.GaugeView android:id="@+id/gauge_ram" android:layout_width="0dp" android:layout_height="96dp" android:layout_weight="1"/>
+  <com.arkael.app.GaugeView android:id="@+id/gauge_bat" android:layout_width="0dp" android:layout_height="96dp" android:layout_weight="1"/>
+</LinearLayout>
