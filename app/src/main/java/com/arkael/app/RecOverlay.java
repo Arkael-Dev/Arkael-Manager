@@ -50,7 +50,8 @@ final class RecOverlay {
     private WindowManager.LayoutParams lp(int w, int h) {
         int type = Build.VERSION.SDK_INT >= 26 ? WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY : WindowManager.LayoutParams.TYPE_PHONE;
         int flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE | WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
-                | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN;
+                | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN
+                | WindowManager.LayoutParams.FLAG_SECURE;   // screenrecord skips secure windows
         return new WindowManager.LayoutParams(w, h, type, flags, PixelFormat.TRANSLUCENT);
     }
 
