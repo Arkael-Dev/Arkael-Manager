@@ -1,4 +1,4 @@
-package com.vortex.core;
+package com.arkael.app;
 
 import android.app.Activity;
 import android.app.ActivityManager;

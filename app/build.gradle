@@ -3,7 +3,7 @@ plugins {
 }
 
 android {
-    namespace 'com.vortex.core'
+    namespace 'com.arkael.app'
     compileSdk 34
 
     buildFeatures {
@@ -11,7 +11,7 @@ android {
     }
 
     defaultConfig {
-        applicationId "com.vortex.core"
+        applicationId "com.arkael.app"
         minSdk 24
         targetSdk 34
         versionCode 1
