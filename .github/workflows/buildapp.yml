@@ -1,4 +1,4 @@
-name: ARKAEL FRESH BUILD
+name: ARKAEL BUILD
 
 on:
   workflow_dispatch:
@@ -6,32 +6,13 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
           distribution: 'temurin'
-
-      - name: Generate Random Secret
-        run: |
-          echo "GENERATING NEW RANDOM KEY FOR THIS BUILD..."
-          KEY=$(tr -dc A-Za-z0-9 </dev/urandom | head -c 32)
-          echo "BUILD_SECRET=$KEY" >> $GITHUB_ENV
-          
-          # Buat File Passkey untuk Artifact (Format sesuai permintaan)
-          echo "PASSKEY: $KEY" > app/VORTEX_PASSKEY.txt
-          echo "BUILD_DATE: $(date)" >> app/VORTEX_PASSKEY.txt
-          
-          echo "Key Generated: $KEY"
-
-      # --- TAMBAHAN BARU: PINDAHKAN FILE KE ASSETS ---
-      - name: Move Passkey to Assets
-        run: |
-          mkdir -p app/src/main/assets
-          cp app/VORTEX_PASSKEY.txt app/src/main/assets/VORTEX_PASSKEY.txt
-          echo "Passkey moved to Assets folder for App reading."
 
       - name: Decode Keystore
         run: echo "${{ secrets.SIGNING_KEY }}" | base64 --decode > app/release.jks
@@ -41,7 +22,6 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-          BUILD_SECRET: ${{ env.BUILD_SECRET }}
         run: |
           if [ ! -f gradlew ]; then
             gradle wrapper
@@ -49,10 +29,8 @@ jobs:
           chmod +x gradlew
           ./gradlew assembleRelease
 
-      - name: Upload APK and Passkey
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Vortex-Final-Package
-          path: |
-            app/build/outputs/apk/release/*.apk
-            app/VORTEX_PASSKEY.txt
+          name: Arkael-Final-Package
+          path: app/build/outputs/apk/release/*.apk

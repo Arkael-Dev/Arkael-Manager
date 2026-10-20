@@ -5,11 +5,11 @@
             runOnUiThread(() -> tvTerminalLog.setText("> Starting Advanced Clean..."));
 
             // Tulis script ke file temporary di HP
-            runSu("echo '" + script + "' > /data/local/tmp/vortex_clean.sh");
-            runSu("chmod 755 /data/local/tmp/vortex_clean.sh");
+            runSu("echo '" + script + "' > /data/local/tmp/arkael_clean.sh");
+            runSu("chmod 755 /data/local/tmp/arkael_clean.sh");
 
             // Jalankan script dan ambil outputnya
-            String output = runSuReturnAll("sh /data/local/tmp/vortex_clean.sh");
+            String output = runSuReturnAll("sh /data/local/tmp/arkael_clean.sh");
 
             runOnUiThread(() -> {
                 tvTerminalLog.setText(output);
