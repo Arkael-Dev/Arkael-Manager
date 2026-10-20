@@ -2,6 +2,9 @@ plugins {
     id 'com.android.application'
 }
 
+def versionProps = new Properties()
+rootProject.file("version.properties").withInputStream { versionProps.load(it) }
+
 android {
     namespace 'com.arkael.app'
     compileSdk 34
@@ -14,8 +17,8 @@ android {
         applicationId "com.arkael.app"
         minSdk 24
         targetSdk 34
-        versionCode 1
-        versionName "3.0"
+        versionCode versionProps.getProperty("versionCode").toInteger()
+        versionName versionProps.getProperty("versionName")
 
     }
 
