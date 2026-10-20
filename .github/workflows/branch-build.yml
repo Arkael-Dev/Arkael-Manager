@@ -1,0 +1,55 @@
+name: Branch build (test)
+
+# Builds a signed test APK for every branch except main. No tag, no release.
+# Download it from the run page: Actions -> the run -> Artifacts.
+on:
+  push:
+    branches-ignore: [main]
+    paths-ignore: ['**.md', 'LICENSE', '.gitignore']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Prepare keystore
+        env:
+          KS: ${{ secrets.SIGNING_KEY }}
+        run: |
+          echo "$KS" | base64 -d > app/release.jks || { echo "::error::SIGNING_KEY is not valid base64."; exit 1; }
+          test -s app/release.jks
+
+      - name: Build signed APK
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          if [ -f ./gradlew ]; then chmod +x ./gradlew && ./gradlew assembleRelease --no-daemon; else gradle assembleRelease --no-daemon; fi
+
+      - name: Name the APK
+        run: |
+          APK="$(find app/build/outputs/apk/release -name '*.apk' ! -name '*unsigned*' | head -1)"
+          test -n "$APK"
+          BR="$(echo "${GITHUB_REF_NAME}" | tr '/' '-')"
+          cp "$APK" "ArkaelManager-${BR}-${GITHUB_RUN_NUMBER}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ArkaelManager-test
+          path: ArkaelManager-*.apk
+          retention-days: 14
