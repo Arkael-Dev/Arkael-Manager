@@ -21,7 +21,7 @@
 
     <application
         android:label="Arkael Manager"
-        android:icon="@drawable/ic_launcher"
+        android:icon="@mipmap/ic_arkael"
         android:theme="@style/Theme.Arkael"
         android:requestLegacyExternalStorage="true">
 
