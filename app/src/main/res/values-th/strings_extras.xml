@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_no_ads">ไม่มีโฆษณา</string>
+    <string name="ax_redirect_blocked">บล็อกการเปลี่ยนเส้นทางไปเว็บอื่นแล้ว</string>
+    <string name="ax_anime_title">อนิเมะและ Donghua</string>
+    <string name="ax_card_anime">อนิเมะและ Donghua</string>
+    <string name="ax_anime_sub">รับชมในแอปได้เลย บล็อกโฆษณา ป๊อปอัป และการเปลี่ยนเส้นทาง</string>
+    <string name="ax_site_donghua">Donghua</string>
+    <string name="ax_site_donghua2">Donghua 2</string>
+    <string name="ax_site_anime">อนิเมะและซีรีส์อื่น ๆ</string>
+    <string name="ax_settings">การตั้งค่า</string>
+    <string name="ax_language">ภาษา</string>
+    <string name="ax_lang_system">ตามระบบ</string>
+    <string name="ax_donate">บริจาค</string>
+    <string name="ax_donate_sub">สนับสนุนการพัฒนา Arkael</string>
+    <string name="ax_check_update">ตรวจสอบอัปเดต</string>
+    <string name="ax_version">เวอร์ชัน %1$s</string>
+    <string name="ax_uptodate">คุณใช้เวอร์ชันล่าสุดแล้ว</string>
+    <string name="ax_update_failed">ตรวจสอบอัปเดตไม่สำเร็จ</string>
+    <string name="ax_update_title">มีอัปเดตใหม่</string>
+    <string name="ax_update_text">Arkael Manager %1$s ออกแล้ว แตะเพื่อดาวน์โหลดจาก GitHub</string>
+    <string name="ax_download">ดาวน์โหลด</string>
+    <string name="ax_later">ภายหลัง</string>
+    <string name="ax_donate_title">สนับสนุน Arkael Manager ❤</string>
+    <string name="ax_donate_text">ชอบแอปนี้ไหม แตะเพื่อบริจาค</string>
+    <string name="ax_ch_donate">การเตือนบริจาค</string>
+    <string name="ax_ch_update">อัปเดตแอป</string>
+    <string name="ax_card_anime_sub">เบราว์เซอร์ไม่มีโฆษณา</string>
+    <string name="ax_card_settings_sub">ภาษา, การบริจาค, อัปเดต</string>
+</resources>

@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_no_ads">Senza pubblicità</string>
+    <string name="ax_redirect_blocked">Reindirizzamento ad altro sito bloccato</string>
+    <string name="ax_anime_title">Anime e Donghua</string>
+    <string name="ax_card_anime">Anime e Donghua</string>
+    <string name="ax_anime_sub">Guarda nell\'app. Pubblicità, pop-up e reindirizzamenti bloccati.</string>
+    <string name="ax_site_donghua">Donghua</string>
+    <string name="ax_site_donghua2">Donghua 2</string>
+    <string name="ax_site_anime">Anime e altre serie</string>
+    <string name="ax_settings">Impostazioni</string>
+    <string name="ax_language">Lingua</string>
+    <string name="ax_lang_system">Predefinita di sistema</string>
+    <string name="ax_donate">Dona</string>
+    <string name="ax_donate_sub">Sostieni lo sviluppo di Arkael</string>
+    <string name="ax_check_update">Controlla aggiornamenti</string>
+    <string name="ax_version">Versione %1$s</string>
+    <string name="ax_uptodate">Hai l\'ultima versione</string>
+    <string name="ax_update_failed">Impossibile controllare gli aggiornamenti</string>
+    <string name="ax_update_title">Nuovo aggiornamento disponibile</string>
+    <string name="ax_update_text">Arkael Manager %1$s è uscito. Tocca per scaricarlo da GitHub.</string>
+    <string name="ax_download">Scarica</string>
+    <string name="ax_later">Più tardi</string>
+    <string name="ax_donate_title">Sostieni Arkael Manager ❤</string>
+    <string name="ax_donate_text">Ti piace l\'app? Tocca per donare.</string>
+    <string name="ax_ch_donate">Promemoria donazione</string>
+    <string name="ax_ch_update">Aggiornamenti app</string>
+    <string name="ax_card_anime_sub">Browser senza pubblicità</string>
+    <string name="ax_card_settings_sub">Lingua, donazione, aggiornamenti</string>
+</resources>

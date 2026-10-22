@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_no_ads">광고 없음</string>
+    <string name="ax_redirect_blocked">다른 사이트로의 리디렉션을 차단했습니다</string>
+    <string name="ax_anime_title">애니 &amp; Donghua</string>
+    <string name="ax_card_anime">애니 &amp; Donghua</string>
+    <string name="ax_anime_sub">앱 안에서 바로 시청하세요. 광고, 팝업, 리디렉션을 차단합니다.</string>
+    <string name="ax_site_donghua">Donghua</string>
+    <string name="ax_site_donghua2">Donghua 2</string>
+    <string name="ax_site_anime">애니 및 기타 시리즈</string>
+    <string name="ax_settings">설정</string>
+    <string name="ax_language">언어</string>
+    <string name="ax_lang_system">시스템 기본값</string>
+    <string name="ax_donate">후원</string>
+    <string name="ax_donate_sub">Arkael 개발 지원하기</string>
+    <string name="ax_check_update">업데이트 확인</string>
+    <string name="ax_version">버전 %1$s</string>
+    <string name="ax_uptodate">최신 버전입니다</string>
+    <string name="ax_update_failed">업데이트를 확인하지 못했습니다</string>
+    <string name="ax_update_title">새 업데이트가 있습니다</string>
+    <string name="ax_update_text">Arkael Manager %1$s 출시! 탭하여 GitHub에서 다운로드하세요.</string>
+    <string name="ax_download">다운로드</string>
+    <string name="ax_later">나중에</string>
+    <string name="ax_donate_title">Arkael Manager를 응원해 주세요 ❤</string>
+    <string name="ax_donate_text">앱이 마음에 드시나요? 탭하여 후원해 주세요.</string>
+    <string name="ax_ch_donate">후원 알림</string>
+    <string name="ax_ch_update">앱 업데이트</string>
+    <string name="ax_card_anime_sub">광고 없는 브라우저</string>
+    <string name="ax_card_settings_sub">언어, 후원, 업데이트</string>
+</resources>

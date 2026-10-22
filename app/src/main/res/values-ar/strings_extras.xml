@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_no_ads">بدون إعلانات</string>
+    <string name="ax_redirect_blocked">تم حظر التحويل إلى موقع آخر</string>
+    <string name="ax_anime_title">أنمي ودونغهوا</string>
+    <string name="ax_card_anime">أنمي ودونغهوا</string>
+    <string name="ax_anime_sub">شاهد داخل التطبيق. يتم حظر الإعلانات والنوافذ المنبثقة وإعادة التوجيه.</string>
+    <string name="ax_site_donghua">دونغهوا</string>
+    <string name="ax_site_donghua2">دونغهوا 2</string>
+    <string name="ax_site_anime">أنمي ومسلسلات أخرى</string>
+    <string name="ax_settings">الإعدادات</string>
+    <string name="ax_language">اللغة</string>
+    <string name="ax_lang_system">افتراضي النظام</string>
+    <string name="ax_donate">تبرع</string>
+    <string name="ax_donate_sub">ادعم تطوير Arkael</string>
+    <string name="ax_check_update">التحقق من التحديثات</string>
+    <string name="ax_version">الإصدار %1$s</string>
+    <string name="ax_uptodate">أنت تستخدم أحدث إصدار</string>
+    <string name="ax_update_failed">تعذر التحقق من التحديثات</string>
+    <string name="ax_update_title">تحديث جديد متاح</string>
+    <string name="ax_update_text">صدر Arkael Manager %1$s. اضغط للتنزيل من GitHub.</string>
+    <string name="ax_download">تنزيل</string>
+    <string name="ax_later">لاحقًا</string>
+    <string name="ax_donate_title">ادعم Arkael Manager ❤</string>
+    <string name="ax_donate_text">هل أعجبك التطبيق؟ اضغط للتبرع.</string>
+    <string name="ax_ch_donate">تذكير بالتبرع</string>
+    <string name="ax_ch_update">تحديثات التطبيق</string>
+    <string name="ax_card_anime_sub">متصفح بدون إعلانات</string>
+    <string name="ax_card_settings_sub">اللغة، التبرع، التحديثات</string>
+</resources>

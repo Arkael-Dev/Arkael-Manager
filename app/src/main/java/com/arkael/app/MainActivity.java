@@ -104,8 +104,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        UpdateChecker.check(this);
+        // UpdateChecker.check(this);  // diganti UpdateNotifier (ExtrasEntry)
         GameModeEntry.attach(this);
+        ExtrasEntry.attach(this);
 
         prefs = getSharedPreferences("ArkaelPrefs", 0);
         

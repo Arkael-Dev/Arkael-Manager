@@ -23,7 +23,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
-    <application
+    <application android:localeConfig="@xml/ax_locales_config"
         android:label="Arkael Manager"
         android:icon="@mipmap/ic_arkael"
         android:theme="@style/Theme.Arkael"
@@ -66,6 +66,15 @@
             <intent-filter>
                 <action android:name="androidx.media3.session.MediaSessionService"/>
             </intent-filter>
+        </service>
+        <activity android:name=".BrowserActivity" android:exported="false" android:label="Browser"
+            android:hardwareAccelerated="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"/>
+        <activity android:name=".AnimeHubActivity" android:exported="false" android:label="Anime"/>
+        <activity android:name=".AppSettingsActivity" android:exported="false" android:label="Settings"/>
+        <service android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
+            android:enabled="false" android:exported="false">
+            <meta-data android:name="autoStoreLocales" android:value="true"/>
         </service>
     </application>
 </manifest>
