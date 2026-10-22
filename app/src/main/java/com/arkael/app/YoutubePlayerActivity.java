@@ -1,5 +1,6 @@
 package com.arkael.app;
 
+import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.PendingIntent;
 import android.app.PictureInPictureParams;
@@ -7,10 +8,12 @@ import android.app.RemoteAction;
 import android.content.BroadcastReceiver;
 import android.content.ClipData;
 import android.content.ClipboardManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
+import android.content.pm.PackageManager;
 import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Typeface;
@@ -35,16 +38,24 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
+import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
+import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.common.TrackSelectionParameters;
+import androidx.media3.common.Tracks;
 import androidx.media3.common.VideoSize;
-import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.session.MediaController;
+import androidx.media3.session.SessionToken;
 import androidx.media3.ui.AspectRatioFrameLayout;
 import androidx.media3.ui.PlayerView;
 
 import com.bumptech.glide.Glide;
+import com.google.common.util.concurrent.ListenableFuture;
 
 import org.schabi.newpipe.extractor.Image;
 import org.schabi.newpipe.extractor.InfoItem;
@@ -54,38 +65,50 @@ import org.schabi.newpipe.extractor.stream.StreamInfo;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.VideoStream;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.TreeSet;
 
 /**
  * Plays one YouTube video. The stream URL is fetched directly through NewPipeExtractor (the same
- * technique NewPipe/LibreTube use), so playback goes straight to Google's CDN with no ad break
- * ever inserted. No account / login is involved.
+ * technique NewPipe/LibreTube use), so playback goes straight to Google's CDN with no ad break.
+ * No account / login is involved.
  *
- * Layout follows the YouTube watch page: player on top (16:9), then title, views, likes, share
- * chips, channel row and a swipeable row of related videos. Landscape = fullscreen player.
+ * The ExoPlayer itself lives in YoutubeAudioService; this screen controls it through a
+ * MediaController. That is what lets "audio mode" (headphone button) keep playing in the
+ * background with a play/pause notification.
  *
- * Supports Android's native Picture-in-Picture: leaving the app (home button or switching apps)
- * while a video is playing shrinks it into a small movable window that keeps playing on top of
- * whatever else you open; tapping the shrink button does the same on demand.
+ * Layout follows the YouTube watch page: player (16:9), title, views, likes, chips (Suka, Audio,
+ * Kualitas, Bagikan, Salin link), channel row and a swipeable row of related videos.
+ * Landscape = fullscreen. Picture-in-Picture is still supported.
  */
 public class YoutubePlayerActivity extends AppCompatActivity {
     private static final String TAG = "ArkaelYT";
     private static final String ACTION_MEDIA_CONTROL = "com.arkael.app.ytpip.control";
     private static final String EXTRA_CONTROL = "control";
     private static final int CONTROL_PLAY = 1, CONTROL_PAUSE = 2;
+    private static final int REQ_NOTIF = 77;
+    private static final String PREFS = "ark_yt";
+    private static final String K_QUALITY = "quality_h";
 
     private static final int C_BG = Color.parseColor("#0A0D12");
     private static final int C_CARD = Color.parseColor("#141A22");
+    private static final int C_ON = Color.parseColor("#2A3A5C");
     private static final int C_SUB = Color.parseColor("#8B95A3");
     private static final int C_ACCENT = Color.parseColor("#AEC6FF");
 
     private PlayerView playerView;
-    private ExoPlayer player;
+    private MediaController controller;
+    private ListenableFuture<MediaController> controllerFuture;
+    private Player player;                 // == controller once it is connected
+    private Player.Listener playerListener;
     private FrameLayout playerFrame;
-    private LinearLayout header;          // back / fullscreen / shrink buttons over the player
-    private ScrollView scroll;            // everything under the player, hidden in landscape / PiP
-    private TextView title, status, meta, likes, channelName, channelSubs;
+    private LinearLayout header;
+    private ScrollView scroll;
+    private TextView title, status, meta, likes, channelName, channelSubs, audioBadge;
+    private TextView chipLike, chipAudio, chipQuality, btnAudioHdr;
     private ImageView avatar;
     private LinearLayout relatedRow;
     private TextView relatedLabel;
@@ -93,6 +116,13 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     private String videoUrl, videoTitle;
     private BroadcastReceiver pipReceiver;
     private boolean inPip;
+
+    private MediaItem pendingItem;         // extracted, waiting for the controller to connect
+    private boolean attachedExisting;      // opened from the notification: keep what is playing
+    private boolean audioMode;             // video track off, keeps playing in the background
+    private int manualHeight;              // 0 = automatic quality
+    private boolean liked;
+    private YtStore.Entry curEntry;
 
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @Override
@@ -103,7 +133,9 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         getWindow().setNavigationBarColor(C_BG);
 
         readIntent(getIntent());
-        if (videoUrl == null) { finish(); return; }
+        boolean resume = getIntent().getBooleanExtra("resume", false);
+        if (videoUrl == null && !resume) { finish(); return; }
+        manualHeight = getSharedPreferences(PREFS, MODE_PRIVATE).getInt(K_QUALITY, 0);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -123,6 +155,18 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
         playerFrame.addView(playerView, new FrameLayout.LayoutParams(-1, -1));
 
+        audioBadge = new TextView(this);
+        audioBadge.setText("🎧  Mode audio\nVideo dimatikan, tetap jalan di latar belakang");
+        audioBadge.setTextColor(Color.WHITE);
+        audioBadge.setTextSize(13);
+        audioBadge.setGravity(Gravity.CENTER);
+        audioBadge.setPadding(dp(16), dp(10), dp(16), dp(10));
+        audioBadge.setBackground(round(Color.parseColor("#99000000"), 14));
+        audioBadge.setVisibility(View.GONE);
+        FrameLayout.LayoutParams abl = new FrameLayout.LayoutParams(-2, -2);
+        abl.gravity = Gravity.CENTER;
+        playerFrame.addView(audioBadge, abl);
+
         header = new LinearLayout(this);
         header.setOrientation(LinearLayout.HORIZONTAL);
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -130,6 +174,9 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         header.addView(headerBtn("←", v -> finish()));
         View grow = new View(this);
         header.addView(grow, new LinearLayout.LayoutParams(0, 1, 1f));
+        header.addView(headerBtn("⚙", v -> showQualityDialog()));
+        btnAudioHdr = headerBtn("🎧", v -> toggleAudio());
+        header.addView(btnAudioHdr);
         header.addView(headerBtn("⛶", v -> toggleFullscreen()));
         header.addView(headerBtn("⤓", v -> enterPip()));
         playerFrame.addView(header, new FrameLayout.LayoutParams(-1, -2));
@@ -185,6 +232,12 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         LinearLayout chips = new LinearLayout(this);
         chips.setOrientation(LinearLayout.HORIZONTAL);
         chips.setPadding(dp(14), dp(14), dp(14), 0);
+        chipLike = chip("👍  Suka", v -> toggleLike());
+        chipAudio = chip("🎧  Audio", v -> toggleAudio());
+        chipQuality = chip("⚙  Otomatis", v -> showQualityDialog());
+        chips.addView(chipLike);
+        chips.addView(chipAudio);
+        chips.addView(chipQuality);
         chips.addView(chip("↗  Bagikan", v -> shareLink()));
         chips.addView(chip("⧉  Salin link", v -> copyLink()));
         chipsScroll.addView(chips);
@@ -238,17 +291,24 @@ public class YoutubePlayerActivity extends AppCompatActivity {
 
         setContentView(root);
         applyLayout();
-        load();
+        refreshChips();
+        connectController();
+        if (videoUrl != null) {
+            liked = YtStore.isLiked(this, videoUrl);
+            refreshChips();
+            load();
+        }
     }
 
     @Override
     protected void onNewIntent(Intent intent) {
         super.onNewIntent(intent);
-        // A related video was tapped (launchMode=singleTask delivers it here): switch in place.
         setIntent(intent);
+        if (intent.getStringExtra("url") == null) return;   // notification tap while already open: nothing to switch
+        // A related / history video was picked (launchMode=singleTask delivers it here): switch in place.
         readIntent(intent);
-        if (videoUrl == null) return;
-        releasePlayer();
+        pendingItem = null;
+        curEntry = null;
         title.setText(videoTitle == null ? "" : videoTitle);
         meta.setText("");
         likes.setVisibility(View.GONE);
@@ -259,12 +319,186 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         relatedLabel.setVisibility(View.GONE);
         status.setText("");
         scroll.scrollTo(0, 0);
+        liked = YtStore.isLiked(this, videoUrl);
+        refreshChips();
         load();
     }
 
     private void readIntent(Intent i) {
         videoUrl = i == null ? null : i.getStringExtra("url");
         videoTitle = i == null ? null : i.getStringExtra("title");
+    }
+
+    // ---------------------------------------------------------------- player service connection
+
+    private void connectController() {
+        SessionToken token = new SessionToken(this, new ComponentName(this, YoutubeAudioService.class));
+        controllerFuture = new MediaController.Builder(this, token).buildAsync();
+        controllerFuture.addListener(() -> {
+            try {
+                controller = controllerFuture.get();
+            } catch (Exception e) {
+                Log.e(TAG, "player service connection failed", e);
+                spinner.setVisibility(View.GONE);
+                status.setText("Player service failed: " + e.getClass().getSimpleName());
+                return;
+            }
+            if (isDestroyed() || isFinishing()) { controller.release(); controller = null; return; }
+            onControllerReady();
+        }, ContextCompat.getMainExecutor(this));
+    }
+
+    private void onControllerReady() {
+        player = controller;
+        playerView.setPlayer(controller);
+        playerListener = new Player.Listener() {
+            @Override public void onPlayerError(@NonNull PlaybackException error) {
+                Log.e(TAG, "ExoPlayer error, code=" + error.errorCode + " (" + error.getErrorCodeName() + ")", error);
+                Throwable c = error.getCause();
+                while (c != null) { Log.e(TAG, "  caused by: " + c, c); c = c.getCause(); }
+                status.setText("Playback failed [" + error.getErrorCodeName() + "]: " + error.getMessage());
+                status.setVisibility(View.VISIBLE);
+            }
+            @Override public void onPlaybackStateChanged(int state) {
+                spinner.setVisibility(state == Player.STATE_BUFFERING ? View.VISIBLE : View.GONE);
+            }
+            @Override public void onIsPlayingChanged(boolean isPlaying) { updatePipParams(); }
+            @Override public void onVideoSizeChanged(@NonNull VideoSize size) { updatePipParams(); }
+        };
+        controller.addListener(playerListener);
+
+        if (videoUrl == null) {
+            // Opened from the media notification: attach to whatever is already playing.
+            MediaItem cur = controller.getCurrentMediaItem();
+            if (cur == null || cur.mediaId == null || MediaItem.DEFAULT_MEDIA_ID.equals(cur.mediaId)) {
+                finish();
+                return;
+            }
+            attachedExisting = true;
+            videoUrl = cur.mediaId;
+            CharSequence t = cur.mediaMetadata.title;
+            videoTitle = t == null ? null : t.toString();
+            if (videoTitle != null) title.setText(videoTitle);
+            audioMode = controller.getTrackSelectionParameters().disabledTrackTypes.contains(C.TRACK_TYPE_VIDEO);
+            liked = YtStore.isLiked(this, videoUrl);
+            refreshChips();
+            refreshAudioUi();
+            load();           // fills the info area only; playback is left untouched
+            return;
+        }
+        tryStart();
+    }
+
+    private void tryStart() {
+        if (controller == null || pendingItem == null) return;
+        MediaItem it = pendingItem;
+        pendingItem = null;
+        startPlayback(it);
+    }
+
+    private void startPlayback(MediaItem item) {
+        playerView.setPlayer(controller);
+        controller.setMediaItem(item);
+        applyTrackPrefs();
+        controller.setPlayWhenReady(true);
+        controller.prepare();
+    }
+
+    /** Pushes audio mode (video track off) and the chosen quality to the player. */
+    private void applyTrackPrefs() {
+        if (controller == null) return;
+        TrackSelectionParameters.Builder b = controller.getTrackSelectionParameters().buildUpon();
+        b.setTrackTypeDisabled(C.TRACK_TYPE_VIDEO, audioMode);
+        if (manualHeight > 0) {
+            b.setMinVideoSize(0, manualHeight).setMaxVideoSize(Integer.MAX_VALUE, manualHeight);
+        } else {
+            b.clearVideoSizeConstraints();
+        }
+        controller.setTrackSelectionParameters(b.build());
+    }
+
+    // ---------------------------------------------------------------- audio mode / quality / like
+
+    private void toggleAudio() {
+        audioMode = !audioMode;
+        if (audioMode) ensureNotificationPermission();
+        applyTrackPrefs();
+        refreshAudioUi();
+        refreshChips();
+    }
+
+    private void ensureNotificationPermission() {
+        if (Build.VERSION.SDK_INT >= 33
+                && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[]{Manifest.permission.POST_NOTIFICATIONS}, REQ_NOTIF);
+        }
+    }
+
+    private void refreshAudioUi() {
+        audioBadge.setVisibility(audioMode ? View.VISIBLE : View.GONE);
+        btnAudioHdr.setTextColor(audioMode ? C_ACCENT : Color.WHITE);
+    }
+
+    private void showQualityDialog() {
+        if (controller == null) return;
+        TreeSet<Integer> heights = new TreeSet<Integer>(Collections.<Integer>reverseOrder());
+        for (Tracks.Group g : controller.getCurrentTracks().getGroups()) {
+            if (g.getType() != C.TRACK_TYPE_VIDEO) continue;
+            for (int i = 0; i < g.length; i++) {
+                if (!g.isTrackSupported(i)) continue;
+                int h = g.getTrackFormat(i).height;
+                if (h > 0) heights.add(h);
+            }
+        }
+        final List<Integer> values = new ArrayList<Integer>();
+        values.add(0);
+        values.addAll(heights);
+        if (manualHeight > 0 && !values.contains(manualHeight)) values.add(1, manualHeight);
+        String[] labels = new String[values.size()];
+        int checked = 0;
+        for (int i = 0; i < values.size(); i++) {
+            labels[i] = values.get(i) == 0 ? "Otomatis" : values.get(i) + "p";
+            if (values.get(i) == manualHeight) checked = i;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Kualitas video")
+                .setSingleChoiceItems(labels, checked, (d, which) -> {
+                    manualHeight = values.get(which);
+                    getSharedPreferences(PREFS, MODE_PRIVATE).edit().putInt(K_QUALITY, manualHeight).apply();
+                    applyTrackPrefs();
+                    refreshChips();
+                    d.dismiss();
+                })
+                .setNegativeButton("Batal", null)
+                .show();
+    }
+
+    private void toggleLike() {
+        YtStore.Entry e = curEntry;
+        if (e == null) {
+            e = new YtStore.Entry();
+            e.url = videoUrl;
+            e.title = videoTitle == null ? "" : videoTitle;
+            e.uploader = "";
+        }
+        liked = YtStore.toggleLike(this, e);
+        refreshChips();
+        Toast.makeText(this, liked ? "Disimpan ke Disukai" : "Dihapus dari Disukai", Toast.LENGTH_SHORT).show();
+    }
+
+    private void refreshChips() {
+        if (chipLike == null) return;
+        chipLike.setText(liked ? "👍  Disukai" : "👍  Suka");
+        styleChip(chipLike, liked);
+        chipAudio.setText(audioMode ? "🎧  Audio: aktif" : "🎧  Audio");
+        styleChip(chipAudio, audioMode);
+        chipQuality.setText("⚙  " + (manualHeight > 0 ? manualHeight + "p" : "Otomatis"));
+        styleChip(chipQuality, manualHeight > 0);
+    }
+
+    private void styleChip(TextView t, boolean on) {
+        t.setBackground(round(on ? C_ON : C_CARD, 20));
+        t.setTextColor(on ? Color.WHITE : C_ACCENT);
     }
 
     // ---------------------------------------------------------------- small view helpers
@@ -289,7 +523,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         TextView t = new TextView(this);
         t.setText(text);
         t.setTextColor(Color.WHITE);
-        t.setTextSize(20);
+        t.setTextSize(18);
         t.setGravity(Gravity.CENTER);
         t.setBackground(oval(Color.parseColor("#66000000")));
         t.setOnClickListener(l);
@@ -415,7 +649,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                 Log.i(TAG, "extracted ok: hls=" + notEmpty(info.getHlsUrl()) + " dash=" + notEmpty(info.getDashMpdUrl())
                         + " videoStreams=" + (info.getVideoStreams() == null ? -1 : info.getVideoStreams().size())
                         + " videoOnlyStreams=" + (info.getVideoOnlyStreams() == null ? -1 : info.getVideoOnlyStreams().size()));
-                item = pickStream(info);
+                item = withMeta(pickStream(info), info, url);
                 Log.i(TAG, "picked media item: " + (item == null ? "null" : item.localConfiguration.uri));
                 if (item == null) err = "No playable stream found for this video";
             } catch (Exception e) {
@@ -431,10 +665,29 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                 if (finfo != null) {
                     try { populate(finfo); } catch (Exception e) { Log.e(TAG, "populate failed", e); }
                 }
+                if (attachedExisting) { attachedExisting = false; return; }   // already playing, just keep it
                 if (ferr != null) { status.setText(ferr); return; }
-                startPlayback(fi);
+                pendingItem = fi;
+                tryStart();
             });
         }).start();
+    }
+
+    /** Gives the item an id (the video URL), title / artist / artwork for the media notification. */
+    private static MediaItem withMeta(MediaItem base, StreamInfo info, String url) {
+        if (base == null || base.localConfiguration == null) return null;
+        Uri uri = base.localConfiguration.uri;
+        MediaMetadata.Builder md = new MediaMetadata.Builder()
+                .setTitle(info.getName())
+                .setArtist(info.getUploaderName());
+        String th = bestImage(info.getThumbnails());
+        if (th != null) md.setArtworkUri(Uri.parse(th));
+        return new MediaItem.Builder()
+                .setUri(uri)
+                .setMediaId(url)
+                .setMediaMetadata(md.build())
+                .setRequestMetadata(new MediaItem.RequestMetadata.Builder().setMediaUri(uri).build())
+                .build();
     }
 
     private void populate(StreamInfo info) {
@@ -455,6 +708,18 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         channelSubs.setText(info.getUploaderSubscriberCount() >= 0 ? compact(info.getUploaderSubscriberCount()) + " pelanggan" : "");
         String av = bestImage(info.getUploaderAvatars());
         if (av != null) Glide.with(this).load(av).into(avatar);
+
+        // remember it locally (history), and keep the data the Suka button needs
+        YtStore.Entry e = new YtStore.Entry();
+        e.url = videoUrl;
+        e.title = info.getName() == null ? "" : info.getName();
+        e.uploader = info.getUploaderName() == null ? "" : info.getUploaderName();
+        e.thumb = bestImage(info.getThumbnails());
+        e.duration = Math.max(0, info.getDuration());
+        curEntry = e;
+        YtStore.addHistory(this, e);
+        liked = YtStore.isLiked(this, videoUrl);
+        refreshChips();
 
         relatedRow.removeAllViews();
         int added = 0;
@@ -569,39 +834,15 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         try { return Integer.parseInt(r.replaceAll("[^0-9]", "")); } catch (Exception e) { return 0; }
     }
 
-    private void releasePlayer() {
-        if (player != null) {
-            playerView.setPlayer(null);
-            player.release();
-            player = null;
-        }
-    }
-
-    private void startPlayback(MediaItem item) {
-        releasePlayer();
-        player = new ExoPlayer.Builder(this).build();
-        playerView.setPlayer(player);
-        player.setMediaItem(item);
-        player.setPlayWhenReady(true);
-        player.prepare();
-        player.addListener(new Player.Listener() {
-            @Override public void onPlayerError(@NonNull PlaybackException error) {
-                Log.e(TAG, "ExoPlayer error, code=" + error.errorCode + " (" + error.getErrorCodeName() + ")", error);
-                Throwable c = error.getCause();
-                while (c != null) { Log.e(TAG, "  caused by: " + c, c); c = c.getCause(); }
-                status.setText("Playback failed [" + error.getErrorCodeName() + "]: " + error.getMessage());
-                status.setVisibility(View.VISIBLE);
-            }
-            @Override public void onIsPlayingChanged(boolean isPlaying) { updatePipParams(); }
-            @Override public void onVideoSizeChanged(@NonNull VideoSize size) { updatePipParams(); }
-        });
-    }
-
     // ---------------------------------------------------------------- Picture-in-Picture
 
     private void enterPip() {
         if (Build.VERSION.SDK_INT < 26) {
             Toast.makeText(this, "Floating mini-player needs Android 8.0+", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (audioMode) {
+            Toast.makeText(this, "Matikan mode audio untuk memakai mini-player", Toast.LENGTH_SHORT).show();
             return;
         }
         if (player == null) return;
@@ -643,9 +884,9 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     @Override
     protected void onUserLeaveHint() {
         super.onUserLeaveHint();
-        // Leaving via home / recents / another app while something is playing: follow it into PiP
-        // instead of just pausing in the background, so it keeps playing as a floating window.
-        if (Build.VERSION.SDK_INT >= 26 && player != null && player.isPlaying()) enterPip();
+        // Leaving via home / recents / another app while a video is playing: follow it into PiP.
+        // In audio mode there is nothing to show, so it just keeps playing in the background.
+        if (Build.VERSION.SDK_INT >= 26 && !audioMode && player != null && player.isPlaying()) enterPip();
     }
 
     @Override
@@ -678,15 +919,27 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     @Override
     protected void onStop() {
         super.onStop();
-        // Not in PiP and backgrounded (e.g. screen off, or PiP unsupported below API 26): stop cleanly
-        // rather than keep decoding video no one can see.
-        if (!inPip && player != null) player.pause();
+        // Backgrounded without PiP and not in audio mode (e.g. screen off): pause instead of
+        // decoding video no one can see. Audio mode keeps playing on purpose.
+        if (!inPip && !audioMode && player != null) player.pause();
     }
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
         if (pipReceiver != null) { try { unregisterReceiver(pipReceiver); } catch (Exception ignored) {} }
-        releasePlayer();
+        if (playerView != null) playerView.setPlayer(null);
+        if (controller != null) {
+            // Closing the screen in video mode ends playback; in audio mode the service keeps going.
+            boolean stopAll = isFinishing() && !audioMode;
+            if (playerListener != null) controller.removeListener(playerListener);
+            if (stopAll) controller.pause();
+            controller.release();
+            controller = null;
+            player = null;
+            if (stopAll) stopService(new Intent(this, YoutubeAudioService.class));
+        } else if (controllerFuture != null) {
+            MediaController.releaseFuture(controllerFuture);
+        }
     }
 }
