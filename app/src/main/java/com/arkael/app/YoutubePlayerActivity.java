@@ -35,6 +35,10 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.ScrollView;
 import android.widget.TextView;
+import android.text.Html;
+import android.text.TextUtils;
+import android.text.method.LinkMovementMethod;
+import android.text.util.Linkify;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -58,6 +62,11 @@ import com.bumptech.glide.Glide;
 import com.google.common.util.concurrent.ListenableFuture;
 
 import org.schabi.newpipe.extractor.Image;
+import org.schabi.newpipe.extractor.ListExtractor;
+import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.comments.CommentsInfo;
+import org.schabi.newpipe.extractor.comments.CommentsInfoItem;
+import org.schabi.newpipe.extractor.stream.Description;
 import org.schabi.newpipe.extractor.InfoItem;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.StreamingService;
@@ -116,6 +125,14 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     private String videoUrl, videoTitle;
     private BroadcastReceiver pipReceiver;
     private boolean inPip;
+    // description + comments (read-only, straight from YouTube)
+    private LinearLayout descCard, commentsBox;
+    private TextView descBody, descMore, commentsLabel, commentsMore;
+    private boolean descExpanded;
+    private CommentsInfo curComments;
+    private Page commentsPage;
+    private boolean commentsLoading;
+    private int commentsShown;
     private boolean headerShown = true;    // top buttons (back, quality, audio, fullscreen, PiP)
     private final Runnable hideHeaderRun = () -> {
         if (player != null && player.isPlaying() && !this.audioMode) { headerShown = false; applyHeaderVisibility(); }
@@ -280,6 +297,39 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         chRow.addView(chText, ctl);
         col.addView(chRow);
 
+        // description (tap to expand)
+        descCard = new LinearLayout(this);
+        descCard.setOrientation(LinearLayout.VERTICAL);
+        descCard.setBackground(round(C_CARD, 14));
+        descCard.setPadding(dp(14), dp(12), dp(14), dp(12));
+        descCard.setVisibility(View.GONE);
+        TextView descTitle = new TextView(this);
+        descTitle.setText("Deskripsi");
+        descTitle.setTextColor(Color.WHITE);
+        descTitle.setTextSize(14);
+        descTitle.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        descBody = new TextView(this);
+        descBody.setTextColor(Color.parseColor("#DDE3EA"));
+        descBody.setTextSize(13);
+        descBody.setLinkTextColor(C_ACCENT);
+        descBody.setPadding(0, dp(6), 0, 0);
+        descBody.setMaxLines(3);
+        descBody.setEllipsize(TextUtils.TruncateAt.END);
+        descMore = new TextView(this);
+        descMore.setText("Selengkapnya");
+        descMore.setTextColor(C_ACCENT);
+        descMore.setTextSize(12);
+        descMore.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        descMore.setPadding(0, dp(8), 0, 0);
+        descCard.addView(descTitle);
+        descCard.addView(descBody);
+        descCard.addView(descMore);
+        descCard.setOnClickListener(v -> { if (!descExpanded) toggleDesc(); });
+        descMore.setOnClickListener(v -> toggleDesc());
+        LinearLayout.LayoutParams dcl = new LinearLayout.LayoutParams(-1, -2);
+        dcl.setMargins(dp(14), dp(10), dp(14), 0);
+        col.addView(descCard, dcl);
+
         // related videos (swipe sideways)
         relatedLabel = new TextView(this);
         relatedLabel.setText("Video terkait");
@@ -296,6 +346,30 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         relatedRow.setPadding(dp(14), 0, dp(14), 0);
         relScroll.addView(relatedRow);
         col.addView(relScroll);
+
+        // comments (read-only, from YouTube)
+        commentsLabel = new TextView(this);
+        commentsLabel.setText("Komentar");
+        commentsLabel.setTextColor(Color.WHITE);
+        commentsLabel.setTextSize(15);
+        commentsLabel.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        commentsLabel.setPadding(dp(14), dp(22), dp(14), dp(8));
+        commentsLabel.setVisibility(View.GONE);
+        col.addView(commentsLabel);
+        commentsBox = new LinearLayout(this);
+        commentsBox.setOrientation(LinearLayout.VERTICAL);
+        commentsBox.setPadding(dp(14), 0, dp(14), 0);
+        col.addView(commentsBox, new LinearLayout.LayoutParams(-1, -2));
+        commentsMore = new TextView(this);
+        commentsMore.setText("Muat komentar lainnya");
+        commentsMore.setTextColor(C_ACCENT);
+        commentsMore.setTextSize(13);
+        commentsMore.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        commentsMore.setGravity(Gravity.CENTER);
+        commentsMore.setPadding(dp(14), dp(14), dp(14), dp(14));
+        commentsMore.setVisibility(View.GONE);
+        commentsMore.setOnClickListener(v -> loadMoreComments());
+        col.addView(commentsMore, new LinearLayout.LayoutParams(-1, -2));
 
         scroll.addView(col, new ViewGroup.LayoutParams(-1, -2));
         root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
@@ -328,6 +402,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         avatar.setImageDrawable(null);
         relatedRow.removeAllViews();
         relatedLabel.setVisibility(View.GONE);
+        resetInfoExtras();
         status.setText("");
         scroll.scrollTo(0, 0);
         liked = YtStore.isLiked(this, videoUrl);
@@ -762,6 +837,178 @@ public class YoutubePlayerActivity extends AppCompatActivity {
             }
         }
         relatedLabel.setVisibility(added > 0 ? View.VISIBLE : View.GONE);
+
+        showDescription(info.getDescription());
+        loadComments(videoUrl);
+    }
+
+    // ---------------------------------------------------------------- description + comments
+
+    private void resetInfoExtras() {
+        descCard.setVisibility(View.GONE);
+        descBody.setText("");
+        descExpanded = false;
+        commentsBox.removeAllViews();
+        commentsLabel.setVisibility(View.GONE);
+        commentsMore.setVisibility(View.GONE);
+        curComments = null;
+        commentsPage = null;
+        commentsShown = 0;
+        commentsLoading = false;
+    }
+
+    private static String plain(Description d) {
+        if (d == null || d.getContent() == null) return "";
+        String c = d.getContent();
+        if (d.getType() == Description.HTML) {
+            c = Html.fromHtml(c, Html.FROM_HTML_MODE_LEGACY).toString();
+        }
+        return c.trim();
+    }
+
+    private void showDescription(Description d) {
+        String t = plain(d);
+        if (t.isEmpty()) { descCard.setVisibility(View.GONE); return; }
+        descExpanded = false;
+        descBody.setText(t);
+        descBody.setMaxLines(3);
+        descBody.setEllipsize(TextUtils.TruncateAt.END);
+        descBody.setMovementMethod(null);
+        descMore.setText("Selengkapnya");
+        descMore.setVisibility(t.length() > 120 || t.indexOf('\n') >= 0 ? View.VISIBLE : View.GONE);
+        descCard.setVisibility(View.VISIBLE);
+    }
+
+    private void toggleDesc() {
+        descExpanded = !descExpanded;
+        if (descExpanded) {
+            descBody.setMaxLines(Integer.MAX_VALUE);
+            descBody.setEllipsize(null);
+            Linkify.addLinks(descBody, Linkify.WEB_URLS);     // links work once expanded
+            descBody.setMovementMethod(LinkMovementMethod.getInstance());
+            descMore.setText("Tampilkan lebih sedikit");
+        } else {
+            descBody.setMaxLines(3);
+            descBody.setEllipsize(TextUtils.TruncateAt.END);
+            descBody.setMovementMethod(null);
+            descMore.setText("Selengkapnya");
+        }
+    }
+
+    private void loadComments(final String url) {
+        commentsLoading = true;
+        new Thread(() -> {
+            CommentsInfo ci = null;
+            String err = null;
+            try {
+                ci = CommentsInfo.getInfo(url);
+            } catch (Exception e) {
+                Log.e(TAG, "comments failed for " + url, e);
+                err = e.getClass().getSimpleName();
+            }
+            final CommentsInfo fci = ci;
+            final String ferr = err;
+            runOnUiThread(() -> {
+                if (isFinishing() || !url.equals(videoUrl)) return;
+                commentsLoading = false;
+                commentsLabel.setVisibility(View.VISIBLE);
+                if (fci == null || fci.isCommentsDisabled()) {
+                    commentsLabel.setText(ferr != null ? "Komentar tidak bisa dimuat" : "Komentar dimatikan untuk video ini");
+                    return;
+                }
+                curComments = fci;
+                commentsPage = fci.getNextPage();
+                List<CommentsInfoItem> items = fci.getRelatedItems();
+                if (items == null || items.isEmpty()) { commentsLabel.setText("Belum ada komentar"); return; }
+                commentsLabel.setText("Komentar");
+                addComments(items);
+                commentsMore.setVisibility(fci.hasNextPage() ? View.VISIBLE : View.GONE);
+            });
+        }).start();
+    }
+
+    private void loadMoreComments() {
+        if (commentsLoading || curComments == null || commentsPage == null) return;
+        commentsLoading = true;
+        commentsMore.setText("Memuat…");
+        final String url = videoUrl;
+        final CommentsInfo ci = curComments;
+        final Page pg = commentsPage;
+        new Thread(() -> {
+            ListExtractor.InfoItemsPage<CommentsInfoItem> res = null;
+            try {
+                res = CommentsInfo.getMoreItems(NewPipe.getService("YouTube"), ci, pg);
+            } catch (Exception e) {
+                Log.e(TAG, "more comments failed", e);
+            }
+            final ListExtractor.InfoItemsPage<CommentsInfoItem> fres = res;
+            runOnUiThread(() -> {
+                if (isFinishing() || !url.equals(videoUrl)) return;
+                commentsLoading = false;
+                commentsMore.setText("Muat komentar lainnya");
+                if (fres == null) { Toast.makeText(this, "Gagal memuat komentar", Toast.LENGTH_SHORT).show(); return; }
+                commentsPage = fres.getNextPage();
+                addComments(fres.getItems());
+                commentsMore.setVisibility(fres.hasNextPage() ? View.VISIBLE : View.GONE);
+            });
+        }).start();
+    }
+
+    private void addComments(List<CommentsInfoItem> items) {
+        if (items == null) return;
+        for (CommentsInfoItem c : items) {
+            try { commentsBox.addView(commentRow(c)); commentsShown++; } catch (Exception e) { Log.e(TAG, "comment row", e); }
+        }
+    }
+
+    private View commentRow(CommentsInfoItem c) {
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setPadding(0, dp(8), 0, dp(8));
+
+        ImageView av = new ImageView(this);
+        av.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        av.setBackground(oval(C_CARD));
+        av.setClipToOutline(true);
+        String url = bestImage(c.getUploaderAvatars());
+        if (url != null) Glide.with(this).load(url).into(av);
+        row.addView(av, new LinearLayout.LayoutParams(dp(34), dp(34)));
+
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout.LayoutParams cl = new LinearLayout.LayoutParams(0, -2, 1f);
+        cl.leftMargin = dp(10);
+        row.addView(col, cl);
+
+        TextView head = new TextView(this);
+        StringBuilder h = new StringBuilder();
+        if (c.isPinned()) h.append("📌 ");
+        h.append(c.getUploaderName() == null ? "" : c.getUploaderName());
+        String when = c.getTextualUploadDate();
+        if (when != null && !when.isEmpty()) h.append("  •  ").append(when);
+        head.setText(h.toString());
+        head.setTextColor(C_SUB);
+        head.setTextSize(12);
+        head.setSingleLine(true);
+        head.setEllipsize(TextUtils.TruncateAt.END);
+        col.addView(head);
+
+        TextView body = new TextView(this);
+        body.setText(plain(c.getCommentText()));
+        body.setTextColor(Color.WHITE);
+        body.setTextSize(13);
+        body.setPadding(0, dp(2), 0, 0);
+        col.addView(body);
+
+        if (c.getLikeCount() > 0) {
+            TextView lk = new TextView(this);
+            lk.setText("👍 " + compact(c.getLikeCount()));
+            lk.setTextColor(C_SUB);
+            lk.setTextSize(11);
+            lk.setPadding(0, dp(3), 0, 0);
+            col.addView(lk);
+        }
+        return row;
     }
 
     private View relatedCard(final StreamInfoItem si) {
