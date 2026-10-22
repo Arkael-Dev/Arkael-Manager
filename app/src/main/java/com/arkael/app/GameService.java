@@ -61,8 +61,7 @@ public class GameService extends Service {
     private WindowManager wm;
     private View handle;
     private WindowManager.LayoutParams handleLp;
-    private LinearLayout panel;
-    private TextView status;
+    private TurboPanel turbo;
 
     private volatile String active = "";
     private volatile boolean startedOverlay, thermalActive;
@@ -301,9 +300,7 @@ public class GameService extends Service {
     }
 
     private void closePanel() {
-        if (wm != null && panel != null) { try { wm.removeView(panel); } catch (Exception ignored) {} }
-        panel = null;
-        status = null;
+        if (turbo != null) { turbo.dismiss(); turbo = null; }
     }
 
     // ---------------------------------------------------------------- GAME MODE panel (GameTurbo style)
@@ -401,7 +398,7 @@ public class GameService extends Service {
     }
 
     private void say(final String msg) {
-        main.post(new Runnable() { @Override public void run() { if (status != null) status.setText(msg); } });
+        main.post(new Runnable() { @Override public void run() { if (turbo != null) turbo.say(msg); } });
     }
 
     private void bgRun(Runnable r) { new Thread(r).start(); }
@@ -469,207 +466,56 @@ public class GameService extends Service {
     }
 
     private void openPanel() {
-        if (panel != null || wm == null) return;
-        final int accent = OverlayPrefs.color(this);
-        final LinearLayout p = new LinearLayout(this);
-        p.setOrientation(LinearLayout.VERTICAL);
-        p.setPadding(dp(14), dp(12), dp(14), dp(12));
-        GradientDrawable bgd = round(BG, 18);
-        bgd.setStroke(dp(1), (accent & 0x00FFFFFF) | 0xAA000000);
-        p.setBackground(bgd);
+        if (turbo != null || wm == null) return;
+        turbo = new TurboPanel(this, wm, main, turboHost);
+        turbo.show();
+        if (!turbo.showing()) turbo = null;
+    }
 
-        // ---- header
-        LinearLayout head = new LinearLayout(this);
-        head.setGravity(Gravity.CENTER_VERTICAL);
-        TextView title = txt("GAME MODE", accent, 17, true);
-        title.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
-        title.setLetterSpacing(0.12f);
-        head.addView(title, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        TextView x = txt("✕", MUTED, 18, false);
-        x.setPadding(dp(10), dp(2), dp(2), dp(2));
-        x.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { closePanel(); } });
-        head.addView(x);
-        p.addView(head);
-
-        LinearLayout body = new LinearLayout(this);
-        body.setOrientation(LinearLayout.VERTICAL);
-        ScrollView sv = new ScrollView(this);
-        sv.setVerticalScrollBarEnabled(false);
-        sv.addView(body);
-        p.addView(sv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        // ---- card 1: three switches + boost
-        LinearLayout c1 = card();
-        final GameProfiles.Profile prof = active.isEmpty() ? null : GameProfiles.get(this, active);
-        final LinearLayout autoClean = line("⚙", "Auto clean memory", true, prof != null && prof.cleanRam, null);
-        autoClean.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                if (prof == null) { say("Open one of your games to change its profile"); return; }
-                prof.cleanRam = !prof.cleanRam;
-                GameProfiles.save(GameService.this, active, prof);
-                setPill(autoClean, prof.cleanRam);
-            }
-        });
-        c1.addView(autoClean);
-        c1.addView(line("🗑", "Free up storage", false, false, new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                say("Trimming app caches...");
-                bgRun(new Runnable() { @Override public void run() { say("Caches trimmed · " + Booster.cleanRam(GameService.this, true)); } });
-            }
-        }));
-        final LinearLayout mon = line("📈", "Monitor performance", true, startedOverlay || OverlayPrefs.enabled(this), null);
-        mon.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                if (startedOverlay || OverlayPrefs.enabled(GameService.this)) {
-                    OverlayPrefs.setEnabled(GameService.this, false);
-                    stopService(new Intent(GameService.this, OverlayService.class));
-                    startedOverlay = false;
-                    setPill(mon, false);
-                } else {
-                    try { OverlayService.start(GameService.this); }
-                    catch (Exception e) { bgRun(new Runnable() { @Override public void run() {
-                        RootShell.run("am start-foreground-service -n " + getPackageName() + "/com.arkael.app.OverlayService"); } }); }
-                    startedOverlay = true;
-                    setPill(mon, true);
-                }
-            }
-        });
-        c1.addView(mon);
-
-        TextView boost = txt("BOOST  ·  Percepat", accent, 15, true);
-        boost.setGravity(Gravity.CENTER);
-        boost.setPadding(dp(10), dp(12), dp(10), dp(12));
-        GradientDrawable bb = round(0x22000000 | (accent & 0x00FFFFFF), 12);
-        bb.setStroke(dp(2), accent);
-        boost.setBackground(bb);
-        LinearLayout.LayoutParams bl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-        bl.topMargin = dp(6); bl.bottomMargin = dp(6);
-        boost.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                say("Boosting...");
-                bgRun(new Runnable() { @Override public void run() {
-                    String g = Booster.perfGovernor();
-                    if (!g.isEmpty()) Booster.setGovernor(GameService.this, g);
-                    if (active.isEmpty()) Booster.markManual(GameService.this);
-                    say("Boost done · " + Booster.cleanRam(GameService.this, false) + (g.isEmpty() ? "" : " · performance governor"));
-                } });
-            }
-        });
-        c1.addView(boost, bl);
-        body.addView(c1);
-
-        // ---- two shortcuts
-        LinearLayout two = new LinearLayout(this);
-        two.setPadding(0, dp(8), 0, 0);
-        TextView games = txt("🎮  Games", Color.WHITE, 13, false);
-        TextView perf = txt("⚙  Performance settings", Color.WHITE, 13, false);
-        TextView[] sc = {games, perf};
-        for (int i = 0; i < 2; i++) {
-            sc[i].setGravity(Gravity.CENTER);
-            sc[i].setPadding(dp(6), dp(12), dp(6), dp(12));
-            sc[i].setBackground(round(CARD, 12));
-            LinearLayout.LayoutParams sl = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            if (i == 0) sl.rightMargin = dp(8);
-            two.addView(sc[i], sl);
-        }
-        games.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { openActivity(GameListActivity.class); } });
-        perf.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { openActivity(GameModeActivity.class); } });
-        body.addView(two);
-
-        // ---- tool grid
-        LinearLayout grid = card();
-        grid.setPadding(dp(4), dp(2), dp(4), dp(4));
-        final LinearLayout tClean = tile("🚀", "Clean RAM", false, new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                say("Cleaning...");
-                bgRun(new Runnable() { @Override public void run() { say(Booster.cleanRam(GameService.this, false)); } });
-            }
-        });
-        final LinearLayout tDnd = tile("🔕", "Do not disturb", Booster.isDnd(this), null);
-        tDnd.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                final boolean on = !Booster.isDnd(GameService.this);
-                bgRun(new Runnable() { @Override public void run() {
-                    Booster.setDnd(GameService.this, on);
-                    main.post(new Runnable() { @Override public void run() { setTile(tDnd, Booster.isDnd(GameService.this)); } });
-                } });
-            }
-        });
-        final LinearLayout tHeads = tile("💬", "Block pop-ups", Booster.isHeadsUpBlocked(this), null);
-        tHeads.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                final boolean on = !Booster.isHeadsUpBlocked(GameService.this);
-                bgRun(new Runnable() { @Override public void run() {
-                    Booster.setHeadsUp(GameService.this, on);
-                    main.post(new Runnable() { @Override public void run() { setTile(tHeads, Booster.isHeadsUpBlocked(GameService.this)); } });
-                } });
-            }
-        });
-        LinearLayout tShot = tile("📸", "Screenshot", false, new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                closePanel();                                              // keep the panel out of the picture
-                bgRun(new Runnable() { @Override public void run() {
-                    try { Thread.sleep(600); } catch (InterruptedException ignored) {}
-                    RootShell.run("mkdir -p /sdcard/Pictures/Arkael; screencap -p /sdcard/Pictures/Arkael/shot_$(date +%Y%m%d_%H%M%S).png");
-                    toast("Screenshot saved in Pictures/Arkael");
-                } });
-            }
-        });
-        grid.addView(tileRow(tClean, tDnd, tHeads, tShot));
-        LinearLayout tRec = tile(Recorder.isRecording() ? "⏹" : "⏺", Recorder.isRecording() ? "Stop recording" : "Record screen", Recorder.isRecording(), new View.OnClickListener() {
-            @Override public void onClick(View v) { toggleRecord(); }
-        });
-        LinearLayout tRestore = tile("↩", "Restore settings", false, new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                say("Restoring...");
-                bgRun(new Runnable() { @Override public void run() { Booster.revertAll(GameService.this); say("Settings restored"); } });
-            }
-        });
-        LinearLayout tReset = tile("⤢", "Reset overlay size", false, new View.OnClickListener() {
-            @Override public void onClick(View v) {
-                OverlayPrefs.resetLayout(GameService.this);
-                OverlayService.refresh(GameService.this);
-                say("Overlay position and size reset");
-            }
-        });
-        grid.addView(tileRow(tRestore, tReset, tRec));
-        LinearLayout hMinus = tile("➖", "Handle smaller", false, new View.OnClickListener() {
-            @Override public void onClick(View v) { resizeHandle(-0.25f); }
-        });
-        LinearLayout hPlus = tile("➕", "Handle bigger", false, new View.OnClickListener() {
-            @Override public void onClick(View v) { resizeHandle(0.25f); }
-        });
-        LinearLayout hHide = tile("🙈", "Hide handle", false, new View.OnClickListener() {
-            @Override public void onClick(View v) { hideHandle(); }
-        });
-        LinearLayout tDiag = tile("🧾", "Diagnose FPS / temp", false, new View.OnClickListener() {
-            @Override public void onClick(View v) { diagnose(); }
-        });
-        grid.addView(tileRow(hMinus, hPlus, hHide, tDiag));
-        body.addView(grid);
-
-        status = txt("", MUTED, 11, false);
-        status.setPadding(dp(4), dp(8), dp(4), 0);
-        body.addView(status);
-
-        p.setOnTouchListener(new View.OnTouchListener() {
-            @Override public boolean onTouch(View v, MotionEvent e) {
-                if (e.getAction() == MotionEvent.ACTION_OUTSIDE) { closePanel(); return true; }
+    private final TurboPanel.Host turboHost = new TurboPanel.Host() {
+        @Override public String activePkg() { return active; }
+        @Override public boolean monitorOn() { return startedOverlay || OverlayPrefs.enabled(GameService.this); }
+        @Override public boolean toggleMonitor() {
+            if (startedOverlay || OverlayPrefs.enabled(GameService.this)) {
+                OverlayPrefs.setEnabled(GameService.this, false);
+                stopService(new Intent(GameService.this, OverlayService.class));
+                startedOverlay = false;
                 return false;
             }
-        });
-
-        DisplayMetrics dm = getResources().getDisplayMetrics();
-        boolean land = dm.widthPixels > dm.heightPixels;
-        int w = Math.min(dp(340), (int) (dm.widthPixels * (land ? 0.55f : 0.92f)));
-        WindowManager.LayoutParams lp = params(w, WindowManager.LayoutParams.WRAP_CONTENT, true);
-        int edge = hp().getInt("edge", 0);
-        if (edge == 1) { lp.gravity = Gravity.CENTER_VERTICAL | Gravity.END; lp.x = dp(12); }
-        else if (edge == 2) { lp.gravity = Gravity.TOP | Gravity.CENTER_HORIZONTAL; lp.y = dp(24); }
-        else if (edge == 3) { lp.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL; lp.y = dp(24); }
-        else { lp.gravity = Gravity.CENTER_VERTICAL | Gravity.START; lp.x = dp(12); }
-        try { wm.addView(p, lp); panel = p; } catch (Exception ignored) {}
-    }
+            try { OverlayService.start(GameService.this); }
+            catch (Exception e) { bgRun(new Runnable() { @Override public void run() {
+                RootShell.run("am start-foreground-service -n " + getPackageName() + "/com.arkael.app.OverlayService"); } }); }
+            startedOverlay = true;
+            return true;
+        }
+        @Override public void toggleRecord() { GameService.this.toggleRecord(); }
+        @Override public void screenshot() {
+            closePanel();                                              // keep the panel out of the picture
+            bgRun(new Runnable() { @Override public void run() {
+                try { Thread.sleep(600); } catch (InterruptedException ignored) {}
+                RootShell.run("mkdir -p /sdcard/Pictures/Arkael; screencap -p /sdcard/Pictures/Arkael/shot_$(date +%Y%m%d_%H%M%S).png");
+                toast("Screenshot saved in Pictures/Arkael");
+            } });
+        }
+        @Override public void openActivity(Class<?> cls) { GameService.this.openActivity(cls); }
+        @Override public void launchApp(final String pkg) {
+            Intent i = getPackageManager().getLaunchIntentForPackage(pkg);
+            if (i == null) { toast("App not found"); return; }
+            closePanel();
+            try { startActivity(i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)); }
+            catch (Exception e) {
+                if (!pkg.matches("[A-Za-z0-9_.]+")) return;
+                bgRun(new Runnable() { @Override public void run() {
+                    RootShell.run("monkey -p " + pkg + " -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1"); } });
+            }
+        }
+        @Override public void resizeHandle(float delta) { GameService.this.resizeHandle(delta); }
+        @Override public void hideHandle() { GameService.this.hideHandle(); }
+        @Override public void diagnose() { GameService.this.diagnose(); }
+        @Override public void markManual() { if (active.isEmpty()) Booster.markManual(GameService.this); }
+        @Override public void bg(Runnable r) { bgRun(r); }
+        @Override public void close() { closePanel(); }
+    };
 
     /** One tap while the game is on screen: writes the raw sensor and frame data to Download/arkael_diag_ingame.txt. */
     private void diagnose() {

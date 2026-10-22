@@ -88,7 +88,7 @@ final class Booster {
         RootShell.run("for p in " + POLICIES + "; do echo " + gov + " > $p/scaling_governor 2>/dev/null; done");
     }
 
-    private static void restoreGovernor(Context c) {
+    static void restoreGovernor(Context c) {
         SharedPreferences sp = snap(c);
         String o = sp.getString("gov", null);
         if (o == null) return;
@@ -160,7 +160,7 @@ final class Booster {
         return true;
     }
 
-    private static void restoreGpu(Context c) {
+    static void restoreGpu(Context c) {
         SharedPreferences sp = snap(c);
         String s = sp.getString("gpu", null);
         if (s == null) return;
