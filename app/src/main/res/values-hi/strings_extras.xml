@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_no_ads">कोई विज्ञापन नहीं</string>
+    <string name="ax_redirect_blocked">दूसरी साइट पर रीडायरेक्ट ब्लॉक किया गया</string>
+    <string name="ax_anime_title">एनिमे और Donghua</string>
+    <string name="ax_card_anime">एनिमे और Donghua</string>
+    <string name="ax_anime_sub">ऐप के अंदर ही देखें। विज्ञापन, पॉप-अप और रीडायरेक्ट ब्लॉक हैं।</string>
+    <string name="ax_site_donghua">Donghua</string>
+    <string name="ax_site_donghua2">Donghua 2</string>
+    <string name="ax_site_anime">एनिमे और अन्य सीरीज़</string>
+    <string name="ax_settings">सेटिंग्स</string>
+    <string name="ax_language">भाषा</string>
+    <string name="ax_lang_system">सिस्टम डिफ़ॉल्ट</string>
+    <string name="ax_donate">दान करें</string>
+    <string name="ax_donate_sub">Arkael के विकास में सहयोग करें</string>
+    <string name="ax_check_update">अपडेट जाँचें</string>
+    <string name="ax_version">संस्करण %1$s</string>
+    <string name="ax_uptodate">आप नवीनतम संस्करण पर हैं</string>
+    <string name="ax_update_failed">अपडेट जाँचने में विफल</string>
+    <string name="ax_update_title">नया अपडेट उपलब्ध</string>
+    <string name="ax_update_text">Arkael Manager %1$s आ गया है। GitHub से डाउनलोड करने के लिए टैप करें।</string>
+    <string name="ax_download">डाउनलोड</string>
+    <string name="ax_later">बाद में</string>
+    <string name="ax_donate_title">Arkael Manager का समर्थन करें ❤</string>
+    <string name="ax_donate_text">ऐप पसंद आया? दान करने के लिए टैप करें।</string>
+    <string name="ax_ch_donate">दान अनुस्मारक</string>
+    <string name="ax_ch_update">ऐप अपडेट</string>
+    <string name="ax_card_anime_sub">विज्ञापन-मुक्त ब्राउज़र</string>
+    <string name="ax_card_settings_sub">भाषा, दान, अपडेट</string>
+</resources>

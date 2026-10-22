@@ -19,7 +19,11 @@
     <!-- Izin Notifikasi (Android 13+) -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <application
+        <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"/>
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+    <application android:localeConfig="@xml/ax_locales_config"
         android:label="Arkael Manager"
         android:icon="@mipmap/ic_arkael"
         android:theme="@style/Theme.Arkael"
@@ -32,5 +36,45 @@
             </intent-filter>
         </activity>
 
+            <activity android:name=".GameModeActivity" android:exported="false" android:label="Game Mode"/>
+
+        <service android:name=".OverlayService" android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="performance_overlay"/>
+        </service>
+
+            <activity android:name=".GameListActivity" android:exported="false" android:label="Games"/>
+
+        <activity android:name=".YoutubeSearchActivity" android:exported="false" android:label="YouTube"
+            android:configChanges="orientation|screenSize|keyboardHidden"/>
+        <activity android:name=".YoutubePlayerActivity" android:exported="false" android:label="YouTube"
+            android:theme="@style/Theme.Arkael"
+            android:supportsPictureInPicture="true"
+            android:resizeableActivity="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"/>
+
+        <service android:name=".GameService" android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="game_mode"/>
+        </service>
+
+            <service android:name=".AudioCapService" android:exported="false" android:foregroundServiceType="mediaProjection" />
+        <activity android:name=".AudioConsentActivity" android:exported="false"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true" android:taskAffinity="" />
+        <service android:name=".YoutubeAudioService" android:exported="false"
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <action android:name="androidx.media3.session.MediaSessionService"/>
+            </intent-filter>
+        </service>
+        <activity android:name=".BrowserActivity" android:exported="false" android:label="Browser"
+            android:hardwareAccelerated="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"/>
+        <activity android:name=".AnimeHubActivity" android:exported="false" android:label="Anime"/>
+        <activity android:name=".AppSettingsActivity" android:exported="false" android:label="Settings"/>
+        <service android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
+            android:enabled="false" android:exported="false">
+            <meta-data android:name="autoStoreLocales" android:value="true"/>
+        </service>
     </application>
 </manifest>

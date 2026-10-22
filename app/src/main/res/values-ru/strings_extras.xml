@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_no_ads">Без рекламы</string>
+    <string name="ax_redirect_blocked">Переход на другой сайт заблокирован</string>
+    <string name="ax_anime_title">Аниме и Донхуа</string>
+    <string name="ax_card_anime">Аниме и Донхуа</string>
+    <string name="ax_anime_sub">Смотрите прямо в приложении. Реклама, всплывающие окна и редиректы блокируются.</string>
+    <string name="ax_site_donghua">Донхуа</string>
+    <string name="ax_site_donghua2">Донхуа 2</string>
+    <string name="ax_site_anime">Аниме и другие сериалы</string>
+    <string name="ax_settings">Настройки</string>
+    <string name="ax_language">Язык</string>
+    <string name="ax_lang_system">Как в системе</string>
+    <string name="ax_donate">Пожертвовать</string>
+    <string name="ax_donate_sub">Поддержать разработку Arkael</string>
+    <string name="ax_check_update">Проверить обновления</string>
+    <string name="ax_version">Версия %1$s</string>
+    <string name="ax_uptodate">У вас последняя версия</string>
+    <string name="ax_update_failed">Не удалось проверить обновления</string>
+    <string name="ax_update_title">Доступно обновление</string>
+    <string name="ax_update_text">Вышел Arkael Manager %1$s. Нажмите, чтобы скачать с GitHub.</string>
+    <string name="ax_download">Скачать</string>
+    <string name="ax_later">Позже</string>
+    <string name="ax_donate_title">Поддержите Arkael Manager ❤</string>
+    <string name="ax_donate_text">Нравится приложение? Нажмите, чтобы пожертвовать.</string>
+    <string name="ax_ch_donate">Напоминание о пожертвовании</string>
+    <string name="ax_ch_update">Обновления приложения</string>
+    <string name="ax_card_anime_sub">Браузер без рекламы</string>
+    <string name="ax_card_settings_sub">Язык, пожертвования, обновления</string>
+</resources>

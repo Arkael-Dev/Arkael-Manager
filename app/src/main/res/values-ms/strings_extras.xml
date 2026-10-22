@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_no_ads">Tiada iklan</string>
+    <string name="ax_redirect_blocked">Pengalihan ke laman lain disekat</string>
+    <string name="ax_anime_title">Anime &amp; Donghua</string>
+    <string name="ax_card_anime">Anime &amp; Donghua</string>
+    <string name="ax_anime_sub">Tonton terus dalam aplikasi. Iklan, pop-up dan pengalihan disekat.</string>
+    <string name="ax_site_donghua">Donghua</string>
+    <string name="ax_site_donghua2">Donghua 2</string>
+    <string name="ax_site_anime">Anime &amp; siri lain</string>
+    <string name="ax_settings">Tetapan</string>
+    <string name="ax_language">Bahasa</string>
+    <string name="ax_lang_system">Ikut sistem</string>
+    <string name="ax_donate">Derma</string>
+    <string name="ax_donate_sub">Sokong pembangunan Arkael</string>
+    <string name="ax_check_update">Semak kemas kini</string>
+    <string name="ax_version">Versi %1$s</string>
+    <string name="ax_uptodate">Anda menggunakan versi terkini</string>
+    <string name="ax_update_failed">Gagal menyemak kemas kini</string>
+    <string name="ax_update_title">Kemas kini baharu tersedia</string>
+    <string name="ax_update_text">Arkael Manager %1$s telah dikeluarkan. Ketik untuk muat turun dari GitHub.</string>
+    <string name="ax_download">Muat turun</string>
+    <string name="ax_later">Nanti</string>
+    <string name="ax_donate_title">Sokong Arkael Manager ❤</string>
+    <string name="ax_donate_text">Suka aplikasi ini? Ketik untuk menderma.</string>
+    <string name="ax_ch_donate">Peringatan derma</string>
+    <string name="ax_ch_update">Kemas kini aplikasi</string>
+    <string name="ax_card_anime_sub">Pelayar tanpa iklan</string>
+    <string name="ax_card_settings_sub">Bahasa, derma, kemas kini</string>
+</resources>

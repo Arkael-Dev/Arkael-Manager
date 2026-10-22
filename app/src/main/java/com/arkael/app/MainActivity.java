@@ -104,7 +104,9 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-        UpdateChecker.check(this);
+        // UpdateChecker.check(this);  // diganti UpdateNotifier (ExtrasEntry)
+        GameModeEntry.attach(this);
+        ExtrasEntry.attach(this);
 
         prefs = getSharedPreferences("ArkaelPrefs", 0);
         
@@ -241,6 +243,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_saturation).setOnClickListener(v -> showSaturationMenu()); 
         findViewById(R.id.btn_renderer).setOnClickListener(v -> showRendererMenu());
         findViewById(R.id.btn_vsync).setOnClickListener(v -> toggleCpuVsync());
+        findViewById(R.id.btn_youtube).setOnClickListener(v -> startActivity(new Intent(this, YoutubeSearchActivity.class)));
         findViewById(R.id.btn_keybox_generator).setOnClickListener(v -> launchKeyboxGenerator());
 
         navSystem.setOnClickListener(v -> { 

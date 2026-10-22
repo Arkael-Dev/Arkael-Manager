@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_no_ads">Tanpa iklan</string>
+    <string name="ax_redirect_blocked">Pengalihan ke situs lain diblokir</string>
+    <string name="ax_anime_title">Anime &amp; Donghua</string>
+    <string name="ax_card_anime">Anime &amp; Donghua</string>
+    <string name="ax_anime_sub">Nonton langsung di dalam aplikasi. Iklan, pop-up, dan pengalihan diblokir.</string>
+    <string name="ax_site_donghua">Donghua</string>
+    <string name="ax_site_donghua2">Donghua 2</string>
+    <string name="ax_site_anime">Anime &amp; serial lainnya</string>
+    <string name="ax_settings">Pengaturan</string>
+    <string name="ax_language">Bahasa</string>
+    <string name="ax_lang_system">Ikuti sistem</string>
+    <string name="ax_donate">Donasi</string>
+    <string name="ax_donate_sub">Dukung pengembangan Arkael</string>
+    <string name="ax_check_update">Cek pembaruan</string>
+    <string name="ax_version">Versi %1$s</string>
+    <string name="ax_uptodate">Kamu sudah pakai versi terbaru</string>
+    <string name="ax_update_failed">Gagal mengecek pembaruan</string>
+    <string name="ax_update_title">Update baru tersedia</string>
+    <string name="ax_update_text">Arkael Manager %1$s sudah rilis. Ketuk untuk download dari GitHub.</string>
+    <string name="ax_download">Download</string>
+    <string name="ax_later">Nanti</string>
+    <string name="ax_donate_title">Dukung Arkael Manager ❤</string>
+    <string name="ax_donate_text">Suka aplikasinya? Ketuk untuk donasi biar terus berkembang.</string>
+    <string name="ax_ch_donate">Pengingat donasi</string>
+    <string name="ax_ch_update">Pembaruan aplikasi</string>
+    <string name="ax_card_anime_sub">Browser tanpa iklan</string>
+    <string name="ax_card_settings_sub">Bahasa, donasi, pembaruan</string>
+</resources>
