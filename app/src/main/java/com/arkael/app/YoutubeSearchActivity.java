@@ -8,6 +8,7 @@ import android.graphics.drawable.GradientDrawable;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.Gravity;
 import android.view.KeyEvent;
 import android.view.View;
@@ -40,6 +41,7 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItem;
  * (no YouTube app, no WebView, no ads) — see NewPipeExtractorDownloader and YoutubePlayerActivity.
  */
 public class YoutubeSearchActivity extends Activity {
+    private static final String TAG = "ArkaelYT";
     private static final class Row {
         String url, title, uploader, duration, thumb;
     }
@@ -229,7 +231,8 @@ public class YoutubeSearchActivity extends Activity {
                         result.add(row);
                     }
                 } catch (Exception e) {
-                    err = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                    Log.e(TAG, "search failed for \"" + q + "\"", e);
+                    err = e.getClass().getSimpleName() + ": " + (e.getMessage() == null ? "(no message)" : e.getMessage());
                 }
                 final String ferr = err;
                 runOnUiThread(new Runnable() {
