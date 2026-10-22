@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_no_ads">Reklamsız</string>
+    <string name="ax_redirect_blocked">Başka siteye yönlendirme engellendi</string>
+    <string name="ax_anime_title">Anime ve Donghua</string>
+    <string name="ax_card_anime">Anime ve Donghua</string>
+    <string name="ax_anime_sub">Uygulama içinde izleyin. Reklamlar, açılır pencereler ve yönlendirmeler engellenir.</string>
+    <string name="ax_site_donghua">Donghua</string>
+    <string name="ax_site_donghua2">Donghua 2</string>
+    <string name="ax_site_anime">Anime ve diğer diziler</string>
+    <string name="ax_settings">Ayarlar</string>
+    <string name="ax_language">Dil</string>
+    <string name="ax_lang_system">Sistem varsayılanı</string>
+    <string name="ax_donate">Bağış yap</string>
+    <string name="ax_donate_sub">Arkael geliştirmesine destek ol</string>
+    <string name="ax_check_update">Güncellemeleri denetle</string>
+    <string name="ax_version">Sürüm %1$s</string>
+    <string name="ax_uptodate">En son sürümdesiniz</string>
+    <string name="ax_update_failed">Güncellemeler denetlenemedi</string>
+    <string name="ax_update_title">Yeni güncelleme var</string>
+    <string name="ax_update_text">Arkael Manager %1$s yayınlandı. GitHub\'dan indirmek için dokunun.</string>
+    <string name="ax_download">İndir</string>
+    <string name="ax_later">Sonra</string>
+    <string name="ax_donate_title">Arkael Manager\'a destek olun ❤</string>
+    <string name="ax_donate_text">Uygulamayı beğendiniz mi? Bağış için dokunun.</string>
+    <string name="ax_ch_donate">Bağış hatırlatıcısı</string>
+    <string name="ax_ch_update">Uygulama güncellemeleri</string>
+    <string name="ax_card_anime_sub">Reklamsız tarayıcı</string>
+    <string name="ax_card_settings_sub">Dil, bağış, güncellemeler</string>
+</resources>

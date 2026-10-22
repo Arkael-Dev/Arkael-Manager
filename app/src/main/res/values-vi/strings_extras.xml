@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_no_ads">Không quảng cáo</string>
+    <string name="ax_redirect_blocked">Đã chặn chuyển hướng sang trang khác</string>
+    <string name="ax_anime_title">Anime &amp; Donghua</string>
+    <string name="ax_card_anime">Anime &amp; Donghua</string>
+    <string name="ax_anime_sub">Xem ngay trong ứng dụng. Quảng cáo, cửa sổ bật lên và chuyển hướng bị chặn.</string>
+    <string name="ax_site_donghua">Donghua</string>
+    <string name="ax_site_donghua2">Donghua 2</string>
+    <string name="ax_site_anime">Anime &amp; phim khác</string>
+    <string name="ax_settings">Cài đặt</string>
+    <string name="ax_language">Ngôn ngữ</string>
+    <string name="ax_lang_system">Theo hệ thống</string>
+    <string name="ax_donate">Ủng hộ</string>
+    <string name="ax_donate_sub">Ủng hộ phát triển Arkael</string>
+    <string name="ax_check_update">Kiểm tra cập nhật</string>
+    <string name="ax_version">Phiên bản %1$s</string>
+    <string name="ax_uptodate">Bạn đang dùng phiên bản mới nhất</string>
+    <string name="ax_update_failed">Không thể kiểm tra cập nhật</string>
+    <string name="ax_update_title">Có bản cập nhật mới</string>
+    <string name="ax_update_text">Arkael Manager %1$s đã ra mắt. Chạm để tải từ GitHub.</string>
+    <string name="ax_download">Tải xuống</string>
+    <string name="ax_later">Để sau</string>
+    <string name="ax_donate_title">Ủng hộ Arkael Manager ❤</string>
+    <string name="ax_donate_text">Thích ứng dụng? Chạm để ủng hộ.</string>
+    <string name="ax_ch_donate">Nhắc nhở ủng hộ</string>
+    <string name="ax_ch_update">Cập nhật ứng dụng</string>
+    <string name="ax_card_anime_sub">Trình duyệt không quảng cáo</string>
+    <string name="ax_card_settings_sub">Ngôn ngữ, ủng hộ, cập nhật</string>
+</resources>

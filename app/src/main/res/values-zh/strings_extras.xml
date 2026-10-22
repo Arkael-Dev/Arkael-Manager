@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_no_ads">无广告</string>
+    <string name="ax_redirect_blocked">已拦截跳转到其他网站</string>
+    <string name="ax_anime_title">动漫与国漫</string>
+    <string name="ax_card_anime">动漫与国漫</string>
+    <string name="ax_anime_sub">直接在应用内观看。已拦截广告、弹窗和重定向。</string>
+    <string name="ax_site_donghua">国漫</string>
+    <string name="ax_site_donghua2">国漫 2</string>
+    <string name="ax_site_anime">动漫及其他剧集</string>
+    <string name="ax_settings">设置</string>
+    <string name="ax_language">语言</string>
+    <string name="ax_lang_system">跟随系统</string>
+    <string name="ax_donate">捐赠</string>
+    <string name="ax_donate_sub">支持 Arkael 的开发</string>
+    <string name="ax_check_update">检查更新</string>
+    <string name="ax_version">版本 %1$s</string>
+    <string name="ax_uptodate">已是最新版本</string>
+    <string name="ax_update_failed">检查更新失败</string>
+    <string name="ax_update_title">有新版本</string>
+    <string name="ax_update_text">Arkael Manager %1$s 已发布。点击从 GitHub 下载。</string>
+    <string name="ax_download">下载</string>
+    <string name="ax_later">稍后</string>
+    <string name="ax_donate_title">支持 Arkael Manager ❤</string>
+    <string name="ax_donate_text">喜欢这个应用吗？点击捐赠，帮助它持续发展。</string>
+    <string name="ax_ch_donate">捐赠提醒</string>
+    <string name="ax_ch_update">应用更新</string>
+    <string name="ax_card_anime_sub">无广告浏览器</string>
+    <string name="ax_card_settings_sub">语言、捐赠、更新</string>
+</resources>
