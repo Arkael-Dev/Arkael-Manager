@@ -16,6 +16,7 @@ import android.graphics.drawable.Icon;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.util.Rational;
 import android.view.Gravity;
 import android.view.View;
@@ -55,6 +56,7 @@ import java.util.List;
  * whatever else you open; tapping the shrink button does the same on demand.
  */
 public class YoutubePlayerActivity extends AppCompatActivity {
+    private static final String TAG = "ArkaelYT";
     private static final String ACTION_MEDIA_CONTROL = "com.arkael.app.ytpip.control";
     private static final String EXTRA_CONTROL = "control";
     private static final int CONTROL_PLAY = 1, CONTROL_PAUSE = 2;
@@ -146,12 +148,18 @@ public class YoutubePlayerActivity extends AppCompatActivity {
             String err = null;
             MediaItem item = null;
             try {
+                Log.i(TAG, "extracting: " + videoUrl);
                 StreamingService yt = NewPipe.getService("YouTube");
                 StreamInfo info = StreamInfo.getInfo(yt, videoUrl);
+                Log.i(TAG, "extracted ok: hls=" + notEmpty(info.getHlsUrl()) + " dash=" + notEmpty(info.getDashMpdUrl())
+                        + " videoStreams=" + (info.getVideoStreams() == null ? -1 : info.getVideoStreams().size())
+                        + " videoOnlyStreams=" + (info.getVideoOnlyStreams() == null ? -1 : info.getVideoOnlyStreams().size()));
                 item = pickStream(info);
+                Log.i(TAG, "picked media item: " + (item == null ? "null" : item.localConfiguration.uri));
                 if (item == null) err = "No playable stream found for this video";
             } catch (Exception e) {
-                err = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+                Log.e(TAG, "extraction failed for " + videoUrl, e);
+                err = e.getClass().getSimpleName() + ": " + (e.getMessage() == null ? "(no message)" : e.getMessage());
             }
             final MediaItem fi = item;
             final String ferr = err;
@@ -199,7 +207,10 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         player.prepare();
         player.addListener(new Player.Listener() {
             @Override public void onPlayerError(@NonNull PlaybackException error) {
-                status.setText("Playback failed: " + error.getMessage());
+                Log.e(TAG, "ExoPlayer error, code=" + error.errorCode + " (" + error.getErrorCodeName() + ")", error);
+                Throwable c = error.getCause();
+                while (c != null) { Log.e(TAG, "  caused by: " + c, c); c = c.getCause(); }
+                status.setText("Playback failed [" + error.getErrorCodeName() + "]: " + error.getMessage());
                 status.setVisibility(View.VISIBLE);
             }
             @Override public void onIsPlayingChanged(boolean isPlaying) { updatePipParams(); }
