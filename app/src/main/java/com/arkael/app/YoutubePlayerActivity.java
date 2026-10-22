@@ -118,7 +118,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     private boolean inPip;
     private boolean headerShown = true;    // top buttons (back, quality, audio, fullscreen, PiP)
     private final Runnable hideHeaderRun = () -> {
-        if (player != null && player.isPlaying() && !audioMode) { headerShown = false; applyHeaderVisibility(); }
+        if (player != null && player.isPlaying() && !this.audioMode) { headerShown = false; applyHeaderVisibility(); }
     };
 
     private MediaItem pendingItem;         // extracted, waiting for the controller to connect
