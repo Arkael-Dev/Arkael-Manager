@@ -51,6 +51,8 @@ public class YoutubeSearchActivity extends Activity {
     private TextView status;
     private ProgressBar spinner;
     private EditText query;
+    private int mode = 0;            // 0 = search results, 1 = Riwayat (history), 2 = Disukai (likes)
+    private TextView tabHistory, tabLikes, clearBtn;
     private int searchGen = 0;   // bumped on every new search so a slow old search can't overwrite a newer result
 
     private int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
@@ -122,6 +124,28 @@ public class YoutubeSearchActivity extends Activity {
         searchRow.addView(go, gl);
         col.addView(searchRow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
 
+        LinearLayout tabs = new LinearLayout(this);
+        tabs.setOrientation(LinearLayout.HORIZONTAL);
+        tabs.setGravity(Gravity.CENTER_VERTICAL);
+        tabs.setPadding(0, dp(10), 0, 0);
+        tabHistory = tab("Riwayat", 1);
+        tabLikes = tab("Disukai", 2);
+        tabs.addView(tabHistory);
+        tabs.addView(tabLikes);
+        View grow = new View(this);
+        tabs.addView(grow, new LinearLayout.LayoutParams(0, 1, 1f));
+        clearBtn = new TextView(this);
+        clearBtn.setText("Hapus riwayat");
+        clearBtn.setTextColor(Color.parseColor("#FF6B6B"));
+        clearBtn.setTextSize(12);
+        clearBtn.setPadding(dp(8), dp(8), dp(4), dp(8));
+        clearBtn.setVisibility(View.GONE);
+        clearBtn.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { confirmClearHistory(); }
+        });
+        tabs.addView(clearBtn);
+        col.addView(tabs);
+
         spinner = new ProgressBar(this);
         LinearLayout.LayoutParams spl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         spl.gravity = Gravity.CENTER;
@@ -130,7 +154,7 @@ public class YoutubeSearchActivity extends Activity {
         col.addView(spinner, spl);
 
         status = new TextView(this);
-        status.setText("Type something and search.");
+        status.setText("");
         status.setTextColor(Color.parseColor("#8B95A3"));
         status.setGravity(Gravity.CENTER);
         status.setPadding(0, dp(24), 0, 0);
@@ -159,6 +183,79 @@ public class YoutubeSearchActivity extends Activity {
         });
         col.addView(lv, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         setContentView(col);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Opening YouTube shows the watch history; coming back from the player refreshes it.
+        if (mode != 0) showStored(mode);
+        else if (items.isEmpty() && spinner.getVisibility() != View.VISIBLE) showStored(1);
+    }
+
+    private TextView tab(String label, final int m) {
+        TextView t = new TextView(this);
+        t.setText(label);
+        t.setTextSize(13);
+        t.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        t.setPadding(dp(16), dp(8), dp(16), dp(8));
+        t.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { showStored(m); }
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.rightMargin = dp(8);
+        t.setLayoutParams(lp);
+        return t;
+    }
+
+    private void updateTabs() {
+        styleTab(tabHistory, mode == 1);
+        styleTab(tabLikes, mode == 2);
+        clearBtn.setVisibility(mode == 1 && !items.isEmpty() ? View.VISIBLE : View.GONE);
+    }
+
+    private void styleTab(TextView t, boolean on) {
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(Color.parseColor(on ? "#2A3A5C" : "#141A22"));
+        g.setCornerRadius(dp(16));
+        t.setBackground(g);
+        t.setTextColor(Color.parseColor(on ? "#FFFFFF" : "#8B95A3"));
+    }
+
+    /** Shows the locally stored history (1) or liked videos (2) in the list. */
+    private void showStored(int m) {
+        mode = m;
+        searchGen++;   // drop any search still running
+        spinner.setVisibility(View.GONE);
+        List<YtStore.Entry> src = m == 2 ? YtStore.likes(this) : YtStore.history(this);
+        items.clear();
+        for (YtStore.Entry e : src) {
+            Row r = new Row();
+            r.url = e.url;
+            r.title = e.title == null ? "" : e.title;
+            r.uploader = e.uploader == null ? "" : e.uploader;
+            r.duration = e.duration > 0 ? fmt(e.duration) : null;
+            r.thumb = e.thumb;
+            items.add(r);
+        }
+        adapter.notifyDataSetChanged();
+        status.setText(items.isEmpty()
+                ? (m == 2 ? "Belum ada video yang disukai." : "Belum ada riwayat tontonan. Cari video di atas.")
+                : "");
+        updateTabs();
+    }
+
+    private void confirmClearHistory() {
+        new android.app.AlertDialog.Builder(this)
+                .setMessage("Hapus semua riwayat tontonan?")
+                .setPositiveButton("Hapus", new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int w) {
+                        YtStore.clearHistory(YoutubeSearchActivity.this);
+                        showStored(1);
+                    }
+                })
+                .setNegativeButton("Batal", null)
+                .show();
     }
 
     private View row(final Row it) {
@@ -207,6 +304,8 @@ public class YoutubeSearchActivity extends Activity {
         final String q = query.getText().toString().trim();
         if (q.isEmpty()) return;
         final int gen = ++searchGen;
+        mode = 0;
+        updateTabs();
         items.clear();
         adapter.notifyDataSetChanged();
         status.setText("");
