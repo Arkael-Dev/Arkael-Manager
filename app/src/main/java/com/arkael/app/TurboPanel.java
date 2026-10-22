@@ -470,7 +470,7 @@ final class TurboPanel {
         LinearLayout seg = new LinearLayout(ctx);
         seg.setPadding(dp(3), dp(3), dp(3), dp(3));
         seg.setBackground(round(0x44000000, 22));
-        String[] names = {tr("Saver", "Hemat"), tr("Balanced", "Seimbang"), tr("Perform", "Performa"), "Boost Game"};
+        String[] names = {tr("Saver", "Hemat"), tr("Balanced", "Seimbang"), tr("Perform", "Performa"), "Turbo"};
         for (int i = 0; i < 4; i++) {
             final int m = i;
             TextView b = txt(names[i], MUTED, 12, true);
@@ -479,7 +479,7 @@ final class TurboPanel {
             b.setPadding(dp(2), dp(9), dp(2), dp(9));
             b.setOnClickListener(new View.OnClickListener() { @Override public void onClick(View v) { setMode(m); } });
             modeBtns[i] = b;
-            seg.addView(b, lpw(0, ViewGroup.LayoutParams.WRAP_CONTENT, i == 3 ? 1.6f : 1f));
+            seg.addView(b, lpw(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         }
         body.addView(seg);
         refreshModes(currentMode());
@@ -673,22 +673,18 @@ final class TurboPanel {
     }
 
     private void setMode(final int m) {
-        final int prev = Booster.dirty(ctx) ? sp.getInt("mode", 1) : 1;
         sp.edit().putInt("mode", m).apply();
         refreshModes(m);
         say(tr("Applying...", "Menerapkan..."));
         host.bg(new Runnable() { @Override public void run() {
-            if (prev == 3 && m != 3) Booster.revertAll(ctx);   // undo DND / pop-up block / thermal etc. from Boost Game
             String msg = applyMode(m);
             host.markManual();
             say(msg);
-            main.post(new Runnable() { @Override public void run() { if (alive && tab == 0 && !pickerOpen) renderBody(); } });
         } });
     }
 
     /** Runs on a background thread (root). */
     private String applyMode(int m) {
-        if (m == 3) return applyBoostGame();
         List<String> gov = Booster.governors();
         if (m == 0) {
             if (!gov.contains("powersave")) return tr("This kernel has no powersave governor", "Kernel ini tidak punya governor powersave");
@@ -702,24 +698,11 @@ final class TurboPanel {
         }
         if (!gov.contains("performance")) return tr("This kernel has no performance governor", "Kernel ini tidak punya governor performance");
         Booster.setGovernor(ctx, "performance");
-        return tr("Performance: CPU at max speed", "Performa: CPU kecepatan maks");
-    }
-
-    /** Same thing that happens when a game starts: the profile saved in Game Mode for the game on screen. */
-    private String applyBoostGame() {
-        String pkg = host.activePkg();
-        GameProfiles.Profile p = GameProfiles.get(ctx, pkg == null ? "" : pkg);
-        Booster.applyProfile(ctx, p, false);
-        List<String> on = new ArrayList<String>();
-        if (!p.gov.isEmpty()) on.add("CPU " + p.gov);
-        if (p.gpuMaxMhz > 0) on.add("GPU " + p.gpuMaxMhz + " MHz");
-        if (p.dnd) on.add(tr("Do not disturb", "Jangan ganggu"));
-        if (p.headsUp) on.add(tr("pop-ups blocked", "pop-up diblok"));
-        if (p.thermalRelax) on.add(tr("thermal relaxed", "thermal dilonggarkan"));
-        if (p.cleanRam) on.add(tr("RAM cleaned", "RAM dibersihkan"));
-        if (on.isEmpty()) return tr("Boost Game: nothing enabled in Game Mode settings", "Boost Game: belum ada yang aktif di setelan Game Mode");
-        StringBuilder sb = new StringBuilder("Boost Game: ");
-        for (int i = 0; i < on.size(); i++) { if (i > 0) sb.append(" · "); sb.append(on.get(i)); }
+        if (m == 2) return tr("Performance: CPU at max speed", "Performa: CPU kecepatan maks");
+        StringBuilder sb = new StringBuilder(tr("Turbo: CPU max", "Turbo: CPU maks"));
+        Booster.GpuInfo g = Booster.gpu();
+        if (g.ok() && Booster.setGpuMax(ctx, g.mhz[g.mhz.length - 1])) sb.append(" · GPU ").append(g.mhz[g.mhz.length - 1]).append(" MHz");
+        sb.append(" · ").append(Booster.cleanRam(ctx, false));
         return sb.toString();
     }
 
