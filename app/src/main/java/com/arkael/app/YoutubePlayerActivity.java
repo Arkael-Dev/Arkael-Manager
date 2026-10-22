@@ -116,6 +116,10 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     private String videoUrl, videoTitle;
     private BroadcastReceiver pipReceiver;
     private boolean inPip;
+    private boolean headerShown = true;    // top buttons (back, quality, audio, fullscreen, PiP)
+    private final Runnable hideHeaderRun = () -> {
+        if (player != null && player.isPlaying() && !audioMode) { headerShown = false; applyHeaderVisibility(); }
+    };
 
     private MediaItem pendingItem;         // extracted, waiting for the controller to connect
     private boolean attachedExisting;      // opened from the notification: keep what is playing
@@ -152,6 +156,13 @@ public class YoutubePlayerActivity extends AppCompatActivity {
 
         playerView = new PlayerView(this);
         playerView.setUseController(true);
+        playerView.setControllerShowTimeoutMs(3000);
+        // The top buttons follow the playback controls: they appear when the video is tapped
+        // (and once when playback starts) and fade away together with the controls.
+        playerView.setControllerVisibilityListener((PlayerView.ControllerVisibilityListener) vis -> {
+            if (vis == View.VISIBLE) showHeader();
+            else { headerShown = false; applyHeaderVisibility(); }
+        });
         playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
         playerFrame.addView(playerView, new FrameLayout.LayoutParams(-1, -1));
 
@@ -358,11 +369,15 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                 while (c != null) { Log.e(TAG, "  caused by: " + c, c); c = c.getCause(); }
                 status.setText("Playback failed [" + error.getErrorCodeName() + "]: " + error.getMessage());
                 status.setVisibility(View.VISIBLE);
+                showHeader();
             }
             @Override public void onPlaybackStateChanged(int state) {
                 spinner.setVisibility(state == Player.STATE_BUFFERING ? View.VISIBLE : View.GONE);
             }
-            @Override public void onIsPlayingChanged(boolean isPlaying) { updatePipParams(); }
+            @Override public void onIsPlayingChanged(boolean isPlaying) {
+                updatePipParams();
+                showHeader();   // playing: shows once, then hides itself; paused: stays visible
+            }
             @Override public void onVideoSizeChanged(@NonNull VideoSize size) { updatePipParams(); }
         };
         controller.addListener(playerListener);
@@ -437,6 +452,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     private void refreshAudioUi() {
         audioBadge.setVisibility(audioMode ? View.VISIBLE : View.GONE);
         btnAudioHdr.setTextColor(audioMode ? C_ACCENT : Color.WHITE);
+        applyHeaderVisibility();
     }
 
     private void showQualityDialog() {
@@ -526,7 +542,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         t.setTextSize(18);
         t.setGravity(Gravity.CENTER);
         t.setBackground(oval(Color.parseColor("#66000000")));
-        t.setOnClickListener(l);
+        t.setOnClickListener(v -> { l.onClick(v); showHeader(); });
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(dp(40), dp(40));
         lp.leftMargin = dp(6);
         lp.rightMargin = dp(2);
@@ -591,7 +607,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         if (playerFrame == null) return;
         boolean full = inPip || isLandscape();
         scroll.setVisibility(full ? View.GONE : View.VISIBLE);
-        header.setVisibility(inPip ? View.GONE : View.VISIBLE);
+        applyHeaderVisibility();
         LinearLayout.LayoutParams lp = (LinearLayout.LayoutParams) playerFrame.getLayoutParams();
         lp.height = full ? ViewGroup.LayoutParams.MATCH_PARENT : portraitPlayerHeight();
         lp.weight = 0;
@@ -608,6 +624,20 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     public void onConfigurationChanged(@NonNull Configuration newConfig) {
         super.onConfigurationChanged(newConfig);
         applyLayout();
+    }
+
+    /** Header is visible only briefly; always visible in audio mode (nothing else to tap) and never in PiP. */
+    private void applyHeaderVisibility() {
+        if (header == null) return;
+        boolean show = !inPip && (headerShown || audioMode);
+        header.setVisibility(show ? View.VISIBLE : View.GONE);
+    }
+
+    private void showHeader() {
+        headerShown = true;
+        applyHeaderVisibility();
+        playerFrame.removeCallbacks(hideHeaderRun);
+        if (player != null && player.isPlaying()) playerFrame.postDelayed(hideHeaderRun, 3500);
     }
 
     private void toggleFullscreen() {
@@ -928,6 +958,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         if (pipReceiver != null) { try { unregisterReceiver(pipReceiver); } catch (Exception ignored) {} }
+        if (playerFrame != null) playerFrame.removeCallbacks(hideHeaderRun);
         if (playerView != null) playerView.setPlayer(null);
         if (controller != null) {
             // Closing the screen in video mode ends playback; in audio mode the service keeps going.
