@@ -3,7 +3,6 @@ package com.arkael.app;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.net.Uri;
-import android.os.Bundle;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -85,20 +84,7 @@ public class YoutubeAudioService extends MediaSessionService {
             for (MediaItem it : mediaItems) {
                 Uri u = it.requestMetadata.mediaUri;
                 if (u == null && it.localConfiguration != null) u = it.localConfiguration.uri;
-                MediaItem.Builder nb = it.buildUpon();
-                if (u != null) nb.setUri(u);
-                Bundle ex = it.requestMetadata.extras;
-                if (ex != null && ex.getStringArrayList("sub_url") != null) {
-                    List<String> su = ex.getStringArrayList("sub_url"), sl = ex.getStringArrayList("sub_lang"),
-                            sm = ex.getStringArrayList("sub_mime"), sb = ex.getStringArrayList("sub_label");
-                    List<MediaItem.SubtitleConfiguration> subs = new ArrayList<MediaItem.SubtitleConfiguration>();
-                    for (int i = 0; i < su.size(); i++) {
-                        subs.add(new MediaItem.SubtitleConfiguration.Builder(Uri.parse(su.get(i)))
-                                .setMimeType(sm.get(i)).setLanguage(sl.get(i)).setLabel(sb.get(i)).setSelectionFlags(0).build());
-                    }
-                    nb.setSubtitleConfigurations(subs);
-                }
-                out.add(u == null ? it : nb.build());
+                out.add(u == null ? it : it.buildUpon().setUri(u).build());
             }
             return Futures.immediateFuture(out);
         }
