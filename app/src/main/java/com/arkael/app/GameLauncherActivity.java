@@ -11,6 +11,8 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
+import android.graphics.Bitmap;
+import android.graphics.BitmapShader;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.ColorFilter;
@@ -346,56 +348,64 @@ public class GameLauncherActivity extends Activity {
         }
     }
 
-    /** One game card of the carousel: game art as backdrop, neon animated border, round icon, name and play time. */
+    /** One game card of the carousel. Drawn once into a GPU layer; moving/tilting it afterwards costs almost nothing. */
     static final class GameCard extends View {
         int idx = -1;
-        private Drawable icon;
+        private Bitmap art;
         private String name = "", sub = "";
-        private float focus, phase;
+        private boolean on;
+        private float phase;
         private final float d;
         private final Paint base = new Paint(Paint.ANTI_ALIAS_FLAG), line = new Paint(Paint.ANTI_ALIAS_FLAG),
-                shadeP = new Paint(), dim = new Paint(), ring = new Paint(Paint.ANTI_ALIAS_FLAG);
+                shadeP = new Paint(), dim = new Paint(), ring = new Paint(Paint.ANTI_ALIAS_FLAG),
+                bmp = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG), circP = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final TextPaint txt = new TextPaint(Paint.ANTI_ALIAS_FLAG), subP = new TextPaint(Paint.ANTI_ALIAS_FLAG);
-        private final Path path = new Path(), circ = new Path();
-        private final Matrix mx = new Matrix();
+        private final Path path = new Path();
+        private final Matrix mx = new Matrix(), cm = new Matrix();
+        private final RectF dst = new RectF();
         private LinearGradient neon;
-        private ValueAnimator va;
+        private BitmapShader iconShader;
+        private String nameS = "", subS = "";
 
         GameCard(Context c) {
             super(c);
             d = c.getResources().getDisplayMetrics().density;
+            setLayerType(LAYER_TYPE_HARDWARE, null);
             base.setColor(Color.parseColor("#0B1024"));
+            dim.setColor(Color.argb(95, 5, 8, 22));
             line.setStyle(Paint.Style.STROKE);
             ring.setStyle(Paint.Style.STROKE);
             ring.setStrokeWidth(2 * d);
+            ring.setColor(Color.WHITE);
             txt.setColor(Color.WHITE); txt.setTextSize(16 * d);
             txt.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
             subP.setColor(Color.parseColor("#C9D2F0")); subP.setTextSize(10.5f * d);
         }
 
-        void bind(Drawable ic, String n, String s) { icon = ic; name = n == null ? "" : n; sub = s == null ? "" : s; invalidate(); }
-        void setFocus(float f) { if (Math.abs(f - focus) > 0.004f) { focus = f; invalidate(); } }
+        void bind(Bitmap a, String n, String s) {
+            art = a; name = n == null ? "" : n; sub = s == null ? "" : s;
+            iconShader = a == null ? null : new BitmapShader(a, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
+            prepareText();
+            invalidate();
+        }
+        /** Only two looks (focused / not), so a card is not re-drawn while it slides. */
+        void setFocus(float f) { boolean n = f > 0.5f; if (n != on) { on = n; invalidate(); } }
+        void setPhase(float p) { phase = p; invalidate(); }
+
+        private float iconR() { return 21 * d; }
+        private void prepareText() {
+            int w = getWidth();
+            if (w <= 0) { nameS = name; subS = sub; return; }
+            float tx = 16 * d + iconR() + 6 * d + iconR() + 11 * d, avail = w - tx - 16 * d;
+            nameS = avail > 20 * d ? TextUtils.ellipsize(name, txt, avail, TextUtils.TruncateAt.END).toString() : "";
+            subS = avail > 20 * d ? TextUtils.ellipsize(sub, subP, avail, TextUtils.TruncateAt.END).toString() : "";
+        }
 
         @Override protected void onSizeChanged(int w, int h, int ow, int oh) {
             buildPath(path, new RectF(6 * d, 6 * d, w - 6 * d, h - 6 * d), 16 * d, new boolean[]{true, false, true, false});
             neon = new LinearGradient(0, 0, w, 0, new int[]{NEON_PINK, NEON_VIOLET, NEON_BLUE}, null, Shader.TileMode.MIRROR);
             shadeP.setShader(new LinearGradient(0, 0, 0, h, Color.parseColor("#40050914"), Color.parseColor("#F0050914"), Shader.TileMode.CLAMP));
-        }
-        @Override protected void onAttachedToWindow() {
-            super.onAttachedToWindow();
-            va = ValueAnimator.ofFloat(0f, 1f);
-            va.setDuration(3600);
-            va.setRepeatCount(ValueAnimator.INFINITE);
-            va.setInterpolator(new LinearInterpolator());
-            va.addUpdateListener(a -> {
-                phase = (Float) a.getAnimatedValue();
-                if (focus > 0.3f && getVisibility() == VISIBLE) invalidate();
-            });
-            va.start();
-        }
-        @Override protected void onDetachedFromWindow() {
-            super.onDetachedFromWindow();
-            if (va != null) { va.cancel(); va = null; }
+            prepareText();
         }
         @Override protected void onDraw(Canvas cv) {
             int w = getWidth(), h = getHeight();
@@ -403,45 +413,36 @@ public class GameLauncherActivity extends Activity {
             mx.setTranslate(phase * 2f * w, 0);
             neon.setLocalMatrix(mx);
             line.setShader(neon);
-            // soft neon glow outside the card
-            line.setStrokeWidth(10 * d); line.setAlpha((int) (30 + 80 * focus)); cv.drawPath(path, line);
-            line.setStrokeWidth(5 * d);  line.setAlpha((int) (50 + 100 * focus)); cv.drawPath(path, line);
+            line.setStrokeWidth(10 * d); line.setAlpha(on ? 110 : 40); cv.drawPath(path, line);
+            line.setStrokeWidth(5 * d);  line.setAlpha(on ? 150 : 60); cv.drawPath(path, line);
 
             cv.save();
             cv.clipPath(path);
             cv.drawPath(path, base);
-            if (icon != null) {
+            if (art != null) {
                 float s = w * 1.15f, cx = w / 2f, cy = h * 0.40f;
-                icon.setBounds((int) (cx - s / 2), (int) (cy - s / 2), (int) (cx + s / 2), (int) (cy + s / 2));
-                icon.draw(cv);
+                dst.set(cx - s / 2, cy - s / 2, cx + s / 2, cy + s / 2);
+                cv.drawBitmap(art, null, dst, bmp);
             }
             cv.drawRect(0, 0, w, h, shadeP);
-            if (focus < 1f) {
-                dim.setColor(Color.argb((int) (120 * (1f - focus)), 5, 8, 22));
-                cv.drawRect(0, 0, w, h, dim);
-            }
+            if (!on) cv.drawRect(0, 0, w, h, dim);
             cv.restore();
 
-            line.setStrokeWidth(2.2f * d); line.setAlpha((int) (170 + 85 * focus)); cv.drawPath(path, line);
+            line.setStrokeWidth(2.2f * d); line.setAlpha(on ? 255 : 170); cv.drawPath(path, line);
 
-            // round game icon + texts at the bottom
-            float r = 21 * d, cxI = 16 * d + r + 6 * d, cyI = h - 14 * d - r - 6 * d;
-            if (icon != null) {
-                circ.reset();
-                circ.addCircle(cxI, cyI, r, Path.Direction.CW);
-                cv.save();
-                cv.clipPath(circ);
-                icon.setBounds((int) (cxI - r), (int) (cyI - r), (int) (cxI + r), (int) (cyI + r));
-                icon.draw(cv);
-                cv.restore();
+            float r = iconR(), cxI = 16 * d + r + 6 * d, cyI = h - 14 * d - r - 6 * d;
+            if (iconShader != null) {
+                cm.setScale(2 * r / art.getWidth(), 2 * r / art.getHeight());
+                cm.postTranslate(cxI - r, cyI - r);
+                iconShader.setLocalMatrix(cm);
+                circP.setShader(iconShader);
+                cv.drawCircle(cxI, cyI, r, circP);
             }
-            ring.setColor(Color.WHITE); ring.setAlpha((int) (110 + 120 * focus));
+            ring.setAlpha(on ? 230 : 120);
             cv.drawCircle(cxI, cyI, r + 1.5f * d, ring);
-            float tx = cxI + r + 11 * d, avail = w - tx - 16 * d;
-            if (avail > 20 * d) {
-                cv.drawText(TextUtils.ellipsize(name, txt, avail, TextUtils.TruncateAt.END).toString(), tx, cyI - 1 * d, txt);
-                cv.drawText(TextUtils.ellipsize(sub, subP, avail, TextUtils.TruncateAt.END).toString(), tx, cyI + 15 * d, subP);
-            }
+            float tx = cxI + r + 11 * d;
+            cv.drawText(nameS, tx, cyI - 1 * d, txt);
+            cv.drawText(subS, tx, cyI + 15 * d, subP);
         }
     }
 
@@ -471,68 +472,104 @@ public class GameLauncherActivity extends Activity {
         }
     }
 
-    /** Dark navy background with a breathing neon glow and rotating HUD rings behind the cards. */
+    /** Static dark navy background with soft glows. Drawn once; never invalidated. */
     static final class BgView extends View {
-        private final Paint bg = new Paint(), glow = new Paint(), glow2 = new Paint(), ringP = new Paint(Paint.ANTI_ALIAS_FLAG), thin = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint bg = new Paint(), glow = new Paint(), glow2 = new Paint(), thin = new Paint(Paint.ANTI_ALIAS_FLAG);
         private final float d;
-        private float phase;
-        private ValueAnimator va;
-        private DashPathEffect dashA, dashB;
 
         BgView(Context c) {
             super(c);
             d = c.getResources().getDisplayMetrics().density;
-            ringP.setStyle(Paint.Style.STROKE);
+            setLayerType(LAYER_TYPE_HARDWARE, null);
             thin.setStyle(Paint.Style.STROKE);
             thin.setStrokeWidth(1 * d);
             thin.setColor(Color.argb(40, 140, 120, 255));
         }
+        private float cy(int h) { return 56 * d + (h - 56 * d - 118 * d) / 2f; }
         @Override protected void onSizeChanged(int w, int h, int ow, int oh) {
             bg.setShader(new LinearGradient(0, 0, 0, h, Color.parseColor("#0D1233"), Color.parseColor("#04050D"), Shader.TileMode.CLAMP));
-            float cy = cy(h);
-            glow.setShader(new RadialGradient(w / 2f, cy, Math.max(w, h) * 0.46f, Color.argb(255, 120, 60, 255), Color.TRANSPARENT, Shader.TileMode.CLAMP));
+            glow.setShader(new RadialGradient(w / 2f, cy(h), Math.max(w, h) * 0.46f, Color.argb(255, 120, 60, 255), Color.TRANSPARENT, Shader.TileMode.CLAMP));
+            glow.setAlpha(80);
             glow2.setShader(new RadialGradient(w / 2f, h * 1.02f, w * 0.36f, Color.argb(255, 255, 30, 60), Color.TRANSPARENT, Shader.TileMode.CLAMP));
-            float r = h * 0.36f;
-            dashA = new DashPathEffect(new float[]{r * 0.22f, r * 0.10f}, 0);
-            dashB = new DashPathEffect(new float[]{r * 0.06f, r * 0.09f}, 0);
+            glow2.setAlpha(65);
         }
-        private float cy(int h) { return 56 * d + (h - 56 * d - 118 * d) / 2f; }
+        @Override protected void onDraw(Canvas cv) {
+            int w = getWidth(), h = getHeight();
+            cv.drawRect(0, 0, w, h, bg);
+            cv.drawRect(0, 0, w, h, glow);
+            cv.drawRect(0, 0, w, h, glow2);
+            cv.drawCircle(w / 2f, cy(h), h * 0.36f * 1.32f, thin);
+        }
+    }
+
+    /** One dashed HUD ring. Drawn once; the spin is just view.setRotation, which the GPU does for free. */
+    static final class RingView extends View {
+        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final float d, sw, dashOn, dashOff;
+        RingView(Context c, float swDp, int color, float on, float off) {
+            super(c);
+            d = c.getResources().getDisplayMetrics().density;
+            sw = swDp * d; dashOn = on; dashOff = off;
+            setLayerType(LAYER_TYPE_HARDWARE, null);
+            p.setStyle(Paint.Style.STROKE);
+            p.setStrokeWidth(sw);
+            p.setColor(color);
+        }
+        @Override protected void onSizeChanged(int w, int h, int ow, int oh) {
+            float r = Math.min(w, h) / 2f;
+            p.setPathEffect(new DashPathEffect(new float[]{r * dashOn, r * dashOff}, 0));
+        }
+        @Override protected void onDraw(Canvas cv) {
+            float r = Math.min(getWidth(), getHeight()) / 2f - sw;
+            cv.drawCircle(getWidth() / 2f, getHeight() / 2f, r, p);
+        }
+    }
+
+    /** Two slowly counter-rotating rings behind the carousel. */
+    static final class HudRings extends FrameLayout {
+        private final RingView a, b;
+        private final float d;
+        private ValueAnimator va;
+
+        HudRings(Context c) {
+            super(c);
+            d = c.getResources().getDisplayMetrics().density;
+            a = new RingView(c, 2.2f, Color.argb(110, 150, 110, 255), 0.22f, 0.10f);
+            b = new RingView(c, 3.5f, Color.argb(80, 70, 140, 255), 0.06f, 0.09f);
+            addView(a);
+            addView(b);
+        }
+        @Override protected void onMeasure(int wms, int hms) {
+            int w = MeasureSpec.getSize(wms), h = MeasureSpec.getSize(hms);
+            float r = h * 0.36f;
+            a.measure(MeasureSpec.makeMeasureSpec((int) (2 * r + 10 * d), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec((int) (2 * r + 10 * d), MeasureSpec.EXACTLY));
+            b.measure(MeasureSpec.makeMeasureSpec((int) (2 * r * 1.16f + 10 * d), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec((int) (2 * r * 1.16f + 10 * d), MeasureSpec.EXACTLY));
+            setMeasuredDimension(w, h);
+        }
+        @Override protected void onLayout(boolean ch, int l, int t, int r, int bt) {
+            int w = r - l, h = bt - t;
+            float cy = 56 * d + (h - 56 * d - 118 * d) / 2f;
+            for (View v : new View[]{a, b}) {
+                int hw = v.getMeasuredWidth() / 2;
+                v.layout((int) (w / 2f - hw), (int) (cy - hw), (int) (w / 2f + hw), (int) (cy + hw));
+            }
+        }
         @Override protected void onAttachedToWindow() {
             super.onAttachedToWindow();
-            va = ValueAnimator.ofFloat(0f, 1f);
-            va.setDuration(14000);
+            va = ValueAnimator.ofFloat(0f, 360f);
+            va.setDuration(16000);
             va.setRepeatCount(ValueAnimator.INFINITE);
             va.setInterpolator(new LinearInterpolator());
-            va.addUpdateListener(a -> { phase = (Float) a.getAnimatedValue(); invalidate(); });
+            va.addUpdateListener(an -> {
+                float v = (Float) an.getAnimatedValue();
+                a.setRotation(v);
+                b.setRotation(-v * 0.6f);
+            });
             va.start();
         }
         @Override protected void onDetachedFromWindow() {
             super.onDetachedFromWindow();
             if (va != null) { va.cancel(); va = null; }
-        }
-        @Override protected void onDraw(Canvas cv) {
-            int w = getWidth(), h = getHeight();
-            cv.drawRect(0, 0, w, h, bg);
-            double br = Math.sin(phase * 2 * Math.PI * 2);
-            glow.setAlpha((int) (70 + 26 * br));
-            cv.drawRect(0, 0, w, h, glow);
-            glow2.setAlpha((int) (60 + 20 * br));
-            cv.drawRect(0, 0, w, h, glow2);
-            float cx = w / 2f, cy = cy(h), r = h * 0.36f;
-            cv.drawCircle(cx, cy, r * 1.32f, thin);
-            ringP.setStrokeWidth(2.2f * d);
-            ringP.setColor(Color.argb(110, 150, 110, 255));
-            ringP.setPathEffect(dashA);
-            cv.save(); cv.rotate(phase * 360f, cx, cy);
-            cv.drawCircle(cx, cy, r, ringP);
-            cv.restore();
-            ringP.setStrokeWidth(3.5f * d);
-            ringP.setColor(Color.argb(80, 70, 140, 255));
-            ringP.setPathEffect(dashB);
-            cv.save(); cv.rotate(-phase * 360f * 0.6f, cx, cy);
-            cv.drawCircle(cx, cy, r * 1.16f, ringP);
-            cv.restore();
-            ringP.setPathEffect(null);
         }
     }
 
@@ -543,6 +580,7 @@ public class GameLauncherActivity extends Activity {
     private static final class Game {
         String pkg, name;
         Drawable icon;
+        Bitmap art;
     }
 
     private final List<Game> games = new ArrayList<Game>();
@@ -562,6 +600,9 @@ public class GameLauncherActivity extends Activity {
     private float pos = 0f;
     private ValueAnimator posAnim;
     private boolean muted, launching, pollOn, settled;
+    private long lastTouch;
+    private ValueAnimator shim;
+    private int shimStep = -1;
     private volatile boolean polling;
     private long prevIdle = -1, prevTotal = -1;
     private String gpuPath;
@@ -582,6 +623,7 @@ public class GameLauncherActivity extends Activity {
 
         root = new FrameLayout(this);
         root.addView(new BgView(this), new FrameLayout.LayoutParams(-1, -1));
+        root.addView(new HudRings(this), new FrameLayout.LayoutParams(-1, -1));
 
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
@@ -610,6 +652,7 @@ public class GameLauncherActivity extends Activity {
         icCpu = new Ico(this, I_CPU, RED);
         icGpu = new Ico(this, I_GPU, RED);
         stBat = new TextView(this); stCpu = new TextView(this); stGpu = new TextView(this);
+        stBat.setMinWidth(dp(40)); stCpu.setMinWidth(dp(76)); stGpu.setMinWidth(dp(100));
         top.addView(chip(icBat, stBat, "--%"));
         top.addView(chip(icCpu, stCpu, "CPU --"));
         top.addView(chip(icGpu, stGpu, "GPU --"));
@@ -656,6 +699,7 @@ public class GameLauncherActivity extends Activity {
             }
         });
         stage.setOnTouchListener((v, e) -> {
+            lastTouch = System.currentTimeMillis();
             if (e.getActionMasked() == MotionEvent.ACTION_DOWN) settled = false;
             gd.onTouchEvent(e);
             int a = e.getActionMasked();
@@ -805,7 +849,7 @@ public class GameLauncherActivity extends Activity {
             float a1 = Math.min(ar, 1f), a2 = Math.max(0f, Math.min(ar - 1f, 2f));
             if (c.idx != idx) {
                 Game g = games.get(idx);
-                c.bind(g.icon, g.name, playText(g.pkg));
+                c.bind(g.art, g.name, playText(g.pkg));
                 c.idx = idx;
             }
             float sc = 1f - 0.2f * a1 - 0.06f * a2;
@@ -824,6 +868,37 @@ public class GameLauncherActivity extends Activity {
             playFx(sSelect, 0.8f);
             updateSummary();
         }
+    }
+
+    private static Bitmap toBitmap(Drawable dr, int size) {
+        try {
+            Bitmap bm = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
+            Canvas cv = new Canvas(bm);
+            dr.setBounds(0, 0, size, size);
+            dr.draw(cv);
+            return bm;
+        } catch (Throwable t) { return null; }
+    }
+
+    private void setIf(TextView t, String v) {
+        if (!v.contentEquals(t.getText())) t.setText(v);
+    }
+
+    /** Slow neon shimmer on the centre card only, ~16 steps/s, and paused while the user is swiping. */
+    private void startShimmer() {
+        if (shim != null) shim.cancel();
+        shim = ValueAnimator.ofFloat(0f, 1f);
+        shim.setDuration(3600);
+        shim.setRepeatCount(ValueAnimator.INFINITE);
+        shim.setInterpolator(new LinearInterpolator());
+        shim.addUpdateListener(a -> {
+            int step = (int) ((Float) a.getAnimatedValue() * 58f);
+            if (step == shimStep) return;
+            shimStep = step;
+            if (System.currentTimeMillis() - lastTouch < 700 || (posAnim != null && posAnim.isRunning())) return;
+            for (GameCard c : cards) if (c.idx == sel && c.getVisibility() == View.VISIBLE) c.setPhase(step / 58f);
+        });
+        shim.start();
     }
 
     private void updateSummary() {
@@ -869,20 +944,20 @@ public class GameLauncherActivity extends Activity {
     private final Runnable poll = new Runnable() {
         @Override public void run() {
             if (!pollOn) return;
-            if (!polling) {
+            if (!polling && System.currentTimeMillis() - lastTouch > 1500) {
                 polling = true;
                 new Thread(() -> {
                     try {
                         final int[] v = readStats();
                         runOnUiThread(() -> {
                             final int bat = v[0], cpu = v[1], gpu = v[2], gmhz = v[3];
-                            stBat.setText((bat < 0 ? "--" : String.valueOf(bat)) + "%");
+                            setIf(stBat, (bat < 0 ? "--" : String.valueOf(bat)) + "%");
                             icBat.level = bat < 0 ? 1f : bat / 100f;
                             icBat.set(I_BAT, bat >= 0 && bat < 20 ? RED : GREEN);
-                            stCpu.setText("CPU " + (cpu < 0 ? "--" : cpu + "%"));
-                            if (gpu >= 0) stGpu.setText("GPU " + gpu + "%");
-                            else if (gmhz > 0) stGpu.setText("GPU " + gmhz + " MHz");
-                            else stGpu.setText("GPU --");
+                            setIf(stCpu, "CPU " + (cpu < 0 ? "--" : cpu + "%"));
+                            if (gpu >= 0) setIf(stGpu, "GPU " + gpu + "%");
+                            else if (gmhz > 0) setIf(stGpu, "GPU " + gmhz + " MHz");
+                            else setIf(stGpu, "GPU --");
                         });
                     } finally {
                         polling = false;
@@ -1047,6 +1122,7 @@ public class GameLauncherActivity extends Activity {
                 g.pkg = pkg;
                 g.name = String.valueOf(ri.loadLabel(pm));
                 g.icon = ri.loadIcon(pm);
+                g.art = toBitmap(g.icon, 160);
                 out.add(g);
             }
             Collections.sort(out, new Comparator<Game>() {
@@ -1246,6 +1322,7 @@ public class GameLauncherActivity extends Activity {
         pollOn = true;
         main.removeCallbacks(poll);
         main.post(poll);
+        startShimmer();
     }
 
     @Override
@@ -1253,6 +1330,7 @@ public class GameLauncherActivity extends Activity {
         super.onPause();
         pollOn = false;
         main.removeCallbacks(poll);
+        if (shim != null) { shim.cancel(); shim = null; }
     }
 
     /** Opens the existing per-game profile settings. Tries the likely screen names, else the game list. */
