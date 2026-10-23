@@ -72,6 +72,7 @@ import org.schabi.newpipe.extractor.InfoItem;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.stream.StreamInfo;
+import org.schabi.newpipe.extractor.stream.AudioStream;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 import org.schabi.newpipe.extractor.stream.SubtitlesStream;
 import org.schabi.newpipe.extractor.stream.VideoStream;
@@ -113,6 +114,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
 
     private PlayerView playerView;
     private TextView subText;
+    private StreamInfo curInfo;               // last extracted video, used by the download picker
     private static final class SubOpt { String label, url; }
     private static final class Cue { long start, end; String text; }
     private final List<SubOpt> subOpts = new ArrayList<SubOpt>();
@@ -307,6 +309,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         chips.addView(chipQuality);
         chips.addView(chip("💬  Subtitle", v -> showSubtitleDialog()));
         chips.addView(chip("🔊  Suara", v -> showAudioLangDialog()));
+        chips.addView(chip("⬇  Download", v -> showDownloadDialog()));
         chips.addView(chip("↗  Bagikan", v -> shareLink()));
         chips.addView(chip("⧉  Salin link", v -> copyLink()));
         chipsScroll.addView(chips);
@@ -802,6 +805,114 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                 .show();
     }
 
+    // ---------------------------------------------------------------- download
+
+    private static final class DlOpt { String label, kind, ext, video, audio, res; int h; }
+
+    private static int hOf(String r) {
+        if (r == null) return 0;
+        int i = r.indexOf('p');
+        try { return Integer.parseInt(r.substring(0, i < 0 ? r.length() : i).replaceAll("\\D", "")); } catch (Exception e) { return 0; }
+    }
+
+    private static boolean isAv1(String url) {   // AV1 inside mp4 cannot be joined on most phones: skip by itag
+        try {
+            String t = Uri.parse(url).getQueryParameter("itag");
+            int i = t == null ? 0 : Integer.parseInt(t);
+            return (i >= 394 && i <= 402) || i == 571 || (i >= 694 && i <= 702);
+        } catch (Exception e) { return false; }
+    }
+
+    private static List<DlOpt> downloadOptions(StreamInfo info) {
+        AudioStream m4a = null, webm = null;
+        if (info.getAudioStreams() != null) {
+            for (AudioStream a : info.getAudioStreams()) {
+                String u = a.getContent();
+                if (!a.isUrl() || u == null || u.toLowerCase(Locale.ROOT).contains("dubbed")) continue;   // keep the original language
+                String x = a.getFormat() == null ? "" : a.getFormat().getSuffix();
+                if ("m4a".equals(x) && (m4a == null || a.getAverageBitrate() > m4a.getAverageBitrate())) m4a = a;
+                if ("webm".equals(x) && (webm == null || a.getAverageBitrate() > webm.getAverageBitrate())) webm = a;
+            }
+        }
+        java.util.LinkedHashMap<String, VideoStream> mp4 = new java.util.LinkedHashMap<String, VideoStream>();
+        java.util.LinkedHashMap<String, VideoStream> wb = new java.util.LinkedHashMap<String, VideoStream>();
+        if (info.getVideoOnlyStreams() != null) {
+            for (VideoStream v : info.getVideoOnlyStreams()) {
+                String u = v.getContent(), r = v.getResolution();
+                if (!v.isUrl() || u == null || r == null) continue;
+                String x = v.getFormat() == null ? "" : v.getFormat().getSuffix();
+                if ("mp4".equals(x)) { if (!isAv1(u) && !mp4.containsKey(r)) mp4.put(r, v); }
+                else if ("webm".equals(x)) { if (!wb.containsKey(r)) wb.put(r, v); }
+            }
+        }
+        List<DlOpt> vids = new ArrayList<DlOpt>();
+        int maxMp4 = 0;
+        if (m4a != null) {
+            for (java.util.Map.Entry<String, VideoStream> e : mp4.entrySet()) {
+                DlOpt o = new DlOpt();
+                o.res = e.getKey(); o.h = hOf(o.res); o.label = o.res + " · MP4";
+                o.kind = "mp4"; o.ext = "mp4"; o.video = e.getValue().getContent(); o.audio = m4a.getContent();
+                vids.add(o);
+                maxMp4 = Math.max(maxMp4, o.h);
+            }
+        }
+        if (webm != null) {
+            for (java.util.Map.Entry<String, VideoStream> e : wb.entrySet()) {
+                if (hOf(e.getKey()) <= maxMp4) continue;   // only the sizes MP4 cannot offer (1440p, 4K...)
+                DlOpt o = new DlOpt();
+                o.res = e.getKey(); o.h = hOf(o.res); o.label = o.res + " · WebM";
+                o.kind = "webm"; o.ext = "webm"; o.video = e.getValue().getContent(); o.audio = webm.getContent();
+                vids.add(o);
+            }
+        }
+        if (info.getVideoStreams() != null) {
+            for (VideoStream v : info.getVideoStreams()) {
+                String u = v.getContent(), r = v.getResolution();
+                if (v.isVideoOnly() || !v.isUrl() || u == null || r == null || mp4.containsKey(r)) continue;
+                String x = v.getFormat() == null ? "" : v.getFormat().getSuffix();
+                if (!"mp4".equals(x)) continue;
+                DlOpt o = new DlOpt();
+                o.res = r; o.h = hOf(r); o.label = r + " · MP4 (langsung, ada suara)";
+                o.kind = "direct"; o.ext = "mp4"; o.video = u;
+                vids.add(o);
+            }
+        }
+        java.util.Collections.sort(vids, (p, q) -> q.h - p.h);
+        if (m4a != null) {
+            DlOpt o = new DlOpt();
+            o.res = "audio"; o.label = "🎵 Audio saja · M4A";
+            o.kind = "audio"; o.ext = "m4a"; o.audio = m4a.getContent();
+            vids.add(o);
+        }
+        return vids;
+    }
+
+    private void showDownloadDialog() {
+        if (curInfo == null) {
+            Toast.makeText(this, "Video belum siap, tunggu sebentar", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        final StreamInfo info = curInfo;
+        final List<DlOpt> opts = downloadOptions(info);
+        if (opts.isEmpty()) {
+            Toast.makeText(this, "Tidak ada file yang bisa diunduh untuk video ini", Toast.LENGTH_LONG).show();
+            return;
+        }
+        String[] labels = new String[opts.size()];
+        for (int i = 0; i < opts.size(); i++) labels[i] = opts.get(i).label;
+        new AlertDialog.Builder(this)
+                .setTitle("Download")
+                .setItems(labels, (d, which) -> {
+                    DlOpt o = opts.get(which);
+                    ensureNotificationPermission();
+                    YoutubeDownloadService.start(this, info.getName() == null ? "video" : info.getName(),
+                            o.kind, o.video, o.audio, o.ext, "audio".equals(o.kind) ? "" : o.res);
+                    Toast.makeText(this, "Download dimulai, lihat di notifikasi", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton("Batal", null)
+                .show();
+    }
+
     private void toggleLike() {
         YtStore.Entry e = curEntry;
         if (e == null) {
@@ -1046,6 +1157,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
 
     private void populate(StreamInfo info) {
         buildSubOptions(info);
+        curInfo = info;
         if (info.getName() != null && !info.getName().isEmpty()) title.setText(info.getName());
 
         StringBuilder m = new StringBuilder();

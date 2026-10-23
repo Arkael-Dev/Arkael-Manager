@@ -23,6 +23,7 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
     <application android:localeConfig="@xml/ax_locales_config"
         android:label="Arkael Manager"
         android:icon="@mipmap/ic_arkael"
@@ -76,5 +77,7 @@
             android:enabled="false" android:exported="false">
             <meta-data android:name="autoStoreLocales" android:value="true"/>
         </service>
+        <service android:name=".YoutubeDownloadService" android:exported="false"
+            android:foregroundServiceType="dataSync"/>
     </application>
 </manifest>
