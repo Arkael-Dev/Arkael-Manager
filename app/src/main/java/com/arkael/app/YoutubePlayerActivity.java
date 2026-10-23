@@ -50,6 +50,7 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.MediaMetadata;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
+import androidx.media3.common.TrackSelectionOverride;
 import androidx.media3.common.TrackSelectionParameters;
 import androidx.media3.common.Tracks;
 import androidx.media3.common.VideoSize;
@@ -72,10 +73,10 @@ import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.stream.StreamInfo;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
+import org.schabi.newpipe.extractor.stream.SubtitlesStream;
 import org.schabi.newpipe.extractor.stream.VideoStream;
 
 import java.util.ArrayList;
-import org.schabi.newpipe.extractor.stream.SubtitlesStream;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -102,6 +103,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     private static final int REQ_NOTIF = 77;
     private static final String PREFS = "ark_yt";
     private static final String K_QUALITY = "quality_h";
+    private static final String K_AUDIOLANG = "audio_lang";
 
     private static final int C_BG = Color.parseColor("#0A0D12");
     private static final int C_CARD = Color.parseColor("#141A22");
@@ -182,6 +184,12 @@ public class YoutubePlayerActivity extends AppCompatActivity {
             else { headerShown = false; applyHeaderVisibility(); }
         });
         playerView.setResizeMode(AspectRatioFrameLayout.RESIZE_MODE_FIT);
+        if (playerView.getSubtitleView() != null) {   // captions drawn on top of the video, readable on any scene
+            playerView.getSubtitleView().setStyle(new androidx.media3.ui.CaptionStyleCompat(Color.WHITE,
+                    Color.argb(150, 0, 0, 0), Color.TRANSPARENT, androidx.media3.ui.CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                    Color.BLACK, null));
+            playerView.getSubtitleView().setFractionalTextSize(androidx.media3.ui.SubtitleView.DEFAULT_TEXT_SIZE_FRACTION * 1.15f);
+        }
         playerFrame.addView(playerView, new FrameLayout.LayoutParams(-1, -1));
 
         audioBadge = new TextView(this);
@@ -267,7 +275,8 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         chips.addView(chipLike);
         chips.addView(chipAudio);
         chips.addView(chipQuality);
-        chips.addView(chip("📝  Subtitle", v -> showSubtitleDialog()));
+        chips.addView(chip("💬  Subtitle", v -> showSubtitleDialog()));
+        chips.addView(chip("🔊  Suara", v -> showAudioLangDialog()));
         chips.addView(chip("↗  Bagikan", v -> shareLink()));
         chips.addView(chip("⧉  Salin link", v -> copyLink()));
         chipsScroll.addView(chips);
@@ -490,6 +499,9 @@ public class YoutubePlayerActivity extends AppCompatActivity {
 
     private void startPlayback(MediaItem item) {
         playerView.setPlayer(controller);
+        // subtitles start off for every video; the Subtitle chip turns them on (not remembered)
+        controller.setTrackSelectionParameters(controller.getTrackSelectionParameters().buildUpon()
+                .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true).clearOverridesOfType(C.TRACK_TYPE_TEXT).build());
         controller.setMediaItem(item);
         applyTrackPrefs();
         controller.setPlayWhenReady(true);
@@ -506,6 +518,9 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         } else {
             b.clearVideoSizeConstraints();
         }
+        android.content.SharedPreferences sp = getSharedPreferences(PREFS, MODE_PRIVATE);
+        String audioLang = sp.getString(K_AUDIOLANG, "");
+        if (!audioLang.isEmpty()) b.setPreferredAudioLanguage(audioLang);
         controller.setTrackSelectionParameters(b.build());
     }
 
@@ -566,6 +581,94 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                 .show();
     }
 
+    // ---------------------------------------------------------------- subtitles / audio language
+
+    private static String langName(String tag) {
+        if (tag == null || tag.isEmpty() || "und".equals(tag)) return "";
+        String n = Locale.forLanguageTag(tag).getDisplayLanguage();
+        if (n == null || n.isEmpty()) return tag;
+        return n.substring(0, 1).toUpperCase() + n.substring(1);
+    }
+
+    private static String trackLabel(androidx.media3.common.Format f, int index) {
+        if (f.label != null && !f.label.isEmpty()) return f.label;
+        String n = langName(f.language);
+        return n.isEmpty() ? "Track " + (index + 1) : n;
+    }
+
+    private void showSubtitleDialog() {
+        if (controller == null) return;
+        final List<Tracks.Group> gs = new ArrayList<Tracks.Group>();
+        for (Tracks.Group g : controller.getCurrentTracks().getGroups()) {
+            if (g.getType() == C.TRACK_TYPE_TEXT && g.length > 0) gs.add(g);
+        }
+        if (gs.isEmpty()) {
+            Toast.makeText(this, "Video ini tidak punya subtitle", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        boolean off = controller.getTrackSelectionParameters().disabledTrackTypes.contains(C.TRACK_TYPE_TEXT);
+        String[] labels = new String[gs.size() + 1];
+        labels[0] = "Mati";
+        int checked = 0;
+        for (int i = 0; i < gs.size(); i++) {
+            labels[i + 1] = trackLabel(gs.get(i).getTrackFormat(0), i);
+            if (!off && gs.get(i).isSelected()) checked = i + 1;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Subtitle")
+                .setSingleChoiceItems(labels, checked, (d, which) -> {
+                    TrackSelectionParameters.Builder b = controller.getTrackSelectionParameters().buildUpon();
+                    if (which == 0) {
+                        b.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true);
+                    } else {
+                        Tracks.Group g = gs.get(which - 1);
+                        b.setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false);
+                        b.setOverrideForType(new TrackSelectionOverride(g.getMediaTrackGroup(), 0));
+                    }
+                    controller.setTrackSelectionParameters(b.build());
+                    d.dismiss();
+                })
+                .setNegativeButton("Batal", null)
+                .show();
+    }
+
+    private void showAudioLangDialog() {
+        if (controller == null) return;
+        final List<Tracks.Group> gs = new ArrayList<Tracks.Group>();
+        List<String> seen = new ArrayList<String>();
+        for (Tracks.Group g : controller.getCurrentTracks().getGroups()) {
+            if (g.getType() != C.TRACK_TYPE_AUDIO || g.length == 0) continue;
+            androidx.media3.common.Format f = g.getTrackFormat(0);
+            String key = (f.language == null ? "" : f.language) + "|" + (f.label == null ? "" : f.label);
+            if (seen.contains(key)) continue;
+            seen.add(key);
+            gs.add(g);
+        }
+        if (gs.size() < 2) {
+            Toast.makeText(this, "Video ini cuma punya satu bahasa suara", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String[] labels = new String[gs.size()];
+        int checked = 0;
+        for (int i = 0; i < gs.size(); i++) {
+            labels[i] = trackLabel(gs.get(i).getTrackFormat(0), i);
+            if (gs.get(i).isSelected()) checked = i;
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("Bahasa suara")
+                .setSingleChoiceItems(labels, checked, (d, which) -> {
+                    Tracks.Group g = gs.get(which);
+                    TrackSelectionParameters.Builder b = controller.getTrackSelectionParameters().buildUpon();
+                    b.setOverrideForType(new TrackSelectionOverride(g.getMediaTrackGroup(), 0));
+                    controller.setTrackSelectionParameters(b.build());
+                    String lang = g.getTrackFormat(0).language;
+                    getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(K_AUDIOLANG, lang == null ? "" : lang).apply();
+                    d.dismiss();
+                })
+                .setNegativeButton("Batal", null)
+                .show();
+    }
+
     private void toggleLike() {
         YtStore.Entry e = curEntry;
         if (e == null) {
@@ -592,116 +695,6 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     private void styleChip(TextView t, boolean on) {
         t.setBackground(round(on ? C_ON : C_CARD, 20));
         t.setTextColor(on ? Color.WHITE : C_ACCENT);
-    }
-
-    // ---------------------------------------------------------------- subtitle -> .txt
-
-    private StreamInfo curInfo;
-
-    private void showSubtitleDialog() {
-        final StreamInfo inf = curInfo;
-        if (inf == null) { Toast.makeText(this, "Video belum selesai dimuat", Toast.LENGTH_SHORT).show(); return; }
-        final List<SubtitlesStream> subs = new ArrayList<SubtitlesStream>();
-        List<SubtitlesStream> all = inf.getSubtitles();
-        if (all != null) subs.addAll(all);
-        if (subs.isEmpty()) { Toast.makeText(this, "Video ini tidak punya subtitle", Toast.LENGTH_SHORT).show(); return; }
-        String[] labels = new String[subs.size()];
-        for (int i = 0; i < subs.size(); i++) {
-            SubtitlesStream st = subs.get(i);
-            String n = st.getDisplayLanguageName();
-            if (n == null || n.isEmpty()) n = st.getLanguageTag();
-            labels[i] = n + (st.isAutoGenerated() ? " (otomatis)" : "");
-        }
-        new AlertDialog.Builder(this)
-                .setTitle("Simpan subtitle (.txt)")
-                .setItems(labels, (d, which) -> saveSubtitle(subs.get(which), inf.getName()))
-                .setNegativeButton("Batal", null)
-                .show();
-    }
-
-    private void saveSubtitle(final SubtitlesStream st, final String vidTitle) {
-        Toast.makeText(this, "Mengunduh subtitle…", Toast.LENGTH_SHORT).show();
-        final String lang = st.getLanguageTag() == null ? "sub" : st.getLanguageTag();
-        new Thread(() -> {
-            String msg;
-            try {
-                String raw = st.isUrl() ? httpGet(st.getContent()) : st.getContent();
-                String txt = subtitleToText(raw);
-                if (txt.trim().isEmpty()) throw new Exception("Isi subtitle kosong");
-                String base = (vidTitle == null || vidTitle.isEmpty() ? "subtitle" : vidTitle)
-                        .replaceAll("[\\\\/:*?\"<>|\\n\\r]+", " ").trim();
-                if (base.length() > 80) base = base.substring(0, 80).trim();
-                msg = "Tersimpan: " + writeTxt(base + " [" + lang + "].txt", txt);
-            } catch (Exception e) {
-                Log.e(TAG, "subtitle failed", e);
-                msg = "Gagal: " + e.getMessage();
-            }
-            final String fm = msg;
-            runOnUiThread(() -> Toast.makeText(this, fm, Toast.LENGTH_LONG).show());
-        }).start();
-    }
-
-    private static String httpGet(String u) throws Exception {
-        java.net.HttpURLConnection c = (java.net.HttpURLConnection) new java.net.URL(u).openConnection();
-        c.setConnectTimeout(15000);
-        c.setReadTimeout(20000);
-        c.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36");
-        try (java.io.InputStream in = c.getInputStream(); java.io.ByteArrayOutputStream out = new java.io.ByteArrayOutputStream()) {
-            byte[] buf = new byte[8192];
-            int n;
-            while ((n = in.read(buf)) > 0) out.write(buf, 0, n);
-            return out.toString("UTF-8");
-        } finally {
-            c.disconnect();
-        }
-    }
-
-    /** TTML / SRV3 (XML), WebVTT or SRT -> one cue per line, no timestamps, no duplicate lines. */
-    private static String subtitleToText(String raw) {
-        ArrayList<String> lines = new ArrayList<String>();
-        if (raw.contains("<p ") || raw.contains("<text ")) {
-            java.util.regex.Matcher m = java.util.regex.Pattern
-                    .compile("<(?:p|text)\\b[^>]*>(.*?)</(?:p|text)>", java.util.regex.Pattern.DOTALL).matcher(raw);
-            while (m.find()) lines.add(cleanCue(m.group(1)));
-        } else {
-            for (String ln : raw.split("\\r?\\n")) {
-                String t = ln.trim();
-                if (t.isEmpty() || t.startsWith("WEBVTT") || t.startsWith("NOTE") || t.startsWith("Kind:")
-                        || t.startsWith("Language:") || t.contains("-->") || t.matches("\\d+")) continue;
-                lines.add(cleanCue(t));
-            }
-        }
-        StringBuilder sb = new StringBuilder();
-        String last = "";
-        for (String l : lines) {
-            if (l.isEmpty() || l.equals(last)) continue;
-            sb.append(l).append('\n');
-            last = l;
-        }
-        return sb.toString();
-    }
-
-    private static String cleanCue(String s) {
-        s = s.replaceAll("(?i)<br\\s*/?>", " ").replaceAll("<[^>]+>", "");
-        return Html.fromHtml(s, Html.FROM_HTML_MODE_LEGACY).toString().replace('\n', ' ').replaceAll("\\s+", " ").trim();
-    }
-
-    private String writeTxt(String name, String text) throws Exception {
-        byte[] data = text.getBytes("UTF-8");
-        if (Build.VERSION.SDK_INT >= 29) {
-            android.content.ContentValues cv = new android.content.ContentValues();
-            cv.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME, name);
-            cv.put(android.provider.MediaStore.MediaColumns.MIME_TYPE, "text/plain");
-            cv.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH, "Download/Arkael");
-            Uri u = getContentResolver().insert(android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, cv);
-            if (u == null) throw new Exception("Tidak bisa membuat file");
-            try (java.io.OutputStream o = getContentResolver().openOutputStream(u)) { o.write(data); }
-            return "Download/Arkael/" + name;
-        }
-        java.io.File dir = getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS);
-        java.io.File f = new java.io.File(dir, name);
-        try (java.io.FileOutputStream o = new java.io.FileOutputStream(f)) { o.write(data); }
-        return f.getAbsolutePath();
     }
 
     // ---------------------------------------------------------------- small view helpers
@@ -899,16 +892,85 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                 .setArtist(info.getUploaderName());
         String th = bestImage(info.getThumbnails());
         if (th != null) md.setArtworkUri(Uri.parse(th));
+        MediaItem.RequestMetadata.Builder rm = new MediaItem.RequestMetadata.Builder().setMediaUri(uri);
+        Bundle ex = subtitleExtras(info);
+        if (ex != null) rm.setExtras(ex);
         return new MediaItem.Builder()
                 .setUri(uri)
                 .setMediaId(url)
                 .setMediaMetadata(md.build())
-                .setRequestMetadata(new MediaItem.RequestMetadata.Builder().setMediaUri(uri).build())
+                .setRequestMetadata(rm.build())
                 .build();
     }
 
+    private static int subRank(SubtitlesStream s) {
+        String x = s.getFormat() == null ? "" : s.getFormat().getSuffix();
+        if ("vtt".equals(x)) return 0;
+        if ("ttml".equals(x)) return 1;
+        if ("srt".equals(x)) return 2;
+        return 99;
+    }
+
+    private static String subMime(SubtitlesStream s) {
+        switch (subRank(s)) {
+            case 0: return "text/vtt";
+            case 1: return "application/ttml+xml";
+            case 2: return "application/x-subrip";
+            default: return null;
+        }
+    }
+
+    private static final String[] TRANSLATE_TO = {"id", "en", "ja", "ko", "zh-Hans", "zh-Hant", "ar", "hi", "th",
+            "vi", "ms", "es", "fr", "de", "pt", "ru", "tr", "it", "nl", "pl", "fil", "bn", "ur", "fa", "sv"};
+
+    /** Every caption YouTube offers for this video (manual first, then auto-generated), plus
+     *  machine-translated copies: YouTube translates any caption track with the same file + &tlang=. */
+    private static Bundle subtitleExtras(StreamInfo info) {
+        List<SubtitlesStream> all = info.getSubtitles();
+        if (all == null || all.isEmpty()) return null;
+        java.util.LinkedHashMap<String, SubtitlesStream> best = new java.util.LinkedHashMap<String, SubtitlesStream>();
+        for (SubtitlesStream s : all) {
+            if (subMime(s) == null || !s.isUrl()) continue;
+            String key = s.getLanguageTag() + "|" + s.isAutoGenerated();
+            SubtitlesStream old = best.get(key);
+            if (old == null || subRank(s) < subRank(old)) best.put(key, s);
+        }
+        ArrayList<String> urls = new ArrayList<String>(), langs = new ArrayList<String>(),
+                mimes = new ArrayList<String>(), labels = new ArrayList<String>();
+        SubtitlesStream base = null;
+        for (int pass = 0; pass < 2; pass++) {
+            for (SubtitlesStream s : best.values()) {
+                if (s.isAutoGenerated() != (pass == 1)) continue;
+                if (urls.size() >= 120) break;
+                String name = langName(s.getLanguageTag());
+                if (name.isEmpty()) name = s.getDisplayLanguageName();
+                urls.add(s.getContent());
+                langs.add(s.getLanguageTag());
+                mimes.add(subMime(s));
+                labels.add(s.isAutoGenerated() ? name + " (otomatis)" : name);
+                if (base == null) base = s;
+            }
+        }
+        if (urls.isEmpty()) return null;
+        if (base != null) {
+            String baseUrl = base.getContent().replaceAll("[&?]tlang=[^&]*", "");
+            for (String code : TRANSLATE_TO) {
+                if (langs.contains(code)) continue;   // a real caption in that language already exists
+                urls.add(baseUrl + "&tlang=" + code);
+                langs.add(code);
+                mimes.add(subMime(base));
+                labels.add(langName(code) + " (terjemahan otomatis)");
+            }
+        }
+        Bundle b = new Bundle();
+        b.putStringArrayList("sub_url", urls);
+        b.putStringArrayList("sub_lang", langs);
+        b.putStringArrayList("sub_mime", mimes);
+        b.putStringArrayList("sub_label", labels);
+        return b;
+    }
+
     private void populate(StreamInfo info) {
-        curInfo = info;
         if (info.getName() != null && !info.getName().isEmpty()) title.setText(info.getName());
 
         StringBuilder m = new StringBuilder();

@@ -17,6 +17,7 @@ import android.view.inputmethod.EditorInfo;
 import android.widget.AdapterView;
 import android.widget.BaseAdapter;
 import android.widget.EditText;
+import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
@@ -34,6 +35,7 @@ import org.schabi.newpipe.extractor.InfoItem;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.search.SearchInfo;
+import org.schabi.newpipe.extractor.stream.StreamInfo;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 
 /**
@@ -51,8 +53,8 @@ public class YoutubeSearchActivity extends Activity {
     private TextView status;
     private ProgressBar spinner;
     private EditText query;
-    private int mode = 0;            // 0 = search results, 1 = Riwayat (history), 2 = Disukai (likes)
-    private TextView tabHistory, tabLikes, clearBtn;
+    private int mode = 3;            // 0 = search results, 1 = Riwayat (history), 2 = Disukai (likes), 3 = Beranda (home feed)
+    private TextView tabHome, tabHistory, tabLikes, clearBtn;
     private int searchGen = 0;   // bumped on every new search so a slow old search can't overwrite a newer result
 
     private int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
@@ -76,7 +78,7 @@ public class YoutubeSearchActivity extends Activity {
         h.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         col.addView(h);
         TextView sub = new TextView(this);
-        sub.setText("No ads, no account. Streams are pulled directly, same way NewPipe works. Open a video, then leave the app to keep it floating.");
+        sub.setText("Tanpa iklan, tanpa akun. Pilih video dari Beranda, atau cari di atas. Buka video lalu keluar dari app untuk mode layar kecil.");
         sub.setTextColor(Color.parseColor("#8B95A3"));
         sub.setTextSize(12);
         sub.setPadding(0, dp(4), 0, dp(12));
@@ -128,8 +130,10 @@ public class YoutubeSearchActivity extends Activity {
         tabs.setOrientation(LinearLayout.HORIZONTAL);
         tabs.setGravity(Gravity.CENTER_VERTICAL);
         tabs.setPadding(0, dp(10), 0, 0);
+        tabHome = tab("Beranda", 3);
         tabHistory = tab("Riwayat", 1);
         tabLikes = tab("Disukai", 2);
+        tabs.addView(tabHome);
         tabs.addView(tabHistory);
         tabs.addView(tabLikes);
         View grow = new View(this);
@@ -145,6 +149,18 @@ public class YoutubeSearchActivity extends Activity {
         });
         tabs.addView(clearBtn);
         col.addView(tabs);
+
+        HorizontalScrollView cats = new HorizontalScrollView(this);
+        cats.setHorizontalScrollBarEnabled(false);
+        LinearLayout catRow = new LinearLayout(this);
+        catRow.setOrientation(LinearLayout.HORIZONTAL);
+        catRow.setPadding(0, dp(10), 0, 0);
+        String[][] cat = {{"🎵 Musik", "musik terbaru"}, {"🎮 Game", "gameplay game terbaru"}, {"🎌 Anime", "anime sub indo"},
+                {"🐉 Donghua", "donghua sub indo"}, {"📰 Berita", "berita hari ini"}, {"💻 Teknologi", "review teknologi"},
+                {"🎬 Film", "film terbaru"}};
+        for (final String[] c : cat) catRow.addView(catChip(c[0], c[1]));
+        cats.addView(catRow);
+        col.addView(cats);
 
         spinner = new ProgressBar(this);
         LinearLayout.LayoutParams spl = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -188,9 +204,9 @@ public class YoutubeSearchActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
-        // Opening YouTube shows the watch history; coming back from the player refreshes it.
-        if (mode != 0) showStored(mode);
-        else if (items.isEmpty() && spinner.getVisibility() != View.VISIBLE) showStored(1);
+        // Opening YouTube shows the home feed right away (nothing to type); history / likes refresh on return.
+        if (mode == 1 || mode == 2) showStored(mode);
+        else if (mode == 3 && items.isEmpty() && spinner.getVisibility() != View.VISIBLE) showHome();
     }
 
     private TextView tab(String label, final int m) {
@@ -200,7 +216,7 @@ public class YoutubeSearchActivity extends Activity {
         t.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         t.setPadding(dp(16), dp(8), dp(16), dp(8));
         t.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { showStored(m); }
+            @Override public void onClick(View v) { if (m == 3) showHome(); else showStored(m); }
         });
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.rightMargin = dp(8);
@@ -209,6 +225,7 @@ public class YoutubeSearchActivity extends Activity {
     }
 
     private void updateTabs() {
+        styleTab(tabHome, mode == 3);
         styleTab(tabHistory, mode == 1);
         styleTab(tabLikes, mode == 2);
         clearBtn.setVisibility(mode == 1 && !items.isEmpty() ? View.VISIBLE : View.GONE);
@@ -220,6 +237,105 @@ public class YoutubeSearchActivity extends Activity {
         g.setCornerRadius(dp(16));
         t.setBackground(g);
         t.setTextColor(Color.parseColor(on ? "#FFFFFF" : "#8B95A3"));
+    }
+
+    private TextView catChip(String label, final String q) {
+        TextView t = new TextView(this);
+        t.setText(label);
+        t.setTextSize(12);
+        t.setTextColor(Color.parseColor("#C9D3E3"));
+        t.setPadding(dp(14), dp(7), dp(14), dp(7));
+        GradientDrawable g = new GradientDrawable();
+        g.setColor(Color.parseColor("#141A22"));
+        g.setCornerRadius(dp(16));
+        t.setBackground(g);
+        t.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { query.setText(q); doSearch(); }
+        });
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.rightMargin = dp(8);
+        t.setLayoutParams(lp);
+        return t;
+    }
+
+    private static void addItems(List<Row> out, java.util.Set<String> seen, List<? extends InfoItem> src, int max) {
+        int n = 0;
+        if (src == null) return;
+        for (InfoItem ii : src) {
+            if (n >= max) break;
+            if (!(ii instanceof StreamInfoItem)) continue;
+            StreamInfoItem si = (StreamInfoItem) ii;
+            if (si.getUrl() == null || !seen.add(si.getUrl())) continue;
+            Row row = new Row();
+            row.url = si.getUrl();
+            row.title = si.getName();
+            row.uploader = si.getUploaderName();
+            long secs = si.getDuration();
+            row.duration = secs > 0 ? fmt(secs) : null;
+            row.thumb = bestThumb(si);
+            out.add(row);
+            n++;
+        }
+    }
+
+    /** Home feed, no typing: videos related to what was watched last, then a few popular searches. */
+    private void showHome() {
+        mode = 3;
+        final int gen = ++searchGen;
+        updateTabs();
+        items.clear();
+        adapter.notifyDataSetChanged();
+        status.setText("");
+        spinner.setVisibility(View.VISIBLE);
+        new Thread(new Runnable() {
+            @Override public void run() {
+                final List<Row> result = new ArrayList<Row>();
+                final java.util.HashSet<String> seen = new java.util.HashSet<String>();
+                try {
+                    final StreamingService yt = NewPipe.getService("YouTube");
+                    try {
+                        List<YtStore.Entry> h = YtStore.history(YoutubeSearchActivity.this);
+                        if (!h.isEmpty()) {
+                            StreamInfo si = StreamInfo.getInfo(yt, h.get(0).url);
+                            addItems(result, seen, si.getRelatedItems(), 14);
+                            postHome(gen, result, false);
+                        }
+                    } catch (Exception e) {
+                        Log.w(TAG, "home: related failed", e);
+                    }
+                    String[] qs = {"populer hari ini", "musik terbaru", "gameplay terbaru"};
+                    for (String q : qs) {
+                        try {
+                            SearchInfo info = SearchInfo.getInfo(yt, yt.getSearchQHFactory().fromQuery(q));
+                            addItems(result, seen, info.getRelatedItems(), 8);
+                            postHome(gen, result, false);
+                        } catch (Exception e) {
+                            Log.w(TAG, "home: search failed: " + q, e);
+                        }
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "home failed", e);
+                }
+                postHome(gen, result, true);
+            }
+        }).start();
+    }
+
+    private void postHome(final int gen, List<Row> src, final boolean done) {
+        final List<Row> copy = new ArrayList<Row>(src);
+        runOnUiThread(new Runnable() {
+            @Override public void run() {
+                if (gen != searchGen) return;
+                items.clear();
+                items.addAll(copy);
+                adapter.notifyDataSetChanged();
+                if (!copy.isEmpty()) spinner.setVisibility(View.GONE);
+                if (done) {
+                    spinner.setVisibility(View.GONE);
+                    status.setText(copy.isEmpty() ? "Gagal memuat beranda. Cek koneksi, lalu tap Beranda lagi." : "");
+                }
+            }
+        });
     }
 
     /** Shows the locally stored history (1) or liked videos (2) in the list. */
