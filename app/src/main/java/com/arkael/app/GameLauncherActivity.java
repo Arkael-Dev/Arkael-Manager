@@ -11,14 +11,11 @@ import android.content.pm.ActivityInfo;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.content.pm.ResolveInfo;
-import android.graphics.Bitmap;
-import android.graphics.BitmapShader;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.ColorFilter;
 import android.graphics.DashPathEffect;
 import android.graphics.LinearGradient;
-import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
 import android.graphics.PixelFormat;
@@ -36,14 +33,12 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.text.TextPaint;
-import android.text.TextUtils;
-import android.view.GestureDetector;
+import android.view.DisplayCutout;
 import android.view.Gravity;
-import android.view.MotionEvent;
+import android.view.WindowInsets;
+import android.view.WindowManager;
 import android.view.View;
 import android.view.ViewGroup;
-import android.view.animation.DecelerateInterpolator;
 import android.view.animation.LinearInterpolator;
 import android.widget.FrameLayout;
 import android.widget.ImageView;
@@ -63,10 +58,10 @@ import java.util.List;
 import java.util.Set;
 
 /**
- * Game Launcher, gaming-phone style (landscape): dark navy theme with neon cards in a swipeable carousel
- * (centre game big, neighbours tilted), live battery/CPU/GPU on top, SETELAN GAME | MAINKAN | TAMBAH GAME at the bottom.
+ * Game Launcher, gaming-phone style (landscape): angular red/black theme, hexagon game icons,
+ * hand-drawn vector icons, animated background. Game list on the left, big preview in the middle,
+ * MAINKAN button on the right, "Setelan Game" tab at the bottom, live battery/CPU/GPU on top.
  * Mainkan = apply the game's saved profile, switch the Game Panel on, then launch with animation + sound.
- * Remembers how long each game was played and shows it on its card.
  */
 public class GameLauncherActivity extends Activity {
     private static final String PREFS = "gl_prefs";
@@ -76,7 +71,6 @@ public class GameLauncherActivity extends Activity {
     private static final int PANEL = Color.parseColor("#14141A");
     private static final int SUB = Color.parseColor("#8E8E9A");
     private static final int GREEN = Color.parseColor("#3DFFA2");
-    private static final int NEON_PINK = Color.parseColor("#FF3D9A"), NEON_VIOLET = Color.parseColor("#8A5CFF"), NEON_BLUE = Color.parseColor("#3D8BFF");
 
     private static final int I_BAT = 0, I_CPU = 1, I_GPU = 2, I_SPK = 3, I_MUTE = 4, I_PLUS = 5, I_GEAR = 6, I_BOLT = 7;
 
@@ -348,263 +342,130 @@ public class GameLauncherActivity extends Activity {
         }
     }
 
-    /** One game card of the carousel. Drawn once into a GPU layer; moving/tilting it afterwards costs almost nothing. */
-    static final class GameCard extends View {
-        int idx = -1;
-        private Bitmap art;
-        private String name = "", sub = "";
-        private boolean on;
-        private float phase;
-        private final float d;
-        private final Paint base = new Paint(Paint.ANTI_ALIAS_FLAG), line = new Paint(Paint.ANTI_ALIAS_FLAG),
-                shadeP = new Paint(), dim = new Paint(), ring = new Paint(Paint.ANTI_ALIAS_FLAG),
-                bmp = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG), circP = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final TextPaint txt = new TextPaint(Paint.ANTI_ALIAS_FLAG), subP = new TextPaint(Paint.ANTI_ALIAS_FLAG);
+    /** Container clipped to a slanted-corner shape, with fill, border and an optional scan line. */
+    static final class CutFrame extends FrameLayout {
         private final Path path = new Path();
-        private final Matrix mx = new Matrix(), cm = new Matrix();
-        private final RectF dst = new RectF();
-        private LinearGradient neon;
-        private BitmapShader iconShader;
-        private String nameS = "", subS = "";
+        private final Paint fp = new Paint(Paint.ANTI_ALIAS_FLAG), sp = new Paint(Paint.ANTI_ALIAS_FLAG), scan = new Paint();
+        private final float cut, sw, d;
+        private final boolean[] c;
+        private final boolean scanOn;
+        private float phase;
+        private ValueAnimator va;
 
-        GameCard(Context c) {
-            super(c);
-            d = c.getResources().getDisplayMetrics().density;
-            setLayerType(LAYER_TYPE_HARDWARE, null);
-            base.setColor(Color.parseColor("#0B1024"));
-            dim.setColor(Color.argb(95, 5, 8, 22));
-            line.setStyle(Paint.Style.STROKE);
-            ring.setStyle(Paint.Style.STROKE);
-            ring.setStrokeWidth(2 * d);
-            ring.setColor(Color.WHITE);
-            txt.setColor(Color.WHITE); txt.setTextSize(16 * d);
-            txt.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-            subP.setColor(Color.parseColor("#C9D2F0")); subP.setTextSize(10.5f * d);
+        CutFrame(Context ctx, int fill, int stroke, float sw, float cut, boolean tl, boolean tr, boolean br, boolean bl, boolean scanOn) {
+            super(ctx);
+            d = ctx.getResources().getDisplayMetrics().density;
+            this.cut = cut; this.sw = sw; this.c = new boolean[]{tl, tr, br, bl}; this.scanOn = scanOn;
+            fp.setColor(fill);
+            sp.setStyle(Paint.Style.STROKE); sp.setColor(stroke); sp.setStrokeWidth(sw);
+            setWillNotDraw(false);
+            scan.setShader(new LinearGradient(0, -46 * d, 0, 0, Color.TRANSPARENT, Color.argb(120, 255, 30, 60), Shader.TileMode.CLAMP));
         }
-
-        void bind(Bitmap a, String n, String s) {
-            art = a; name = n == null ? "" : n; sub = s == null ? "" : s;
-            iconShader = a == null ? null : new BitmapShader(a, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
-            prepareText();
-            invalidate();
-        }
-        /** Only two looks (focused / not), so a card is not re-drawn while it slides. */
-        void setFocus(float f) { boolean n = f > 0.5f; if (n != on) { on = n; invalidate(); } }
-        void setPhase(float p) { phase = p; invalidate(); }
-
-        private float iconR() { return 21 * d; }
-        private void prepareText() {
-            int w = getWidth();
-            if (w <= 0) { nameS = name; subS = sub; return; }
-            float tx = 16 * d + iconR() + 6 * d + iconR() + 11 * d, avail = w - tx - 16 * d;
-            nameS = avail > 20 * d ? TextUtils.ellipsize(name, txt, avail, TextUtils.TruncateAt.END).toString() : "";
-            subS = avail > 20 * d ? TextUtils.ellipsize(sub, subP, avail, TextUtils.TruncateAt.END).toString() : "";
-        }
-
         @Override protected void onSizeChanged(int w, int h, int ow, int oh) {
-            buildPath(path, new RectF(6 * d, 6 * d, w - 6 * d, h - 6 * d), 16 * d, new boolean[]{true, false, true, false});
-            neon = new LinearGradient(0, 0, w, 0, new int[]{NEON_PINK, NEON_VIOLET, NEON_BLUE}, null, Shader.TileMode.MIRROR);
-            shadeP.setShader(new LinearGradient(0, 0, 0, h, Color.parseColor("#40050914"), Color.parseColor("#F0050914"), Shader.TileMode.CLAMP));
-            prepareText();
+            buildPath(path, new RectF(sw / 2, sw / 2, w - sw / 2, h - sw / 2), cut, c);
         }
-        @Override protected void onDraw(Canvas cv) {
-            int w = getWidth(), h = getHeight();
-            if (neon == null) return;
-            mx.setTranslate(phase * 2f * w, 0);
-            neon.setLocalMatrix(mx);
-            line.setShader(neon);
-            line.setStrokeWidth(10 * d); line.setAlpha(on ? 110 : 40); cv.drawPath(path, line);
-            line.setStrokeWidth(5 * d);  line.setAlpha(on ? 150 : 60); cv.drawPath(path, line);
-
+        @Override protected void onAttachedToWindow() {
+            super.onAttachedToWindow();
+            if (scanOn) {
+                va = ValueAnimator.ofFloat(0f, 1f);
+                va.setDuration(4200);
+                va.setRepeatCount(ValueAnimator.INFINITE);
+                va.setInterpolator(new LinearInterpolator());
+                va.addUpdateListener(a -> { phase = (Float) a.getAnimatedValue(); invalidate(); });
+                va.start();
+            }
+        }
+        @Override protected void onDetachedFromWindow() {
+            super.onDetachedFromWindow();
+            if (va != null) { va.cancel(); va = null; }
+        }
+        @Override protected void dispatchDraw(Canvas cv) {
             cv.save();
             cv.clipPath(path);
-            cv.drawPath(path, base);
-            if (art != null) {
-                float s = w * 1.15f, cx = w / 2f, cy = h * 0.40f;
-                dst.set(cx - s / 2, cy - s / 2, cx + s / 2, cy + s / 2);
-                cv.drawBitmap(art, null, dst, bmp);
+            cv.drawPath(path, fp);
+            super.dispatchDraw(cv);
+            if (scanOn) {
+                float y = phase * (getHeight() + 46 * d);
+                cv.save();
+                cv.translate(0, y);
+                cv.drawRect(0, -46 * d, getWidth(), 0, scan);
+                cv.restore();
             }
-            cv.drawRect(0, 0, w, h, shadeP);
-            if (!on) cv.drawRect(0, 0, w, h, dim);
             cv.restore();
-
-            line.setStrokeWidth(2.2f * d); line.setAlpha(on ? 255 : 170); cv.drawPath(path, line);
-
-            float r = iconR(), cxI = 16 * d + r + 6 * d, cyI = h - 14 * d - r - 6 * d;
-            if (iconShader != null) {
-                cm.setScale(2 * r / art.getWidth(), 2 * r / art.getHeight());
-                cm.postTranslate(cxI - r, cyI - r);
-                iconShader.setLocalMatrix(cm);
-                circP.setShader(iconShader);
-                cv.drawCircle(cxI, cyI, r, circP);
-            }
-            ring.setAlpha(on ? 230 : 120);
-            cv.drawCircle(cxI, cyI, r + 1.5f * d, ring);
-            float tx = cxI + r + 11 * d;
-            cv.drawText(nameS, tx, cyI - 1 * d, txt);
-            cv.drawText(subS, tx, cyI + 15 * d, subP);
+            cv.drawPath(path, sp);
         }
     }
 
-    /** Holds the carousel cards, all the same size and centred; the activity moves and tilts them. */
-    static final class Stage extends FrameLayout {
-        int cw, ch, sp;
-        Runnable onLaid;
-
-        Stage(Context c) {
-            super(c);
-            setClipChildren(false);
-            setClipToPadding(false);
-        }
-        @Override protected void onMeasure(int wms, int hms) {
-            int w = MeasureSpec.getSize(wms), h = MeasureSpec.getSize(hms);
-            cw = (int) Math.min(h * 0.92f * 1.7f, w * 0.40f);
-            ch = (int) (cw / 1.7f);
-            sp = (int) (cw * 0.97f);
-            int a = MeasureSpec.makeMeasureSpec(cw, MeasureSpec.EXACTLY), b = MeasureSpec.makeMeasureSpec(ch, MeasureSpec.EXACTLY);
-            for (int i = 0; i < getChildCount(); i++) getChildAt(i).measure(a, b);
-            setMeasuredDimension(w, h);
-        }
-        @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
-            int w = r - l, h = b - t, x = (w - cw) / 2, y = (h - ch) / 2;
-            for (int i = 0; i < getChildCount(); i++) getChildAt(i).layout(x, y, x + cw, y + ch);
-            if (changed && onLaid != null) onLaid.run();
-        }
-    }
-
-    /** Static dark navy background with soft glows. Drawn once; never invalidated. */
+    /** Animated dark background: diagonal stripes, a breathing red glow and a slow light sweep. */
     static final class BgView extends View {
-        private final Paint bg = new Paint(), glow = new Paint(), glow2 = new Paint(), thin = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private final Paint bg = new Paint(), stripe = new Paint(Paint.ANTI_ALIAS_FLAG), glow = new Paint(), sweep = new Paint();
+        private final Path band = new Path();
         private final float d;
+        private float phase;
+        private ValueAnimator va;
 
         BgView(Context c) {
             super(c);
             d = c.getResources().getDisplayMetrics().density;
-            setLayerType(LAYER_TYPE_HARDWARE, null);
-            thin.setStyle(Paint.Style.STROKE);
-            thin.setStrokeWidth(1 * d);
-            thin.setColor(Color.argb(40, 140, 120, 255));
-        }
-        private float cy(int h) { return 56 * d + (h - 56 * d - 118 * d) / 2f; }
-        @Override protected void onSizeChanged(int w, int h, int ow, int oh) {
-            bg.setShader(new LinearGradient(0, 0, 0, h, Color.parseColor("#0D1233"), Color.parseColor("#04050D"), Shader.TileMode.CLAMP));
-            glow.setShader(new RadialGradient(w / 2f, cy(h), Math.max(w, h) * 0.46f, Color.argb(255, 120, 60, 255), Color.TRANSPARENT, Shader.TileMode.CLAMP));
-            glow.setAlpha(80);
-            glow2.setShader(new RadialGradient(w / 2f, h * 1.02f, w * 0.36f, Color.argb(255, 255, 30, 60), Color.TRANSPARENT, Shader.TileMode.CLAMP));
-            glow2.setAlpha(65);
-        }
-        @Override protected void onDraw(Canvas cv) {
-            int w = getWidth(), h = getHeight();
-            cv.drawRect(0, 0, w, h, bg);
-            cv.drawRect(0, 0, w, h, glow);
-            cv.drawRect(0, 0, w, h, glow2);
-            cv.drawCircle(w / 2f, cy(h), h * 0.36f * 1.32f, thin);
-        }
-    }
-
-    /** One dashed HUD ring. Drawn once; the spin is just view.setRotation, which the GPU does for free. */
-    static final class RingView extends View {
-        private final Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
-        private final float d, sw, dashOn, dashOff;
-        RingView(Context c, float swDp, int color, float on, float off) {
-            super(c);
-            d = c.getResources().getDisplayMetrics().density;
-            sw = swDp * d; dashOn = on; dashOff = off;
-            setLayerType(LAYER_TYPE_HARDWARE, null);
-            p.setStyle(Paint.Style.STROKE);
-            p.setStrokeWidth(sw);
-            p.setColor(color);
+            stripe.setColor(Color.argb(16, 255, 30, 60));
+            stripe.setStrokeWidth(2 * d);
+            sweep.setColor(Color.argb(14, 255, 30, 60));
         }
         @Override protected void onSizeChanged(int w, int h, int ow, int oh) {
-            float r = Math.min(w, h) / 2f;
-            p.setPathEffect(new DashPathEffect(new float[]{r * dashOn, r * dashOff}, 0));
-        }
-        @Override protected void onDraw(Canvas cv) {
-            float r = Math.min(getWidth(), getHeight()) / 2f - sw;
-            cv.drawCircle(getWidth() / 2f, getHeight() / 2f, r, p);
-        }
-    }
-
-    /** Two slowly counter-rotating rings behind the carousel. */
-    static final class HudRings extends FrameLayout {
-        private final RingView a, b;
-        private final float d;
-        private ValueAnimator va;
-
-        HudRings(Context c) {
-            super(c);
-            d = c.getResources().getDisplayMetrics().density;
-            a = new RingView(c, 2.2f, Color.argb(110, 150, 110, 255), 0.22f, 0.10f);
-            b = new RingView(c, 3.5f, Color.argb(80, 70, 140, 255), 0.06f, 0.09f);
-            addView(a);
-            addView(b);
-        }
-        @Override protected void onMeasure(int wms, int hms) {
-            int w = MeasureSpec.getSize(wms), h = MeasureSpec.getSize(hms);
-            float r = h * 0.36f;
-            a.measure(MeasureSpec.makeMeasureSpec((int) (2 * r + 10 * d), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec((int) (2 * r + 10 * d), MeasureSpec.EXACTLY));
-            b.measure(MeasureSpec.makeMeasureSpec((int) (2 * r * 1.16f + 10 * d), MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec((int) (2 * r * 1.16f + 10 * d), MeasureSpec.EXACTLY));
-            setMeasuredDimension(w, h);
-        }
-        @Override protected void onLayout(boolean ch, int l, int t, int r, int bt) {
-            int w = r - l, h = bt - t;
-            float cy = 56 * d + (h - 56 * d - 118 * d) / 2f;
-            for (View v : new View[]{a, b}) {
-                int hw = v.getMeasuredWidth() / 2;
-                v.layout((int) (w / 2f - hw), (int) (cy - hw), (int) (w / 2f + hw), (int) (cy + hw));
-            }
+            bg.setShader(new LinearGradient(0, 0, 0, h, Color.parseColor("#14141A"), Color.parseColor("#07070A"), Shader.TileMode.CLAMP));
+            glow.setShader(new RadialGradient(w * 0.88f, h * 1.05f, h * 1.15f, Color.argb(255, 255, 30, 60), Color.TRANSPARENT, Shader.TileMode.CLAMP));
         }
         @Override protected void onAttachedToWindow() {
             super.onAttachedToWindow();
-            va = ValueAnimator.ofFloat(0f, 360f);
-            va.setDuration(16000);
+            va = ValueAnimator.ofFloat(0f, 1f);
+            va.setDuration(7000);
             va.setRepeatCount(ValueAnimator.INFINITE);
             va.setInterpolator(new LinearInterpolator());
-            va.addUpdateListener(an -> {
-                float v = (Float) an.getAnimatedValue();
-                a.setRotation(v);
-                b.setRotation(-v * 0.6f);
-            });
+            va.addUpdateListener(a -> { phase = (Float) a.getAnimatedValue(); invalidate(); });
             va.start();
         }
         @Override protected void onDetachedFromWindow() {
             super.onDetachedFromWindow();
             if (va != null) { va.cancel(); va = null; }
         }
+        @Override protected void onDraw(Canvas cv) {
+            int w = getWidth(), h = getHeight();
+            cv.drawRect(0, 0, w, h, bg);
+            for (float x = -h; x < w; x += 34 * d) cv.drawLine(x, h, x + h * 0.58f, 0, stripe);
+            glow.setAlpha((int) (46 + 26 * Math.sin(phase * 2 * Math.PI)));
+            cv.drawRect(0, 0, w, h, glow);
+            float x = (phase * 1.5f - 0.25f) * w, bw = w * 0.12f, skew = h * 0.58f;
+            band.reset();
+            band.moveTo(x + skew, 0); band.lineTo(x + skew + bw, 0); band.lineTo(x + bw, h); band.lineTo(x, h); band.close();
+            cv.drawPath(band, sweep);
+        }
     }
 
     // =================================================================== activity
 
-    private static final float TILT = 26f;   // side-card tilt in degrees; flip the sign if it leans the wrong way
-
     private static final class Game {
         String pkg, name;
         Drawable icon;
-        Bitmap art;
     }
 
     private final List<Game> games = new ArrayList<Game>();
     private final Handler main = new Handler(Looper.getMainLooper());
-    private final SysProbe probe = new SysProbe();
     private PackageManager pm;
     private SharedPreferences sp;
 
+    private LinearLayout listCol, body;
     private FrameLayout root, overlay;
-    private Stage stage;
-    private final GameCard[] cards = new GameCard[7];
-    private HexIcon ovIcon, ovRing, ovRing2;
+    private LinearLayout pvContent;
+    private ImageView pvBack;
+    private HexIcon pvIcon, ovIcon, ovRing, ovRing2;
     private Ico muteIco, icBat, icCpu, icGpu;
-    private TextView summary, emptyView, stBat, stCpu, stGpu, ovText;
+    private TextView pvName, pvSub, emptyView, stBat, stCpu, stGpu, ovText;
     private SoundPool pool;
     private int sOpen, sLaunch, sSelect, sTab, sel = 0;
-    private float pos = 0f;
-    private ValueAnimator posAnim;
-    private boolean muted, launching, pollOn, settled;
-    private long lastTouch;
-    private ValueAnimator shim;
-    private int shimStep = -1;
-    private volatile boolean polling;
+    private boolean muted, launching, introDone, pollOn;
     private long prevIdle = -1, prevTotal = -1;
+    private final SysProbe probe = new SysProbe();
+    private volatile boolean polling;
     private String gpuPath;
     private int gpuTries;
     private Boolean rootOk;
@@ -620,33 +481,38 @@ public class GameLauncherActivity extends Activity {
         muted = sp.getBoolean(K_MUTE, false);
         getWindow().setStatusBarColor(Color.BLACK);
         getWindow().setNavigationBarColor(Color.BLACK);
+        if (Build.VERSION.SDK_INT >= 28) {
+            WindowManager.LayoutParams wl = getWindow().getAttributes();
+            wl.layoutInDisplayCutoutMode = Build.VERSION.SDK_INT >= 30 ? 3 : 1;   // draw into the camera cut-out area too
+            getWindow().setAttributes(wl);
+        }
+        hideBars();
 
         root = new FrameLayout(this);
         root.addView(new BgView(this), new FrameLayout.LayoutParams(-1, -1));
-        root.addView(new HudRings(this), new FrameLayout.LayoutParams(-1, -1));
 
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
-        col.setPadding(0, dp(4), 0, dp(8));
+        col.setPadding(dp(12), dp(4), dp(12), dp(8));
 
-        // ---------------- top bar: red tab + live stats + mute
+        // ---------------- top bar
         LinearLayout top = new LinearLayout(this);
         top.setOrientation(LinearLayout.HORIZONTAL);
         top.setGravity(Gravity.CENTER_VERTICAL);
-        top.setPadding(dp(16), dp(4), dp(14), dp(4));
+        top.setPadding(dp(18), dp(4), dp(14), dp(4));
 
-        TextView tab = new TextView(this);
-        tab.setText("ARKAEL GAME LAUNCHER");
-        tab.setTextColor(Color.WHITE);
-        tab.setTextSize(12.5f);
-        tab.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC));
-        tab.setLetterSpacing(0.12f);
-        tab.setShadowLayer(14, 0, 0, RED);
-        tab.setPadding(dp(24), dp(8), dp(28), dp(8));
-        tab.setBackground(new Cut(Color.parseColor("#55FF1E3C"), Color.parseColor("#FFFF2D4A"), dp(1.4f), dp(10), true, false, true, false));
-        LinearLayout.LayoutParams tabLp = new LinearLayout.LayoutParams(-2, -2);
-        tabLp.rightMargin = dp(14);
-        top.addView(tab, tabLp);
+        View mark = new View(this);
+        mark.setBackground(new Cut(RED, RED, 0, dp(4), false, true, false, true));
+        top.addView(mark, new LinearLayout.LayoutParams(dp(7), dp(24)));
+        TextView title = new TextView(this);
+        title.setText("GAME LAUNCHER");
+        title.setTextColor(Color.WHITE);
+        title.setTextSize(15);
+        title.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC));
+        title.setLetterSpacing(0.16f);
+        title.setShadowLayer(14, 0, 0, RED);
+        title.setPadding(dp(10), 0, dp(22), 0);
+        top.addView(title);
 
         icBat = new Ico(this, I_BAT, GREEN);
         icCpu = new Ico(this, I_CPU, RED);
@@ -660,86 +526,135 @@ public class GameLauncherActivity extends Activity {
 
         muteIco = new Ico(this, muted ? I_MUTE : I_SPK, Color.WHITE);
         top.addView(iconBtn(muteIco, v -> toggleMute()));
+        top.addView(iconBtn(new Ico(this, I_PLUS, Color.WHITE), v -> showAddDialog()));
         col.addView(top, new LinearLayout.LayoutParams(-1, dp(52)));
 
-        // ---------------- carousel
-        stage = new Stage(this);
-        for (int i = 0; i < cards.length; i++) {
-            cards[i] = new GameCard(this);
-            cards[i].setCameraDistance(8000f * getResources().getDisplayMetrics().density);
-            stage.addView(cards[i]);
-        }
-        stage.onLaid = this::applyPos;
-        final GestureDetector gd = new GestureDetector(this, new GestureDetector.SimpleOnGestureListener() {
-            @Override public boolean onDown(MotionEvent e) { return true; }
-            @Override public boolean onScroll(MotionEvent e1, MotionEvent e2, float dx, float dy) {
-                if (games.isEmpty() || stage.sp <= 0) return true;
-                cancelAnim();
-                pos = Math.max(-0.3f, Math.min(games.size() - 0.7f, pos + dx / stage.sp));
-                applyPos();
-                return true;
-            }
-            @Override public boolean onFling(MotionEvent e1, MotionEvent e2, float vx, float vy) {
-                if (games.isEmpty() || stage.sp <= 0) return true;
-                int step = Math.max(-2, Math.min(2, Math.round(-vx / stage.sp * 0.2f)));
-                settled = true;
-                animateTo(Math.round(pos) + step);
-                return true;
-            }
-            @Override public boolean onSingleTapUp(MotionEvent e) {
-                if (games.isEmpty() || stage.sp <= 0) return true;
-                int step = Math.round((e.getX() - stage.getWidth() / 2f) / stage.sp);
-                if (step != 0) { settled = true; animateTo(Math.round(pos) + step); }
-                return true;
-            }
-            @Override public void onLongPress(MotionEvent e) {
-                if (games.isEmpty() || stage.sp <= 0) return;
-                int step = Math.round((e.getX() - stage.getWidth() / 2f) / stage.sp);
-                if (step == 0 && sel < games.size()) confirmHide(games.get(sel));
-            }
-        });
-        stage.setOnTouchListener((v, e) -> {
-            lastTouch = System.currentTimeMillis();
-            if (e.getActionMasked() == MotionEvent.ACTION_DOWN) settled = false;
-            gd.onTouchEvent(e);
-            int a = e.getActionMasked();
-            if ((a == MotionEvent.ACTION_UP || a == MotionEvent.ACTION_CANCEL) && !settled && !games.isEmpty()) animateTo(Math.round(pos));
-            return true;
-        });
-        col.addView(stage, new LinearLayout.LayoutParams(-1, 0, 1f));
+        // ---------------- body: list | preview | play
+        body = new LinearLayout(this);
+        body.setOrientation(LinearLayout.HORIZONTAL);
+        body.setGravity(Gravity.CENTER_VERTICAL);
 
-        summary = new TextView(this);
-        summary.setTextColor(Color.parseColor("#A9B6E0"));
-        summary.setTextSize(11.5f);
-        summary.setGravity(Gravity.CENTER);
-        summary.setSingleLine(true);
-        summary.setEllipsize(TextUtils.TruncateAt.END);
-        summary.setPadding(dp(24), 0, dp(24), 0);
-        col.addView(summary, new LinearLayout.LayoutParams(-1, dp(24)));
+        ScrollView listScroll = new ScrollView(this);
+        listScroll.setVerticalScrollBarEnabled(false);
+        listCol = new LinearLayout(this);
+        listCol.setOrientation(LinearLayout.VERTICAL);
+        listCol.setPadding(dp(6), dp(6), dp(4), dp(14));
+        listScroll.setVerticalFadingEdgeEnabled(true);
+        listScroll.setFadingEdgeLength(dp(30));
+        listScroll.addView(listCol, new ViewGroup.LayoutParams(-1, -2));
+        LinearLayout.LayoutParams lsl = new LinearLayout.LayoutParams(0, -1, 3f);
+        lsl.bottomMargin = dp(62);
+        body.addView(listScroll, lsl);
 
-        // ---------------- bottom row: settings | MAINKAN | add
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER);
-        row.addView(sideBtn(I_GEAR, "SETELAN GAME", v -> {
-            if (!games.isEmpty()) { playFx(sTab, 0.9f); openProfile(games.get(sel).pkg); }
-        }));
+        CutFrame previewBox = new CutFrame(this, Color.parseColor("#E00C0C10"), Color.parseColor("#B0FF1E3C"),
+                dp(1.6f), dp(26), false, true, false, true, true);
+        pvBack = new ImageView(this);
+        pvBack.setScaleType(ImageView.ScaleType.CENTER_CROP);
+        pvBack.setScaleX(3.4f);
+        pvBack.setScaleY(3.4f);
+        pvBack.setAlpha(0.28f);
+        previewBox.addView(pvBack, new FrameLayout.LayoutParams(-1, -1));
+        View shade = new View(this);
+        shade.setBackground(new GradientDrawable(GradientDrawable.Orientation.TOP_BOTTOM,
+                new int[]{Color.parseColor("#10000000"), Color.parseColor("#F007070A")}));
+        previewBox.addView(shade, new FrameLayout.LayoutParams(-1, -1));
+
+        pvContent = new LinearLayout(this);
+        pvContent.setOrientation(LinearLayout.VERTICAL);
+        pvContent.setGravity(Gravity.CENTER_HORIZONTAL);
+        pvContent.setPadding(dp(20), dp(14), dp(20), dp(16));
+        pvIcon = new HexIcon(this, null, RED, dp(2.2f), true);
+        pvContent.addView(pvIcon, new LinearLayout.LayoutParams(dp(150), dp(150)));
+        pvContent.addView(new View(this), new LinearLayout.LayoutParams(1, 0, 1f));
+        pvName = new TextView(this);
+        pvName.setTextColor(Color.WHITE);
+        pvName.setTextSize(26);
+        pvName.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC));
+        pvName.setLetterSpacing(0.06f);
+        pvName.setShadowLayer(18, 0, 0, RED);
+        pvName.setSingleLine(true);
+        pvName.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        pvName.setGravity(Gravity.CENTER);
+        pvContent.addView(pvName, new LinearLayout.LayoutParams(-1, -2));
+        pvSub = new TextView(this);
+        pvSub.setTextColor(Color.parseColor("#C4C4CE"));
+        pvSub.setTextSize(11);
+        pvSub.setGravity(Gravity.CENTER);
+        pvSub.setPadding(0, dp(4), 0, 0);
+        pvSub.setMaxLines(2);
+        pvContent.addView(pvSub, new LinearLayout.LayoutParams(-1, -2));
+        previewBox.addView(pvContent, new FrameLayout.LayoutParams(-1, -1));
+
+        LinearLayout.LayoutParams pvl = new LinearLayout.LayoutParams(0, -1, 6f);
+        pvl.topMargin = dp(8);
+        pvl.bottomMargin = dp(62);
+        pvl.leftMargin = dp(8);
+        pvl.rightMargin = dp(16);
+        body.addView(previewBox, pvl);
+
+        FrameLayout rightCol = new FrameLayout(this);
         PlayBtn play = new PlayBtn(this);
         play.setOnClickListener(v -> { if (!games.isEmpty()) launch(games.get(sel)); });
-        LinearLayout.LayoutParams pl = new LinearLayout.LayoutParams(dp(240), dp(60));
-        pl.leftMargin = dp(14);
-        pl.rightMargin = dp(14);
-        row.addView(play, pl);
-        row.addView(sideBtn(I_PLUS, "TAMBAH GAME", v -> showAddDialog()));
-        col.addView(row, new LinearLayout.LayoutParams(-1, dp(66)));
+        FrameLayout.LayoutParams ppl = new FrameLayout.LayoutParams(-1, dp(66));
+        ppl.gravity = Gravity.CENTER_VERTICAL;
+        ppl.leftMargin = dp(2);
+        ppl.rightMargin = dp(4);
+        ppl.bottomMargin = dp(40);
+        rightCol.addView(play, ppl);
+        body.addView(rightCol, new LinearLayout.LayoutParams(0, -1, 3f));
+
+        col.addView(body, new LinearLayout.LayoutParams(-1, 0, 1f));
         root.addView(col, new FrameLayout.LayoutParams(-1, -1));
+        // keep the content clear of the camera hole / rounded corners, but let the background run edge to edge
+        root.setOnApplyWindowInsetsListener((v, ins) -> {
+            int l = dp(12), r = dp(12);
+            if (Build.VERSION.SDK_INT >= 28) {
+                DisplayCutout dc = ins.getDisplayCutout();
+                if (dc != null) { l = Math.max(l, dc.getSafeInsetLeft()); r = Math.max(r, dc.getSafeInsetRight()); }
+            }
+            col.setPadding(l, dp(4), r, dp(8));
+            return ins;
+        });
+
+        // ---------------- bottom tab
+        LinearLayout tab = new LinearLayout(this);
+        tab.setOrientation(LinearLayout.HORIZONTAL);
+        tab.setGravity(Gravity.CENTER);
+        tab.setPadding(dp(40), dp(9), dp(40), dp(11));
+        tab.setBackground(new Cut(Color.parseColor("#F0181820"), Color.parseColor("#99FF1E3C"), dp(1.4f), dp(14), true, true, true, true));
+        tab.addView(new Ico(this, I_GEAR, RED), new LinearLayout.LayoutParams(dp(18), dp(18)));
+        TextView tt = new TextView(this);
+        tt.setText("SETELAN GAME");
+        tt.setTextColor(Color.WHITE);
+        tt.setTextSize(13);
+        tt.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC));
+        tt.setLetterSpacing(0.14f);
+        tt.setPadding(dp(10), 0, 0, 0);
+        tab.addView(tt);
+        tab.setOnClickListener(v -> { if (!games.isEmpty()) { playFx(sTab, 0.9f); openProfile(games.get(sel).pkg); } });
+        FrameLayout.LayoutParams tl = new FrameLayout.LayoutParams(-2, -2);
+        tl.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
+        tl.bottomMargin = dp(12);
+        root.addView(tab, tl);
 
         emptyView = new TextView(this);
-        emptyView.setText("Belum ada game terdeteksi.\nTekan TAMBAH GAME untuk menambah game secara manual.");
+        emptyView.setText("Belum ada game terdeteksi.\nTekan + untuk menambah game secara manual.");
         emptyView.setTextColor(SUB);
         emptyView.setGravity(Gravity.CENTER);
         emptyView.setVisibility(View.GONE);
         root.addView(emptyView, new FrameLayout.LayoutParams(-1, -1));
+
+        TextView brand = new TextView(this);
+        brand.setText("ARKAEL GAME LAUNCHER");
+        brand.setTextColor(Color.parseColor("#88FF1E3C"));
+        brand.setTextSize(9);
+        brand.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC));
+        brand.setLetterSpacing(0.22f);
+        FrameLayout.LayoutParams brl = new FrameLayout.LayoutParams(-2, -2);
+        brl.gravity = Gravity.BOTTOM | Gravity.END;
+        brl.rightMargin = dp(20);
+        brl.bottomMargin = dp(14);
+        root.addView(brand, brl);
 
         buildOverlay();
         setContentView(root);
@@ -748,13 +663,15 @@ public class GameLauncherActivity extends Activity {
         top.setAlpha(0f);
         top.setTranslationY(-dp(20));
         top.animate().alpha(1f).translationY(0).setDuration(420).start();
-        stage.setAlpha(0f);
-        stage.setScaleX(0.92f);
-        stage.setScaleY(0.92f);
-        stage.animate().alpha(1f).scaleX(1f).scaleY(1f).setStartDelay(150).setDuration(520).start();
-        row.setAlpha(0f);
-        row.setTranslationY(dp(60));
-        row.animate().alpha(1f).translationY(0).setStartDelay(300).setDuration(440).start();
+        previewBox.setAlpha(0f);
+        previewBox.setScaleX(0.94f);
+        previewBox.setScaleY(0.94f);
+        previewBox.animate().alpha(1f).scaleX(1f).scaleY(1f).setStartDelay(150).setDuration(480).start();
+        play.setAlpha(0f);
+        play.setTranslationX(dp(80));
+        play.animate().alpha(1f).translationX(0).setStartDelay(300).setDuration(460).start();
+        tab.setTranslationY(dp(70));
+        tab.animate().translationY(0).setStartDelay(250).setDuration(420).start();
 
         initSound();
         loadGames();
@@ -767,7 +684,7 @@ public class GameLauncherActivity extends Activity {
         c.setOrientation(LinearLayout.HORIZONTAL);
         c.setGravity(Gravity.CENTER_VERTICAL);
         c.setPadding(dp(10), dp(4), dp(14), dp(4));
-        c.setBackground(new Cut(Color.parseColor("#CC0C1230"), Color.parseColor("#66FF1E3C"), dp(1), dp(6), false, true, false, true));
+        c.setBackground(new Cut(Color.parseColor("#CC15151B"), Color.parseColor("#55FF1E3C"), dp(1), dp(6), false, true, false, true));
         c.addView(ico, new LinearLayout.LayoutParams(dp(18), dp(18)));
         t.setText(text);
         t.setTextColor(Color.WHITE);
@@ -783,7 +700,7 @@ public class GameLauncherActivity extends Activity {
 
     private View iconBtn(Ico ico, View.OnClickListener l) {
         FrameLayout f = new FrameLayout(this);
-        f.setBackground(new Cut(Color.parseColor("#CC0C1230"), Color.parseColor("#99FF1E3C"), dp(1.2f), dp(8), false, true, false, true));
+        f.setBackground(new Cut(Color.parseColor("#CC15151B"), Color.parseColor("#99FF1E3C"), dp(1.2f), dp(8), false, true, false, true));
         FrameLayout.LayoutParams il = new FrameLayout.LayoutParams(dp(20), dp(20));
         il.gravity = Gravity.CENTER;
         f.addView(ico, il);
@@ -794,141 +711,126 @@ public class GameLauncherActivity extends Activity {
         return f;
     }
 
-    /** Small blue-bordered button next to MAINKAN (like "Official site" / "My record" on gaming phones). */
-    private View sideBtn(int icon, String text, View.OnClickListener l) {
-        LinearLayout f = new LinearLayout(this);
-        f.setOrientation(LinearLayout.HORIZONTAL);
-        f.setGravity(Gravity.CENTER);
-        f.setPadding(dp(14), dp(8), dp(16), dp(8));
-        f.setBackground(new Cut(Color.parseColor("#CC0A1233"), Color.parseColor("#FF3D8BFF"), dp(1.3f), dp(9), true, false, true, false));
-        f.addView(new Ico(this, icon, Color.parseColor("#7FB2FF")), new LinearLayout.LayoutParams(dp(16), dp(16)));
-        TextView t = new TextView(this);
-        t.setText(text);
-        t.setTextColor(Color.WHITE);
-        t.setTextSize(11);
-        t.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC));
-        t.setLetterSpacing(0.1f);
-        t.setPadding(dp(8), 0, 0, 0);
-        f.addView(t);
-        f.setOnClickListener(l);
-        f.setLayoutParams(new LinearLayout.LayoutParams(-2, dp(38)));
-        return f;
-    }
-
-    // ---------------------------------------------------------------- carousel logic
-
-    private void cancelAnim() {
-        if (posAnim != null) { posAnim.cancel(); posAnim = null; }
-    }
-
-    private void animateTo(int target) {
-        int n = games.size();
-        if (n == 0) return;
-        target = Math.max(0, Math.min(n - 1, target));
-        cancelAnim();
-        posAnim = ValueAnimator.ofFloat(pos, target);
-        posAnim.setDuration(280);
-        posAnim.setInterpolator(new DecelerateInterpolator(1.6f));
-        posAnim.addUpdateListener(a -> { pos = (Float) a.getAnimatedValue(); applyPos(); });
-        posAnim.start();
-    }
-
-    /** Places, scales and tilts the 7 card slots for the current (fractional) scroll position. */
-    private void applyPos() {
-        int n = games.size();
-        if (n == 0) {
-            for (GameCard c : cards) { c.setVisibility(View.INVISIBLE); c.idx = -1; }
-            return;
-        }
-        int base = Math.max(0, Math.min(n - 1, Math.round(pos)));
-        for (int j = 0; j < cards.length; j++) {
-            GameCard c = cards[j];
-            int idx = base + (j - 3);
-            if (idx < 0 || idx >= n) { c.setVisibility(View.INVISIBLE); c.idx = -1; continue; }
-            float r = idx - pos, ar = Math.abs(r), sg = r < 0 ? -1f : 1f;
-            float a1 = Math.min(ar, 1f), a2 = Math.max(0f, Math.min(ar - 1f, 2f));
-            if (c.idx != idx) {
-                Game g = games.get(idx);
-                c.bind(g.art, g.name, playText(g.pkg));
-                c.idx = idx;
+    private void renderList() {
+        listCol.removeAllViews();
+        for (int i = 0; i < games.size(); i++) {
+            final int idx = i;
+            final Game g = games.get(i);
+            boolean on = i == sel;
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(dp(14), dp(7), dp(12), dp(7));
+            row.setBackground(on
+                    ? new Cut(Color.parseColor("#33FF1E3C"), Color.parseColor("#99FF1E3C"), dp(1), dp(12), false, true, false, true)
+                    : new ColorDrawable(Color.TRANSPARENT));
+            row.addView(new HexIcon(this, g.icon, on ? RED : Color.parseColor("#3C3C48"), dp(1.6f), false),
+                    new LinearLayout.LayoutParams(dp(46), dp(50)));
+            TextView n = new TextView(this);
+            n.setText(g.name);
+            n.setTextColor(on ? Color.WHITE : Color.parseColor("#9A9AA6"));
+            n.setTextSize(on ? 16 : 14);
+            n.setTypeface(Typeface.create(Typeface.DEFAULT, on ? Typeface.BOLD_ITALIC : Typeface.NORMAL));
+            n.setSingleLine(true);
+            n.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            LinearLayout.LayoutParams nl = new LinearLayout.LayoutParams(0, -2, 1f);
+            nl.leftMargin = dp(12);
+            row.addView(n, nl);
+            if (on) {
+                View bar = new View(this);
+                bar.setBackground(new Cut(RED, RED, 0, dp(3), true, false, true, false));
+                row.addView(bar, new LinearLayout.LayoutParams(dp(4), dp(26)));
             }
-            float sc = 1f - 0.2f * a1 - 0.06f * a2;
-            float alpha = ar <= 1f ? 1f - 0.25f * ar : Math.max(0f, 0.75f - 0.4f * (ar - 1f));
-            c.setVisibility(alpha <= 0.02f ? View.INVISIBLE : View.VISIBLE);
-            c.setScaleX(sc);
-            c.setScaleY(sc);
-            c.setTranslationX(sg * (a1 * stage.sp + a2 * stage.sp * 0.7f));
-            c.setAlpha(alpha);
-            c.setRotationY(-sg * a1 * TILT);
-            c.setTranslationZ(-ar * 10f);
-            c.setFocus(1f - a1);
+            row.setOnClickListener(v -> select(idx));
+            row.setOnLongClickListener(v -> { confirmHide(g); return true; });
+            if (!introDone) {
+                row.setAlpha(0f);
+                row.setTranslationX(-dp(36));
+                row.animate().alpha(1f).translationX(0).setStartDelay(Math.min(i, 10) * 55L + 200).setDuration(340).start();
+            }
+            LinearLayout.LayoutParams rl = new LinearLayout.LayoutParams(-1, -2);
+            rl.bottomMargin = dp(4);
+            listCol.addView(row, rl);
         }
-        if (base != sel) {
-            sel = base;
-            playFx(sSelect, 0.8f);
-            updateSummary();
+        introDone = true;
+    }
+
+    private void select(int i) {
+        if (i == sel || i < 0 || i >= games.size()) return;
+        sel = i;
+        playFx(sSelect, 0.8f);
+        renderList();
+        updatePreview(true);
+    }
+
+    private void updatePreview(boolean anim) {
+        if (games.isEmpty()) return;
+        if (sel >= games.size()) sel = 0;
+        Game g = games.get(sel);
+        pvBack.setImageDrawable(g.icon);
+        pvIcon.set(g.icon, RED);
+        pvName.setText(g.name);
+        pvSub.setText(profileSummary(g.pkg));
+        if (anim) {
+            pvContent.setAlpha(0f);
+            pvContent.setTranslationX(dp(28));
+            pvContent.animate().alpha(1f).translationX(0).setDuration(260).start();
+            pvBack.setAlpha(0f);
+            pvBack.animate().alpha(0.28f).setDuration(320).start();
         }
     }
 
-    private static Bitmap toBitmap(Drawable dr, int size) {
+    /** One-line summary of what Mainkan will turn on for this game (from the saved Game Mode profile). */
+    private String profileSummary(String pkg) {
         try {
-            Bitmap bm = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888);
-            Canvas cv = new Canvas(bm);
-            dr.setBounds(0, 0, size, size);
-            dr.draw(cv);
-            return bm;
-        } catch (Throwable t) { return null; }
+            GameProfiles.Profile p = GameProfiles.get(this, pkg);
+            List<String> on = new ArrayList<String>();
+            if (p.gov != null && !p.gov.isEmpty()) on.add("CPU " + p.gov);
+            if (p.gpuMaxMhz > 0) on.add("GPU " + p.gpuMaxMhz + " MHz");
+            if (p.dnd) on.add("Jangan ganggu");
+            if (p.headsUp) on.add("Pop-up diblok");
+            if (p.thermalRelax) on.add("Thermal longgar");
+            if (p.cleanRam) on.add("Bersih RAM");
+            if (on.isEmpty()) return "Belum ada boost aktif. Atur di Setelan Game.";
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < on.size(); i++) { if (i > 0) sb.append("  •  "); sb.append(on.get(i)); }
+            return sb.toString();
+        } catch (Throwable t) {
+            return "";
+        }
     }
 
-    private void setIf(TextView t, String v) {
-        if (!v.contentEquals(t.getText())) t.setText(v);
-    }
+    private void buildOverlay() {
+        overlay = new FrameLayout(this);
+        overlay.setBackgroundColor(Color.parseColor("#F507070A"));
+        overlay.setVisibility(View.GONE);
+        overlay.setClickable(true);
 
-    /** Slow neon shimmer on the centre card only, ~16 steps/s, and paused while the user is swiping. */
-    private void startShimmer() {
-        if (shim != null) shim.cancel();
-        shim = ValueAnimator.ofFloat(0f, 1f);
-        shim.setDuration(3600);
-        shim.setRepeatCount(ValueAnimator.INFINITE);
-        shim.setInterpolator(new LinearInterpolator());
-        shim.addUpdateListener(a -> {
-            int step = (int) ((Float) a.getAnimatedValue() * 58f);
-            if (step == shimStep) return;
-            shimStep = step;
-            if (System.currentTimeMillis() - lastTouch < 700 || (posAnim != null && posAnim.isRunning())) return;
-            for (GameCard c : cards) if (c.idx == sel && c.getVisibility() == View.VISIBLE) c.setPhase(step / 58f);
-        });
-        shim.start();
-    }
+        ovRing = new HexIcon(this, null, RED, dp(3), false);
+        ovRing2 = new HexIcon(this, null, Color.parseColor("#FF7388"), dp(2), false);
+        for (HexIcon h : new HexIcon[]{ovRing, ovRing2}) {
+            FrameLayout.LayoutParams rl = new FrameLayout.LayoutParams(dp(120), dp(120));
+            rl.gravity = Gravity.CENTER;
+            overlay.addView(h, rl);
+        }
+        ovIcon = new HexIcon(this, null, RED, dp(2.5f), true);
+        FrameLayout.LayoutParams il = new FrameLayout.LayoutParams(dp(130), dp(130));
+        il.gravity = Gravity.CENTER;
+        overlay.addView(ovIcon, il);
 
-    private void updateSummary() {
-        if (games.isEmpty() || sel >= games.size()) { summary.setText(""); return; }
-        summary.setText(profileSummary(games.get(sel).pkg));
-    }
+        ovText = new TextView(this);
+        ovText.setTextColor(Color.WHITE);
+        ovText.setTextSize(15);
+        ovText.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC));
+        ovText.setLetterSpacing(0.18f);
+        ovText.setShadowLayer(16, 0, 0, RED);
+        ovText.setGravity(Gravity.CENTER);
+        FrameLayout.LayoutParams tl = new FrameLayout.LayoutParams(-1, -2);
+        tl.gravity = Gravity.CENTER;
+        tl.topMargin = dp(120);
+        overlay.addView(ovText, tl);
 
-    // ---------------------------------------------------------------- play time record
-
-    private static String fmtDur(long ms) {
-        long m = ms / 60000L, h = m / 60L;
-        if (m < 1) return "kurang dari 1 mnt";
-        if (h < 1) return m + " mnt";
-        return h + " j " + (m % 60L) + " mnt";
-    }
-
-    private String playText(String pkg) {
-        long ms = sp.getLong("t_" + pkg, 0L);
-        return ms <= 0 ? "Belum pernah dimainkan" : "Durasi main: " + fmtDur(ms);
-    }
-
-    /** Called when we come back to the launcher: adds the time spent in the game we started. */
-    private void settleRun() {
-        String pkg = sp.getString("run_pkg", null);
-        long ts = sp.getLong("run_ts", 0L);
-        if (pkg == null || ts <= 0) return;
-        long el = System.currentTimeMillis() - ts;
-        SharedPreferences.Editor ed = sp.edit().remove("run_pkg").remove("run_ts");
-        if (el >= 15000L && el <= 12L * 3600000L) ed.putLong("t_" + pkg, sp.getLong("t_" + pkg, 0L) + el);
-        ed.apply();
+        root.addView(overlay, new FrameLayout.LayoutParams(-1, -1));
     }
 
     // ---------------------------------------------------------------- live stats
@@ -944,20 +846,20 @@ public class GameLauncherActivity extends Activity {
     private final Runnable poll = new Runnable() {
         @Override public void run() {
             if (!pollOn) return;
-            if (!polling && System.currentTimeMillis() - lastTouch > 1500) {
+            if (!polling) {
                 polling = true;
                 new Thread(() -> {
                     try {
                         final int[] v = readStats();
                         runOnUiThread(() -> {
                             final int bat = v[0], cpu = v[1], gpu = v[2], gmhz = v[3];
-                            setIf(stBat, (bat < 0 ? "--" : String.valueOf(bat)) + "%");
+                            stBat.setText((bat < 0 ? "--" : String.valueOf(bat)) + "%");
                             icBat.level = bat < 0 ? 1f : bat / 100f;
                             icBat.set(I_BAT, bat >= 0 && bat < 20 ? RED : GREEN);
-                            setIf(stCpu, "CPU " + (cpu < 0 ? "--" : cpu + "%"));
-                            if (gpu >= 0) setIf(stGpu, "GPU " + gpu + "%");
-                            else if (gmhz > 0) setIf(stGpu, "GPU " + gmhz + " MHz");
-                            else setIf(stGpu, "GPU --");
+                            stCpu.setText("CPU " + (cpu < 0 ? "--" : cpu + "%"));
+                            if (gpu >= 0) stGpu.setText("GPU " + gpu + "%");
+                            else if (gmhz > 0) stGpu.setText("GPU " + gmhz + " MHz");
+                            else stGpu.setText("GPU --");
                         });
                     } finally {
                         polling = false;
@@ -1072,6 +974,10 @@ public class GameLauncherActivity extends Activity {
         return max > 0 ? (int) (100 * cur / max) : -1;
     }
 
+    private void setIf(TextView t, String v) {
+        if (!v.contentEquals(t.getText())) t.setText(v);
+    }
+
     // ---------------------------------------------------------------- sound
 
     private void initSound() {
@@ -1122,7 +1028,6 @@ public class GameLauncherActivity extends Activity {
                 g.pkg = pkg;
                 g.name = String.valueOf(ri.loadLabel(pm));
                 g.icon = ri.loadIcon(pm);
-                g.art = toBitmap(g.icon, 160);
                 out.add(g);
             }
             Collections.sort(out, new Comparator<Game>() {
@@ -1137,13 +1042,10 @@ public class GameLauncherActivity extends Activity {
                 sel = 0;
                 if (keep != null) for (int i = 0; i < games.size(); i++) if (games.get(i).pkg.equals(keep)) sel = i;
                 boolean none = games.isEmpty();
-                stage.setVisibility(none ? View.INVISIBLE : View.VISIBLE);
+                body.setVisibility(none ? View.INVISIBLE : View.VISIBLE);
                 emptyView.setVisibility(none ? View.VISIBLE : View.GONE);
-                cancelAnim();
-                for (GameCard c : cards) c.idx = -1;
-                pos = sel;
-                applyPos();
-                updateSummary();
+                renderList();
+                updatePreview(false);
             });
         }).start();
     }
@@ -1198,59 +1100,6 @@ public class GameLauncherActivity extends Activity {
                 .show();
     }
 
-    /** One-line summary of what Mainkan will turn on for this game (from the saved Game Mode profile). */
-    private String profileSummary(String pkg) {
-        try {
-            GameProfiles.Profile p = GameProfiles.get(this, pkg);
-            List<String> on = new ArrayList<String>();
-            if (p.gov != null && !p.gov.isEmpty()) on.add("CPU " + p.gov);
-            if (p.gpuMaxMhz > 0) on.add("GPU " + p.gpuMaxMhz + " MHz");
-            if (p.dnd) on.add("Jangan ganggu");
-            if (p.headsUp) on.add("Pop-up diblok");
-            if (p.thermalRelax) on.add("Thermal longgar");
-            if (p.cleanRam) on.add("Bersih RAM");
-            if (on.isEmpty()) return "Belum ada boost aktif. Atur di Setelan Game.";
-            StringBuilder sb = new StringBuilder();
-            for (int i = 0; i < on.size(); i++) { if (i > 0) sb.append("  •  "); sb.append(on.get(i)); }
-            return sb.toString();
-        } catch (Throwable t) {
-            return "";
-        }
-    }
-
-    private void buildOverlay() {
-        overlay = new FrameLayout(this);
-        overlay.setBackgroundColor(Color.parseColor("#F507070A"));
-        overlay.setVisibility(View.GONE);
-        overlay.setClickable(true);
-
-        ovRing = new HexIcon(this, null, RED, dp(3), false);
-        ovRing2 = new HexIcon(this, null, Color.parseColor("#FF7388"), dp(2), false);
-        for (HexIcon h : new HexIcon[]{ovRing, ovRing2}) {
-            FrameLayout.LayoutParams rl = new FrameLayout.LayoutParams(dp(120), dp(120));
-            rl.gravity = Gravity.CENTER;
-            overlay.addView(h, rl);
-        }
-        ovIcon = new HexIcon(this, null, RED, dp(2.5f), true);
-        FrameLayout.LayoutParams il = new FrameLayout.LayoutParams(dp(130), dp(130));
-        il.gravity = Gravity.CENTER;
-        overlay.addView(ovIcon, il);
-
-        ovText = new TextView(this);
-        ovText.setTextColor(Color.WHITE);
-        ovText.setTextSize(15);
-        ovText.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC));
-        ovText.setLetterSpacing(0.18f);
-        ovText.setShadowLayer(16, 0, 0, RED);
-        ovText.setGravity(Gravity.CENTER);
-        FrameLayout.LayoutParams tl = new FrameLayout.LayoutParams(-1, -2);
-        tl.gravity = Gravity.CENTER;
-        tl.topMargin = dp(120);
-        overlay.addView(ovText, tl);
-
-        root.addView(overlay, new FrameLayout.LayoutParams(-1, -1));
-    }
-
     // ---------------------------------------------------------------- launch / panel / settings
 
     private void launch(final Game g) {
@@ -1285,7 +1134,6 @@ public class GameLauncherActivity extends Activity {
                     return;
                 }
                 openGamePanel(g.pkg);   // while we're still in the foreground, so the service may start
-                sp.edit().putString("run_pkg", g.pkg).putLong("run_ts", System.currentTimeMillis()).apply();
                 i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 try { startActivity(i); } catch (Throwable e) {
                     Toast.makeText(this, "Gagal membuka " + g.name, Toast.LENGTH_SHORT).show();
@@ -1310,19 +1158,26 @@ public class GameLauncherActivity extends Activity {
         overlay.setVisibility(View.GONE);
     }
 
+    @SuppressWarnings("deprecation")
+    private void hideBars() {
+        getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+                | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION | View.SYSTEM_UI_FLAG_FULLSCREEN
+                | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+    }
+
+    @Override
+    public void onWindowFocusChanged(boolean hasFocus) {
+        super.onWindowFocusChanged(hasFocus);
+        if (hasFocus) hideBars();
+    }
+
     @Override
     protected void onResume() {
         super.onResume();
-        settleRun();
-        if (!games.isEmpty()) {
-            for (GameCard c : cards) c.idx = -1;   // refresh play time on the cards
-            applyPos();
-        }
         if (launching) main.postDelayed(this::hideOverlay, 400);   // came back from the game
         pollOn = true;
         main.removeCallbacks(poll);
         main.post(poll);
-        startShimmer();
     }
 
     @Override
@@ -1330,7 +1185,6 @@ public class GameLauncherActivity extends Activity {
         super.onPause();
         pollOn = false;
         main.removeCallbacks(poll);
-        if (shim != null) { shim.cancel(); shim = null; }
     }
 
     /** Opens the existing per-game profile settings. Tries the likely screen names, else the game list. */
