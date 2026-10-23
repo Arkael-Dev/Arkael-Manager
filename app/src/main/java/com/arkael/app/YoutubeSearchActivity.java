@@ -32,6 +32,9 @@ import java.util.List;
 import java.util.Locale;
 
 import org.schabi.newpipe.extractor.InfoItem;
+import org.schabi.newpipe.extractor.ListExtractor;
+import org.schabi.newpipe.extractor.Page;
+import org.schabi.newpipe.extractor.linkhandler.SearchQueryHandler;
 import org.schabi.newpipe.extractor.NewPipe;
 import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.search.SearchInfo;
@@ -55,6 +58,11 @@ public class YoutubeSearchActivity extends Activity {
     private EditText query;
     private int mode = 3;            // 0 = search results, 1 = Riwayat (history), 2 = Disukai (likes), 3 = Beranda (home feed)
     private TextView tabHome, tabHistory, tabLikes, clearBtn;
+    private TextView tabSubs, tabLists, chipTime, chipSort;
+    private int fTime = 0;     // 0 semua waktu, 1 hari ini, 2 minggu ini, 3 bulan ini, 4 tahun ini
+    private int fSort = 0;     // 0 relevansi, 1 terbaru
+    private static final String[] F_TIME = {"Semua waktu", "Hari ini", "Minggu ini", "Bulan ini", "Tahun ini"};
+    private static final long[] F_MS = {0L, 86400000L, 7 * 86400000L, 30 * 86400000L, 365 * 86400000L};
     private int searchGen = 0;   // bumped on every new search so a slow old search can't overwrite a newer result
 
     private int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
@@ -126,6 +134,21 @@ public class YoutubeSearchActivity extends Activity {
         searchRow.addView(go, gl);
         col.addView(searchRow, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(48)));
 
+        LinearLayout fRow = new LinearLayout(this);
+        fRow.setOrientation(LinearLayout.HORIZONTAL);
+        fRow.setPadding(0, dp(10), 0, 0);
+        chipTime = filterChip();
+        chipSort = filterChip();
+        chipTime.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { showTimeDialog(); }
+        });
+        chipSort.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { showSortDialog(); }
+        });
+        fRow.addView(chipTime);
+        fRow.addView(chipSort);
+        col.addView(fRow);
+
         LinearLayout tabs = new LinearLayout(this);
         tabs.setOrientation(LinearLayout.HORIZONTAL);
         tabs.setGravity(Gravity.CENTER_VERTICAL);
@@ -133,7 +156,11 @@ public class YoutubeSearchActivity extends Activity {
         tabHome = tab("Beranda", 3);
         tabHistory = tab("Riwayat", 1);
         tabLikes = tab("Disukai", 2);
+        tabSubs = tab("Langganan", 4);
+        tabLists = tab("Playlist", 5);
         tabs.addView(tabHome);
+        tabs.addView(tabSubs);
+        tabs.addView(tabLists);
         tabs.addView(tabHistory);
         tabs.addView(tabLikes);
         View grow = new View(this);
@@ -148,7 +175,11 @@ public class YoutubeSearchActivity extends Activity {
             @Override public void onClick(View v) { confirmClearHistory(); }
         });
         tabs.addView(clearBtn);
-        col.addView(tabs);
+        HorizontalScrollView tabsScroll = new HorizontalScrollView(this);
+        tabsScroll.setHorizontalScrollBarEnabled(false);
+        tabsScroll.addView(tabs);
+        col.addView(tabsScroll);
+        refreshFilterChips();
 
         HorizontalScrollView cats = new HorizontalScrollView(this);
         cats.setHorizontalScrollBarEnabled(false);
@@ -191,9 +222,11 @@ public class YoutubeSearchActivity extends Activity {
         lv.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override public void onItemClick(AdapterView<?> p, View v, int i, long id) {
                 Row r = items.get(i);
+                if (r.url == null) { openLibrary(1); return; }
                 Intent in = new Intent(YoutubeSearchActivity.this, YoutubePlayerActivity.class);
                 in.putExtra("url", r.url);
                 in.putExtra("title", r.title);
+                if (mode == 2 || mode == 4) putQueue(in, i);
                 startActivity(in);
             }
         });
@@ -205,7 +238,8 @@ public class YoutubeSearchActivity extends Activity {
     protected void onResume() {
         super.onResume();
         // Opening YouTube shows the home feed right away (nothing to type); history / likes refresh on return.
-        if (mode == 1 || mode == 2) showStored(mode);
+        if (mode == 4) showSubs();
+        else if (mode == 1 || mode == 2) showStored(mode);
         else if (mode == 3 && items.isEmpty() && spinner.getVisibility() != View.VISIBLE) showHome();
     }
 
@@ -216,7 +250,12 @@ public class YoutubeSearchActivity extends Activity {
         t.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         t.setPadding(dp(16), dp(8), dp(16), dp(8));
         t.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View v) { if (m == 3) showHome(); else showStored(m); }
+            @Override public void onClick(View v) {
+                if (m == 3) showHome();
+                else if (m == 4) showSubs();
+                else if (m == 5) openLibrary(0);
+                else showStored(m);
+            }
         });
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.rightMargin = dp(8);
@@ -228,6 +267,8 @@ public class YoutubeSearchActivity extends Activity {
         styleTab(tabHome, mode == 3);
         styleTab(tabHistory, mode == 1);
         styleTab(tabLikes, mode == 2);
+        styleTab(tabSubs, mode == 4);
+        styleTab(tabLists, false);
         clearBtn.setVisibility(mode == 1 && !items.isEmpty() ? View.VISIBLE : View.GONE);
     }
 
@@ -432,8 +473,7 @@ public class YoutubeSearchActivity extends Activity {
                 String err = null;
                 try {
                     StreamingService yt = NewPipe.getService("YouTube");
-                    SearchInfo info = SearchInfo.getInfo(yt, yt.getSearchQHFactory().fromQuery(q));
-                    for (InfoItem ii : info.getRelatedItems()) {
+                    for (InfoItem ii : searchItems(yt, q)) {
                         if (!(ii instanceof StreamInfoItem)) continue;
                         StreamInfoItem si = (StreamInfoItem) ii;
                         Row row = new Row();
@@ -462,11 +502,181 @@ public class YoutubeSearchActivity extends Activity {
                         items.clear();
                         items.addAll(result);
                         adapter.notifyDataSetChanged();
-                        status.setText(result.isEmpty() ? "No results" : "");
+                        status.setText(result.isEmpty() ? (fTime != 0 ? "Tidak ada video dalam rentang waktu ini. Coba waktu yang lebih luas." : "No results") : "");
                     }
                 });
             }
         }).start();
+    }
+
+    // ---------------------------------------------------------------- langganan, playlist, filter
+
+    private void openLibrary(int tab) {
+        Intent in = new Intent(this, YoutubeLibraryActivity.class);
+        in.putExtra("tab", tab);
+        startActivity(in);
+    }
+
+    /** Feed langganan: video terbaru dari semua channel yang dilanggani (RSS publik, tanpa akun). */
+    private void showSubs() {
+        mode = 4;
+        final int gen = ++searchGen;
+        updateTabs();
+        items.clear();
+        adapter.notifyDataSetChanged();
+        status.setText("");
+        final int n = YtLibrary.subs(this).size();
+        if (n == 0) {
+            spinner.setVisibility(View.GONE);
+            status.setText("Belum ada langganan.\nBuka video lalu tap Langganan di bawah judul.\nTanpa akun Google.");
+            return;
+        }
+        spinner.setVisibility(View.VISIBLE);
+        new Thread(new Runnable() {
+            @Override public void run() {
+                final List<YtLibrary.FeedItem> feed = YtLibrary.fetchFeed(YoutubeSearchActivity.this);
+                runOnUiThread(new Runnable() {
+                    @Override public void run() {
+                        if (gen != searchGen) return;
+                        spinner.setVisibility(View.GONE);
+                        items.clear();
+                        Row m = new Row();
+                        m.url = null;
+                        m.title = "👥  Kelola langganan (" + n + ")";
+                        m.uploader = "Lihat atau berhenti berlangganan channel";
+                        items.add(m);
+                        for (YtLibrary.FeedItem f : feed) {
+                            Row r = new Row();
+                            r.url = f.url;
+                            r.title = f.title;
+                            String when = f.published > 0 ? android.text.format.DateUtils.getRelativeTimeSpanString(
+                                    f.published, System.currentTimeMillis(), android.text.format.DateUtils.MINUTE_IN_MILLIS).toString() : "";
+                            r.uploader = f.uploader + (when.isEmpty() ? "" : "  ·  " + when);
+                            r.thumb = f.thumb;
+                            items.add(r);
+                        }
+                        adapter.notifyDataSetChanged();
+                        status.setText(feed.isEmpty() ? "Gagal memuat video langganan. Cek koneksi, lalu tap Langganan lagi." : "");
+                    }
+                });
+            }
+        }).start();
+    }
+
+    /** Antrean dari daftar yang sedang tampil: video berikutnya diputar otomatis. */
+    private void putQueue(Intent in, int clicked) {
+        List<String> u = new ArrayList<String>();
+        List<String> t = new ArrayList<String>();
+        int idx = 0;
+        for (int k = 0; k < items.size(); k++) {
+            Row r = items.get(k);
+            if (r.url == null) continue;
+            if (k == clicked) idx = u.size();
+            u.add(r.url);
+            t.add(r.title == null ? "" : r.title);
+        }
+        in.putExtra("queue_urls", u.toArray(new String[0]));
+        in.putExtra("queue_titles", t.toArray(new String[0]));
+        in.putExtra("queue_index", idx);
+        in.putExtra("queue_name", mode == 4 ? "Langganan" : "Disukai");
+    }
+
+    private TextView filterChip() {
+        TextView t = new TextView(this);
+        t.setTextSize(12);
+        t.setPadding(dp(14), dp(7), dp(14), dp(7));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.rightMargin = dp(8);
+        t.setLayoutParams(lp);
+        return t;
+    }
+
+    private void refreshFilterChips() {
+        chipTime.setText("🕒  " + F_TIME[fTime]);
+        chipSort.setText("↕  " + (fSort == 0 ? "Relevansi" : "Terbaru"));
+        styleTab(chipTime, fTime != 0);
+        styleTab(chipSort, fSort != 0);
+    }
+
+    private void reSearch() {
+        if (mode == 0 && !query.getText().toString().trim().isEmpty()) doSearch();
+    }
+
+    private void showTimeDialog() {
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Waktu unggah")
+                .setSingleChoiceItems(F_TIME, fTime, new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int which) {
+                        fTime = which;
+                        refreshFilterChips();
+                        d.dismiss();
+                        reSearch();
+                    }
+                })
+                .setNegativeButton("Batal", null)
+                .show();
+    }
+
+    private void showSortDialog() {
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Urutkan")
+                .setSingleChoiceItems(new String[]{"Relevansi", "Terbaru"}, fSort, new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int which) {
+                        fSort = which;
+                        refreshFilterChips();
+                        d.dismiss();
+                        reSearch();
+                    }
+                })
+                .setNegativeButton("Batal", null)
+                .show();
+    }
+
+    private static long uploadMs(StreamInfoItem si) {
+        try {
+            org.schabi.newpipe.extractor.localization.DateWrapper d = si.getUploadDate();
+            if (d != null) return d.offsetDateTime().toInstant().toEpochMilli();
+        } catch (Throwable ignored) { }
+        return 0;
+    }
+
+    /**
+     * Hasil pencarian. Dengan filter waktu / urutan "Terbaru" diambil beberapa halaman sekaligus lalu
+     * disaring dan diurutkan di app (YouTube lewat NewPipe tidak menyediakan filter tanggal).
+     */
+    private List<InfoItem> searchItems(StreamingService yt, String q) throws Exception {
+        SearchQueryHandler qh = yt.getSearchQHFactory().fromQuery(q);
+        SearchInfo info = SearchInfo.getInfo(yt, qh);
+        List<InfoItem> out = new ArrayList<InfoItem>(info.getRelatedItems());
+        if (fTime == 0 && fSort == 0) return out;
+
+        Page page = info.getNextPage();
+        for (int p = 0; p < 4 && page != null; p++) {
+            try {
+                ListExtractor.InfoItemsPage<InfoItem> more = SearchInfo.getMoreItems(yt, qh, page);
+                out.addAll(more.getItems());
+                page = more.getNextPage();
+            } catch (Exception e) {
+                Log.w(TAG, "search: more pages failed", e);
+                break;
+            }
+        }
+        long now = System.currentTimeMillis();
+        final java.util.Map<InfoItem, Long> when = new java.util.HashMap<InfoItem, Long>();
+        List<InfoItem> res = new ArrayList<InfoItem>();
+        for (InfoItem ii : out) {
+            if (!(ii instanceof StreamInfoItem)) continue;
+            long t = uploadMs((StreamInfoItem) ii);
+            if (fTime != 0 && (t <= 0 || now - t > F_MS[fTime])) continue;
+            when.put(ii, t);
+            res.add(ii);
+        }
+        if (fSort == 1) {
+            java.util.Collections.sort(res, new java.util.Comparator<InfoItem>() {
+                @Override public int compare(InfoItem a, InfoItem b) { return Long.compare(when.get(b), when.get(a)); }
+            });
+        }
+        return res;
     }
 
     private static String bestThumb(StreamInfoItem si) {

@@ -82,5 +82,6 @@
         </service>
         <service android:name=".YoutubeDownloadService" android:exported="false"
             android:foregroundServiceType="dataSync"/>
+        <activity android:name=".YoutubeLibraryActivity" android:exported="false" android:label="Library"/>
     </application>
 </manifest>

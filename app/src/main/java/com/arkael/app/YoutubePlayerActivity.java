@@ -178,6 +178,12 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     private java.util.List<YtExtras.Seg> exSegs = new java.util.ArrayList<YtExtras.Seg>();
     private final java.util.Set<Integer> exSkipped = new java.util.HashSet<Integer>();
     private int exTickN;
+    private final java.util.List<String> exQueueUrls = new java.util.ArrayList<String>();
+    private final java.util.List<String> exQueueTitles = new java.util.ArrayList<String>();
+    private int exQueueIdx = -1;
+    private String exQueueName;
+    private boolean exInternal, exEndedHandled;
+    private TextView btnSub, chipMode;
     private final Runnable exTick = new Runnable() {
         @Override public void run() {
             try { exTickBody(); } catch (Exception ignored) { }
@@ -323,6 +329,11 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         chips.addView(chip("🔊  Suara", v -> showAudioLangDialog()));
         chips.addView(chip("⬇  Download", v -> showDownloadDialog()));
         chips.addView(chip("🧩  Extras", v -> showExtrasDialog()));
+        chipMode = chip("🔁  Otomatis", v -> showModeDialog());
+        chips.addView(chipMode);
+        chips.addView(chip("⏭  Berikutnya", v -> exGoNext(true)));
+        chips.addView(chip("➕  Playlist", v -> exAddToPlaylistDialog()));
+        exRefreshChips();
         chips.addView(chip("↗  Bagikan", v -> shareLink()));
         chips.addView(chip("⧉  Salin link", v -> copyLink()));
         chipsScroll.addView(chips);
@@ -352,6 +363,15 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         LinearLayout.LayoutParams ctl = new LinearLayout.LayoutParams(0, -2, 1f);
         ctl.leftMargin = dp(12);
         chRow.addView(chText, ctl);
+        btnSub = new TextView(this);
+        btnSub.setTextSize(13);
+        btnSub.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        btnSub.setGravity(Gravity.CENTER);
+        btnSub.setPadding(dp(18), dp(10), dp(18), dp(10));
+        btnSub.setVisibility(View.GONE);
+        btnSub.setOnClickListener(v -> exToggleSub());
+        chRow.addView(btnSub);
+        chText.setOnClickListener(v -> exOpenChannel());
         col.addView(chRow);
 
         // description (tap to expand)
@@ -472,6 +492,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     private void readIntent(Intent i) {
         videoUrl = i == null ? null : i.getStringExtra("url");
         videoTitle = i == null ? null : i.getStringExtra("title");
+        exReadQueue(i);
     }
 
     // ---------------------------------------------------------------- player service connection
@@ -551,6 +572,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         long exResume = YtExtras.getPosition(this, videoUrl);
         controller.setMediaItem(item, exResume);
         if (exResume > 0) Toast.makeText(this, "Lanjut dari " + fmtDuration(exResume / 1000), Toast.LENGTH_SHORT).show();
+        exApplyRepeat();
         applyTrackPrefs();
         controller.setPlayWhenReady(true);
         controller.prepare();
@@ -1221,6 +1243,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         showDescription(info.getDescription());
         loadComments(videoUrl);
         loadExtras(videoUrl);
+        exRefreshSub();
     }
 
     // ---------------------------------------------------------------- description + comments
@@ -1508,6 +1531,8 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     private void exReset() {
         exSegs = new java.util.ArrayList<YtExtras.Seg>();
         exSkipped.clear();
+        exEndedHandled = false;
+        if (btnSub != null) btnSub.setVisibility(View.GONE);
     }
 
     /** True kalau yang sedang diputar memang video di layar ini (bukan video lama saat berganti). */
@@ -1520,7 +1545,11 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     private void exTickBody() {
         if (!exCurrent()) return;
         int st = player.getPlaybackState();
-        if (st == Player.STATE_ENDED) { YtExtras.clearPosition(this, videoUrl); return; }
+        if (st == Player.STATE_ENDED) {
+            YtExtras.clearPosition(this, videoUrl);
+            if (!exEndedHandled) { exEndedHandled = true; exOnEnded(); }
+            return;
+        }
         long pos = player.getCurrentPosition();
 
         if (player.isPlaying() && !exSegs.isEmpty() && exOn("ex_sb")) {
@@ -1592,6 +1621,209 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                         if (!exOn("ex_ryd") && curInfo.getLikeCount() >= 0) likes.setText("👍 " + compact(curInfo.getLikeCount()));
                     }
                     if (videoUrl != null) loadExtras(videoUrl);
+                })
+                .setNegativeButton("Batal", null)
+                .show();
+    }
+
+    // ---------------------------------------------------------------- antrean / langganan / playlist
+
+    private int exMode() { return getSharedPreferences(PREFS, MODE_PRIVATE).getInt("ex_mode", 1); }
+
+    private String exModeLabel() {
+        int m = exMode();
+        return m == 0 ? "Berhenti" : m == 2 ? "Ulang 1 video" : m == 3 ? "Ulang playlist" : "Otomatis";
+    }
+
+    private void exRefreshChips() {
+        if (chipMode == null) return;
+        chipMode.setText("🔁  " + exModeLabel() + (exQueueUrls.isEmpty() ? "" : "  (" + (exQueueIdx + 1) + "/" + exQueueUrls.size() + ")"));
+        styleChip(chipMode, exMode() != 1 || !exQueueUrls.isEmpty());
+    }
+
+    private void exReadQueue(Intent i) {
+        if (i != null && i.hasExtra("queue_urls")) {
+            String[] u = i.getStringArrayExtra("queue_urls");
+            String[] t = i.getStringArrayExtra("queue_titles");
+            exQueueUrls.clear();
+            exQueueTitles.clear();
+            if (u != null) {
+                for (int k = 0; k < u.length; k++) {
+                    exQueueUrls.add(u[k]);
+                    exQueueTitles.add(t != null && k < t.length && t[k] != null ? t[k] : "");
+                }
+            }
+            exQueueName = i.getStringExtra("queue_name");
+            String cur = i.getStringExtra("url");
+            int idx = i.getIntExtra("queue_index", -1);
+            if (idx < 0 || idx >= exQueueUrls.size() || !exQueueUrls.get(idx).equals(cur)) idx = exQueueUrls.indexOf(cur);
+            exQueueIdx = idx;
+            if (idx < 0) { exQueueUrls.clear(); exQueueTitles.clear(); }
+        } else if (!exInternal) {
+            exQueueUrls.clear();
+            exQueueTitles.clear();
+            exQueueIdx = -1;
+            exQueueName = null;
+        }
+        exRefreshChips();
+    }
+
+    /** Ulang 1 video ditangani player; mode lain ditangani exOnEnded(). */
+    private void exApplyRepeat() {
+        try {
+            if (controller != null) controller.setRepeatMode(exMode() == 2 ? Player.REPEAT_MODE_ONE : Player.REPEAT_MODE_OFF);
+        } catch (Exception ignored) { }
+    }
+
+    private void exSwitch(String url, String title) {
+        exInternal = true;
+        try {
+            Intent it = new Intent();
+            it.putExtra("url", url);
+            it.putExtra("title", title);
+            onNewIntent(it);
+        } finally {
+            exInternal = false;
+        }
+    }
+
+    private void exOnEnded() {
+        int mode = exMode();
+        if (mode == 0 || mode == 2) return;
+        exGoNext(false);
+    }
+
+    /** Video berikutnya: antrean (playlist) kalau ada, kalau tidak video terkait pertama yang belum ditonton. */
+    private boolean exGoNext(boolean manual) {
+        if (!exQueueUrls.isEmpty() && exQueueIdx >= 0) {
+            int n = exQueueIdx + 1;
+            if (n >= exQueueUrls.size()) {
+                if (exMode() == 3) n = 0;
+                else {
+                    if (manual) Toast.makeText(this, "Sudah di akhir " + (exQueueName == null || exQueueName.isEmpty() ? "antrean" : exQueueName), Toast.LENGTH_SHORT).show();
+                    return false;
+                }
+            }
+            exQueueIdx = n;
+            exSwitch(exQueueUrls.get(n), exQueueTitles.get(n));
+            return true;
+        }
+        if (curInfo != null && curInfo.getRelatedItems() != null) {
+            java.util.Set<String> seen = new java.util.HashSet<String>();
+            seen.add(videoUrl);
+            java.util.List<YtStore.Entry> hist = YtStore.history(this);
+            for (int k = 0; k < hist.size() && k < 30; k++) seen.add(hist.get(k).url);
+            InfoItem fallback = null;
+            for (InfoItem ii : curInfo.getRelatedItems()) {
+                if (!(ii instanceof StreamInfoItem) || ii.getUrl() == null || ii.getUrl().equals(videoUrl)) continue;
+                if (fallback == null) fallback = ii;
+                if (seen.contains(ii.getUrl())) continue;
+                exSwitch(ii.getUrl(), ii.getName());
+                return true;
+            }
+            if (fallback != null) { exSwitch(fallback.getUrl(), fallback.getName()); return true; }
+        }
+        if (manual) Toast.makeText(this, "Tidak ada video berikutnya", Toast.LENGTH_SHORT).show();
+        return false;
+    }
+
+    private void showModeDialog() {
+        String[] names = {"Berhenti setelah selesai", "Putar otomatis (playlist / video berikutnya)", "Ulangi video ini", "Ulangi playlist (balik ke awal)"};
+        new AlertDialog.Builder(this)
+                .setTitle("Mode putar")
+                .setSingleChoiceItems(names, exMode(), (d, which) -> {
+                    getSharedPreferences(PREFS, MODE_PRIVATE).edit().putInt("ex_mode", which).apply();
+                    exApplyRepeat();
+                    exRefreshChips();
+                    d.dismiss();
+                })
+                .setNegativeButton("Batal", null)
+                .show();
+    }
+
+    // ---- langganan (lokal, tanpa akun Google)
+
+    private String exChannelId() {
+        return curInfo == null ? null : YtLibrary.channelIdFromUrl(curInfo.getUploaderUrl());
+    }
+
+    private void exRefreshSub() {
+        if (btnSub == null) return;
+        String id = exChannelId();
+        if (id == null) { btnSub.setVisibility(View.GONE); return; }
+        boolean on = YtLibrary.isSubscribed(this, id);
+        btnSub.setText(on ? "Berhenti Berlangganan" : "Langganan");
+        btnSub.setBackground(round(on ? C_ON : C_ACCENT, 20));
+        btnSub.setTextColor(on ? Color.WHITE : C_BG);
+        btnSub.setVisibility(View.VISIBLE);
+    }
+
+    private void exToggleSub() {
+        String id = exChannelId();
+        if (id == null || curInfo == null) return;
+        YtLibrary.Sub s = new YtLibrary.Sub();
+        s.id = id;
+        s.name = curInfo.getUploaderName() == null ? "" : curInfo.getUploaderName();
+        s.avatar = bestImage(curInfo.getUploaderAvatars());
+        boolean on = YtLibrary.toggleSub(this, s);
+        exRefreshSub();
+        Toast.makeText(this, on ? "Berlangganan: " + s.name : "Berhenti berlangganan", Toast.LENGTH_SHORT).show();
+    }
+
+    private void exOpenChannel() {
+        String id = exChannelId();
+        if (id == null) return;
+        Intent i = new Intent(this, YoutubeLibraryActivity.class);
+        i.putExtra("ch", id);
+        i.putExtra("chname", curInfo.getUploaderName());
+        startActivity(i);
+    }
+
+    // ---- playlist
+
+    private YtStore.Entry exEntry() {
+        if (curEntry != null) return curEntry;
+        YtStore.Entry e = new YtStore.Entry();
+        e.url = videoUrl;
+        e.title = videoTitle == null ? "" : videoTitle;
+        e.uploader = "";
+        return e;
+    }
+
+    private void exAddToPlaylistDialog() {
+        final java.util.List<YtLibrary.Pl> pls = YtLibrary.playlists(this);
+        final String[] names = new String[pls.size() + 1];
+        names[0] = "➕  Playlist baru…";
+        for (int i = 0; i < pls.size(); i++) names[i + 1] = pls.get(i).name + "  (" + pls.get(i).videos.size() + ")";
+        new AlertDialog.Builder(this)
+                .setTitle("Simpan ke playlist")
+                .setItems(names, (d, which) -> {
+                    if (which == 0) exNewPlaylistThenAdd();
+                    else exAddTo(pls.get(which - 1));
+                })
+                .setNegativeButton("Batal", null)
+                .show();
+    }
+
+    private void exAddTo(YtLibrary.Pl pl) {
+        boolean added = YtLibrary.addToPlaylist(this, pl.id, exEntry());
+        Toast.makeText(this, added ? "Disimpan ke " + pl.name : "Sudah ada di " + pl.name, Toast.LENGTH_SHORT).show();
+    }
+
+    private void exNewPlaylistThenAdd() {
+        final android.widget.EditText et = new android.widget.EditText(this);
+        et.setSingleLine(true);
+        et.setHint("Nama playlist");
+        LinearLayout box = new LinearLayout(this);
+        box.setPadding(dp(20), dp(8), dp(20), 0);
+        box.addView(et, new LinearLayout.LayoutParams(-1, -2));
+        new AlertDialog.Builder(this)
+                .setTitle("Playlist baru")
+                .setView(box)
+                .setPositiveButton("Buat & simpan", (d, w) -> {
+                    String n = et.getText().toString().trim();
+                    if (n.isEmpty()) return;
+                    exAddTo(YtLibrary.createPlaylist(this, n));
                 })
                 .setNegativeButton("Batal", null)
                 .show();
