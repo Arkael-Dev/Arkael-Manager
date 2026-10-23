@@ -244,6 +244,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_renderer).setOnClickListener(v -> showRendererMenu());
         findViewById(R.id.btn_vsync).setOnClickListener(v -> toggleCpuVsync());
         findViewById(R.id.btn_youtube).setOnClickListener(v -> startActivity(new Intent(this, YoutubeSearchActivity.class)));
+        findViewById(R.id.btn_equalizer).setOnClickListener(v -> startActivity(new Intent(this, EqualizerActivity.class)));
         findViewById(R.id.btn_game_launcher).setOnClickListener(v -> startActivity(new Intent(this, GameLauncherActivity.class)));
         findViewById(R.id.btn_keybox_generator).setOnClickListener(v -> launchKeyboxGenerator());
 

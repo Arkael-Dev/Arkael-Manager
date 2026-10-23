@@ -24,6 +24,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
     <application android:localeConfig="@xml/ax_locales_config"
         android:label="Arkael Manager"
         android:icon="@mipmap/ic_arkael"
@@ -56,6 +57,13 @@
 
         <activity android:name=".GameLauncherActivity" android:exported="false" android:label="Game Launcher"
             android:configChanges="orientation|screenSize|keyboardHidden"/>
+
+        <activity android:name=".EqualizerActivity" android:exported="false" android:label="Equalizer"
+            android:configChanges="orientation|screenSize|keyboardHidden"/>
+
+        <service android:name=".EqService" android:exported="false" android:foregroundServiceType="specialUse">
+            <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="audio_effects"/>
+        </service>
 
         <service android:name=".GameService" android:exported="false" android:foregroundServiceType="specialUse">
             <property android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE" android:value="game_mode"/>
