@@ -99,6 +99,13 @@
     <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Search and watch, with floating mini-player" android:textColor="#8B95A3" android:textSize="11sp" android:layout_marginTop="2dp"/>
   </LinearLayout>
   <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_chevron" android:tint="#556070"/>
+</LinearLayout><LinearLayout android:id="@+id/btn_game_launcher" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="66dp" android:orientation="horizontal" android:gravity="center_vertical" android:tag="card" android:background="@drawable/bg_card_rounded" android:foreground="?android:attr/selectableItemBackground" android:padding="12dp" android:layout_marginBottom="10dp" android:clickable="true" android:focusable="true">
+  <ImageView android:layout_width="42dp" android:layout_height="42dp" android:padding="10dp" android:background="@drawable/bg_ic_cyan" android:src="@drawable/ic_gamepad" android:tint="#00E5FF" android:tag="ic:#00E5FF"/>
+  <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="14dp">
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="GAME LAUNCHER" android:textColor="#FFFFFF" android:textSize="14sp" android:textStyle="bold"/>
+    <TextView android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="Semua game di HP ini, sekali ketuk langsung main" android:textColor="#8B95A3" android:textSize="11sp" android:layout_marginTop="2dp"/>
+  </LinearLayout>
+  <ImageView android:layout_width="20dp" android:layout_height="20dp" android:src="@drawable/ic_chevron" android:tint="#556070"/>
 </LinearLayout><LinearLayout android:id="@+id/btn_keybox_generator" android:layout_width="match_parent" android:layout_height="wrap_content" android:minHeight="66dp" android:orientation="horizontal" android:gravity="center_vertical" android:tag="card" android:background="@drawable/bg_card_rounded" android:foreground="?android:attr/selectableItemBackground" android:padding="12dp" android:layout_marginBottom="16dp" android:clickable="true" android:focusable="true">
   <ImageView android:layout_width="42dp" android:layout_height="42dp" android:padding="10dp" android:background="@drawable/bg_ic_cyan" android:src="@drawable/ic_key" android:tint="#00E5FF" android:tag="ic:#00E5FF"/>
   <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:orientation="vertical" android:layout_marginStart="14dp">
