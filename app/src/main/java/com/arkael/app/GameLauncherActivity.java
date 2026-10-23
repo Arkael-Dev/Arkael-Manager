@@ -441,6 +441,34 @@ public class GameLauncherActivity extends Activity {
         }
     }
 
+    /** List | preview | play column with fixed 3:6:3 widths. Every child is pinned to the top margin and given an exact
+     *  height, so nothing can slide up under the top bar or down under the bottom button. */
+    static final class Body extends ViewGroup {
+        private static final float[] FR = {3f, 6f, 3f};
+        Body(Context c) { super(c); }
+        @Override protected void onMeasure(int wms, int hms) {
+            int w = MeasureSpec.getSize(wms), h = MeasureSpec.getSize(hms);
+            for (int i = 0; i < getChildCount() && i < 3; i++) {
+                View v = getChildAt(i);
+                ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+                int cw = Math.max(0, (int) (w * FR[i] / 12f) - lp.leftMargin - lp.rightMargin);
+                int ch = Math.max(0, h - lp.topMargin - lp.bottomMargin);
+                v.measure(MeasureSpec.makeMeasureSpec(cw, MeasureSpec.EXACTLY), MeasureSpec.makeMeasureSpec(ch, MeasureSpec.EXACTLY));
+            }
+            setMeasuredDimension(w, h);
+        }
+        @Override protected void onLayout(boolean changed, int l, int t, int r, int b) {
+            int w = r - l, x = 0;
+            for (int i = 0; i < getChildCount() && i < 3; i++) {
+                View v = getChildAt(i);
+                ViewGroup.MarginLayoutParams lp = (ViewGroup.MarginLayoutParams) v.getLayoutParams();
+                int left = x + lp.leftMargin, top = lp.topMargin;
+                v.layout(left, top, left + v.getMeasuredWidth(), top + v.getMeasuredHeight());
+                x += (int) (w * FR[i] / 12f);
+            }
+        }
+    }
+
     // =================================================================== activity
 
     private static final class Game {
@@ -453,7 +481,8 @@ public class GameLauncherActivity extends Activity {
     private PackageManager pm;
     private SharedPreferences sp;
 
-    private LinearLayout listCol, body;
+    private LinearLayout listCol;
+    private ViewGroup body;
     private FrameLayout root, overlay;
     private LinearLayout pvContent;
     private ImageView pvBack;
@@ -530,9 +559,7 @@ public class GameLauncherActivity extends Activity {
         col.addView(top, new LinearLayout.LayoutParams(-1, dp(52)));
 
         // ---------------- body: list | preview | play
-        body = new LinearLayout(this);
-        body.setOrientation(LinearLayout.HORIZONTAL);
-        body.setGravity(Gravity.CENTER_VERTICAL);
+        body = new Body(this);
 
         ScrollView listScroll = new ScrollView(this);
         listScroll.setVerticalScrollBarEnabled(false);
