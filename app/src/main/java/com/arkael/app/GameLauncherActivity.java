@@ -455,7 +455,7 @@ public class GameLauncherActivity extends Activity {
     private Ico muteIco, icBat, icCpu, icGpu;
     private TextView pvName, pvSub, emptyView, stBat, stCpu, stGpu, ovText;
     private SoundPool pool;
-    private int sOpen, sLaunch, sel = 0;
+    private int sOpen, sLaunch, sSelect, sTab, sel = 0;
     private boolean muted, launching, introDone, pollOn;
     private long prevIdle = -1, prevTotal = -1;
 
@@ -596,7 +596,7 @@ public class GameLauncherActivity extends Activity {
         tt.setLetterSpacing(0.14f);
         tt.setPadding(dp(10), 0, 0, 0);
         tab.addView(tt);
-        tab.setOnClickListener(v -> { if (!games.isEmpty()) openProfile(games.get(sel).pkg); });
+        tab.setOnClickListener(v -> { if (!games.isEmpty()) { playFx(sTab, 0.9f); openProfile(games.get(sel).pkg); } });
         FrameLayout.LayoutParams tl = new FrameLayout.LayoutParams(-2, -2);
         tl.gravity = Gravity.BOTTOM | Gravity.CENTER_HORIZONTAL;
         root.addView(tab, tl);
@@ -607,6 +607,18 @@ public class GameLauncherActivity extends Activity {
         emptyView.setGravity(Gravity.CENTER);
         emptyView.setVisibility(View.GONE);
         root.addView(emptyView, new FrameLayout.LayoutParams(-1, -1));
+
+        TextView brand = new TextView(this);
+        brand.setText("ARKAEL GAME LAUNCHER");
+        brand.setTextColor(Color.parseColor("#88FF1E3C"));
+        brand.setTextSize(9);
+        brand.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC));
+        brand.setLetterSpacing(0.22f);
+        FrameLayout.LayoutParams brl = new FrameLayout.LayoutParams(-2, -2);
+        brl.gravity = Gravity.BOTTOM | Gravity.END;
+        brl.rightMargin = dp(20);
+        brl.bottomMargin = dp(14);
+        root.addView(brand, brl);
 
         buildOverlay();
         setContentView(root);
@@ -710,6 +722,7 @@ public class GameLauncherActivity extends Activity {
     private void select(int i) {
         if (i == sel || i < 0 || i >= games.size()) return;
         sel = i;
+        playFx(sSelect, 0.8f);
         renderList();
         updatePreview(true);
     }
@@ -878,13 +891,19 @@ public class GameLauncherActivity extends Activity {
             AudioAttributes aa = new AudioAttributes.Builder()
                     .setUsage(AudioAttributes.USAGE_GAME)
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION).build();
-            pool = new SoundPool.Builder().setMaxStreams(2).setAudioAttributes(aa).build();
+            pool = new SoundPool.Builder().setMaxStreams(4).setAudioAttributes(aa).build();
             sOpen = pool.load(this, R.raw.gl_open, 1);
             sLaunch = pool.load(this, R.raw.gl_launch, 1);
+            sSelect = pool.load(this, R.raw.gl_select, 1);
+            sTab = pool.load(this, R.raw.gl_tab, 1);
             pool.setOnLoadCompleteListener((p, id, status) -> {
                 if (status == 0 && id == sOpen && !muted) p.play(id, 0.9f, 0.9f, 1, 0, 1f);
             });
         } catch (Throwable ignored) { pool = null; }
+    }
+
+    private void playFx(int id, float vol) {
+        if (!muted && pool != null && id != 0) pool.play(id, vol, vol, 1, 0, 1f);
     }
 
     private void toggleMute() {
