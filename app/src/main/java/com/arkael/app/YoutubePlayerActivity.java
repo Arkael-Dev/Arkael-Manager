@@ -173,6 +173,18 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     private boolean liked;
     private YtStore.Entry curEntry;
 
+    // ---- extras: posisi terakhir, SponsorBlock, Return YouTube Dislike, DeArrow
+    private final android.os.Handler exHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+    private java.util.List<YtExtras.Seg> exSegs = new java.util.ArrayList<YtExtras.Seg>();
+    private final java.util.Set<Integer> exSkipped = new java.util.HashSet<Integer>();
+    private int exTickN;
+    private final Runnable exTick = new Runnable() {
+        @Override public void run() {
+            try { exTickBody(); } catch (Exception ignored) { }
+            exHandler.postDelayed(this, 500);
+        }
+    };
+
     @SuppressLint("UnspecifiedRegisterReceiverFlag")
     @Override
     protected void onCreate(Bundle b) {
@@ -310,6 +322,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         chips.addView(chip("💬  Subtitle", v -> showSubtitleDialog()));
         chips.addView(chip("🔊  Suara", v -> showAudioLangDialog()));
         chips.addView(chip("⬇  Download", v -> showDownloadDialog()));
+        chips.addView(chip("🧩  Extras", v -> showExtrasDialog()));
         chips.addView(chip("↗  Bagikan", v -> shareLink()));
         chips.addView(chip("⧉  Salin link", v -> copyLink()));
         chipsScroll.addView(chips);
@@ -435,6 +448,8 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         setIntent(intent);
         if (intent.getStringExtra("url") == null) return;   // notification tap while already open: nothing to switch
         // A related / history video was picked (launchMode=singleTask delivers it here): switch in place.
+        exSavePos();
+        exReset();
         readIntent(intent);
         pendingItem = null;
         curEntry = null;
@@ -500,6 +515,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
             @Override public void onVideoSizeChanged(@NonNull VideoSize size) { updatePipParams(); }
         };
         controller.addListener(playerListener);
+        exStart();
 
         if (videoUrl == null) {
             // Opened from the media notification: attach to whatever is already playing.
@@ -532,7 +548,9 @@ public class YoutubePlayerActivity extends AppCompatActivity {
 
     private void startPlayback(MediaItem item) {
         playerView.setPlayer(controller);
-        controller.setMediaItem(item);
+        long exResume = YtExtras.getPosition(this, videoUrl);
+        controller.setMediaItem(item, exResume);
+        if (exResume > 0) Toast.makeText(this, "Lanjut dari " + fmtDuration(exResume / 1000), Toast.LENGTH_SHORT).show();
         applyTrackPrefs();
         controller.setPlayWhenReady(true);
         controller.prepare();
@@ -1202,6 +1220,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
 
         showDescription(info.getDescription());
         loadComments(videoUrl);
+        loadExtras(videoUrl);
     }
 
     // ---------------------------------------------------------------- description + comments
@@ -1475,6 +1494,109 @@ public class YoutubePlayerActivity extends AppCompatActivity {
 
     // ---------------------------------------------------------------- Picture-in-Picture
 
+    // ---------------------------------------------------------------- extras
+
+    private boolean exOn(String key) {
+        return getSharedPreferences(PREFS, MODE_PRIVATE).getBoolean(key, true);
+    }
+
+    private void exStart() {
+        exHandler.removeCallbacks(exTick);
+        exHandler.postDelayed(exTick, 500);
+    }
+
+    private void exReset() {
+        exSegs = new java.util.ArrayList<YtExtras.Seg>();
+        exSkipped.clear();
+    }
+
+    /** True kalau yang sedang diputar memang video di layar ini (bukan video lama saat berganti). */
+    private boolean exCurrent() {
+        if (player == null || videoUrl == null) return false;
+        MediaItem cur = player.getCurrentMediaItem();
+        return cur != null && videoUrl.equals(cur.mediaId);
+    }
+
+    private void exTickBody() {
+        if (!exCurrent()) return;
+        int st = player.getPlaybackState();
+        if (st == Player.STATE_ENDED) { YtExtras.clearPosition(this, videoUrl); return; }
+        long pos = player.getCurrentPosition();
+
+        if (player.isPlaying() && !exSegs.isEmpty() && exOn("ex_sb")) {
+            for (int i = 0; i < exSegs.size(); i++) {
+                YtExtras.Seg g = exSegs.get(i);
+                if (exSkipped.contains(i)) continue;                 // sekali saja per segmen: kalau diputar ulang, tidak dipaksa
+                if (pos >= g.startMs && pos < g.endMs - 400) {
+                    exSkipped.add(i);
+                    long to = g.endMs;
+                    long dur = player.getDuration();
+                    if (dur > 0 && to > dur) to = dur;
+                    player.seekTo(to);
+                    Toast.makeText(this, "⏭ Dilewati: " + YtExtras.categoryLabel(g.category), Toast.LENGTH_SHORT).show();
+                    break;
+                }
+            }
+        }
+        if (++exTickN % 10 == 0 && player.isPlaying()) exSavePos();   // tiap ~5 detik
+    }
+
+    private void exSavePos() {
+        try {
+            if (!exCurrent() || player.getPlaybackState() == Player.STATE_ENDED) return;
+            YtExtras.savePosition(this, videoUrl, player.getCurrentPosition(), player.getDuration());
+        } catch (Exception ignored) { }
+    }
+
+    private void loadExtras(final String url) {
+        final String id = YtExtras.videoId(url);
+        if (id == null) return;
+        exReset();
+
+        if (exOn("ex_sb")) new Thread(() -> {
+            final java.util.List<YtExtras.Seg> segs = YtExtras.sponsorSegments(id);
+            runOnUiThread(() -> { if (!isFinishing() && url.equals(videoUrl)) exSegs = segs; });
+        }).start();
+
+        if (exOn("ex_ryd")) new Thread(() -> {
+            final long[] v = YtExtras.dislikes(id);
+            runOnUiThread(() -> {
+                if (isFinishing() || !url.equals(videoUrl) || v == null || v[1] < 0) return;
+                long l = (curInfo != null && curInfo.getLikeCount() >= 0) ? curInfo.getLikeCount() : v[0];
+                likes.setText("👍 " + (l >= 0 ? compact(l) : "?") + "   👎 " + compact(v[1]));
+                likes.setVisibility(View.VISIBLE);
+            });
+        }).start();
+
+        if (exOn("ex_dearrow")) new Thread(() -> {
+            final String t = YtExtras.deArrowTitle(id);
+            runOnUiThread(() -> {
+                if (isFinishing() || !url.equals(videoUrl) || t == null || t.isEmpty()) return;
+                title.setText(t);
+            });
+        }).start();
+    }
+
+    private void showExtrasDialog() {
+        final String[] keys = {"ex_sb", "ex_ryd", "ex_dearrow"};
+        String[] names = {"SponsorBlock (lewati sponsor)", "Return YouTube Dislike (jumlah dislike)", "DeArrow (judul tidak clickbait)"};
+        final boolean[] on = new boolean[keys.length];
+        for (int i = 0; i < keys.length; i++) on[i] = exOn(keys[i]);
+        new AlertDialog.Builder(this)
+                .setTitle("Extras")
+                .setMultiChoiceItems(names, on, (d, which, checked) ->
+                        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(keys[which], checked).apply())
+                .setPositiveButton("OK", (d, w) -> {
+                    if (curInfo != null) {                                    // kembalikan tampilan asli kalau dimatikan
+                        if (!exOn("ex_dearrow") && curInfo.getName() != null) title.setText(curInfo.getName());
+                        if (!exOn("ex_ryd") && curInfo.getLikeCount() >= 0) likes.setText("👍 " + compact(curInfo.getLikeCount()));
+                    }
+                    if (videoUrl != null) loadExtras(videoUrl);
+                })
+                .setNegativeButton("Batal", null)
+                .show();
+    }
+
     private void enterPip() {
         if (Build.VERSION.SDK_INT < 26) {
             Toast.makeText(this, "Floating mini-player needs Android 8.0+", Toast.LENGTH_SHORT).show();
@@ -1560,6 +1682,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         super.onStop();
         // Backgrounded without PiP and not in audio mode (e.g. screen off): pause instead of
         // decoding video no one can see. Audio mode keeps playing on purpose.
+        exSavePos();
         if (!inPip && !audioMode && player != null) player.pause();
     }
 
@@ -1567,6 +1690,8 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         subHandler.removeCallbacksAndMessages(null);
+        exSavePos();
+        exHandler.removeCallbacksAndMessages(null);
         if (pipReceiver != null) { try { unregisterReceiver(pipReceiver); } catch (Exception ignored) {} }
         if (playerFrame != null) playerFrame.removeCallbacks(hideHeaderRun);
         if (playerView != null) playerView.setPlayer(null);
