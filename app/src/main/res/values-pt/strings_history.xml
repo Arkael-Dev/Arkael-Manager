@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_history_title">Continuar assistindo</string>
+    <string name="ax_history_clear">Limpar tudo</string>
+    <string name="ax_history_clear_q">Limpar todo o histórico?</string>
+    <string name="ax_history_episode">Episódio %1$s</string>
+</resources>

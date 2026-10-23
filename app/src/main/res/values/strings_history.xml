@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_history_title">Continue watching</string>
+    <string name="ax_history_clear">Clear all</string>
+    <string name="ax_history_clear_q">Clear all watch history?</string>
+    <string name="ax_history_episode">Episode %1$s</string>
+</resources>

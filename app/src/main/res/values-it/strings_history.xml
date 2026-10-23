@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_history_title">Continua a guardare</string>
+    <string name="ax_history_clear">Cancella tutto</string>
+    <string name="ax_history_clear_q">Cancellare tutta la cronologia?</string>
+    <string name="ax_history_episode">Episodio %1$s</string>
+</resources>

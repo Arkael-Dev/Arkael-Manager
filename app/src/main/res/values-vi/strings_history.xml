@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_history_title">Xem tiếp</string>
+    <string name="ax_history_clear">Xóa tất cả</string>
+    <string name="ax_history_clear_q">Xóa toàn bộ lịch sử xem?</string>
+    <string name="ax_history_episode">Tập %1$s</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_history_title">देखना जारी रखें</string>
+    <string name="ax_history_clear">सभी हटाएं</string>
+    <string name="ax_history_clear_q">सभी देखने का इतिहास हटाएं?</string>
+    <string name="ax_history_episode">एपिसोड %1$s</string>
+</resources>

@@ -172,12 +172,17 @@ public class BrowserActivity extends AppCompatActivity {
 
             @Override public void onPageFinished(WebView v, String url) {
                 bar.setVisibility(View.GONE);
+                saveHistory(url, v.getTitle());
                 v.evaluateJavascript(AdBlock.JS, null);
             }
         });
 
         web.setWebChromeClient(new WebChromeClient() {
             @Override public void onProgressChanged(WebView v, int p) { bar.setProgress(p); }
+
+            @Override public void onReceivedTitle(WebView v, String title) {
+                saveHistory(v.getUrl(), title);
+            }
 
             @Override public boolean onCreateWindow(WebView v, boolean dialog, boolean gesture, android.os.Message m) {
                 return false;   // never open pop-ups
@@ -195,6 +200,11 @@ public class BrowserActivity extends AppCompatActivity {
 
             @Override public void onHideCustomView() { exitFullscreen(); }
         });
+    }
+
+    private void saveHistory(String url, String title) {
+        WatchHistory.record(this, url, title,
+                getIntent().getStringExtra(EXTRA_TITLE), getIntent().getStringExtra(EXTRA_URL));
     }
 
     private boolean allowedHost(String host) {

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_history_title">Lanjutkan menonton</string>
+    <string name="ax_history_clear">Hapus semua</string>
+    <string name="ax_history_clear_q">Hapus semua riwayat tontonan?</string>
+    <string name="ax_history_episode">Episode %1$s</string>
+</resources>

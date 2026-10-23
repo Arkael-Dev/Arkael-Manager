@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_history_title">Teruskan menonton</string>
+    <string name="ax_history_clear">Padam semua</string>
+    <string name="ax_history_clear_q">Padam semua sejarah tontonan?</string>
+    <string name="ax_history_episode">Episod %1$s</string>
+</resources>

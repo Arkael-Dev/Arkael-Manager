@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_history_title">Продолжить просмотр</string>
+    <string name="ax_history_clear">Очистить всё</string>
+    <string name="ax_history_clear_q">Очистить всю историю просмотров?</string>
+    <string name="ax_history_episode">Серия %1$s</string>
+</resources>

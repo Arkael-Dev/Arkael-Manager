@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_history_title">続きを見る</string>
+    <string name="ax_history_clear">すべて消去</string>
+    <string name="ax_history_clear_q">視聴履歴をすべて消去しますか？</string>
+    <string name="ax_history_episode">第%1$s話</string>
+</resources>

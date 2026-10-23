@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_history_title">继续观看</string>
+    <string name="ax_history_clear">全部清除</string>
+    <string name="ax_history_clear_q">清除所有观看记录？</string>
+    <string name="ax_history_episode">第%1$s集</string>
+</resources>

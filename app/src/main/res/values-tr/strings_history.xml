@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_history_title">İzlemeye devam et</string>
+    <string name="ax_history_clear">Tümünü temizle</string>
+    <string name="ax_history_clear_q">Tüm izleme geçmişi silinsin mi?</string>
+    <string name="ax_history_episode">Bölüm %1$s</string>
+</resources>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_history_title">ดูต่อ</string>
+    <string name="ax_history_clear">ล้างทั้งหมด</string>
+    <string name="ax_history_clear_q">ล้างประวัติการดูทั้งหมดหรือไม่?</string>
+    <string name="ax_history_episode">ตอนที่ %1$s</string>
+</resources>

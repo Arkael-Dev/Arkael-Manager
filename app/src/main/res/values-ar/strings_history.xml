@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="ax_history_title">متابعة المشاهدة</string>
+    <string name="ax_history_clear">مسح الكل</string>
+    <string name="ax_history_clear_q">مسح كل سجل المشاهدة؟</string>
+    <string name="ax_history_episode">الحلقة %1$s</string>
+</resources>
