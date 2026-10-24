@@ -108,10 +108,17 @@ public class GameLauncherActivity extends Activity {
             f.setColor(fill);
             s.setStyle(Paint.Style.STROKE); s.setColor(stroke); s.setStrokeWidth(sw); s.setStrokeJoin(Paint.Join.MITER);
         }
+        private final RectF rf = new RectF();
+        private int bl_, bt_, br_, bb_;
+        private boolean built;
         @Override public void draw(Canvas cv) {
-            RectF r = new RectF(getBounds());
-            r.inset(sw / 2f, sw / 2f);
-            buildPath(path, r, cut, c);
+            android.graphics.Rect b = getBounds();
+            if (!built || b.left != bl_ || b.top != bt_ || b.right != br_ || b.bottom != bb_) {
+                bl_ = b.left; bt_ = b.top; br_ = b.right; bb_ = b.bottom; built = true;
+                rf.set(b);
+                rf.inset(sw / 2f, sw / 2f);
+                buildPath(path, rf, cut, c);
+            }
             cv.drawPath(path, f);
             if (sw > 0) cv.drawPath(path, s);
         }
@@ -237,21 +244,29 @@ public class GameLauncherActivity extends Activity {
             super(c); this.d = d; this.color = color; this.sw = sw; this.spin = spin;
         }
         void set(Drawable d, int color) { this.d = d; this.color = color; invalidate(); }
+        private void startSpin() {
+            if (!spin || va != null || !isShown()) return;   // tersembunyi (overlay GONE) = tidak berputar
+            va = ValueAnimator.ofFloat(0f, 360f);
+            va.setDuration(9000);
+            va.setRepeatCount(ValueAnimator.INFINITE);
+            va.setInterpolator(new LinearInterpolator());
+            va.addUpdateListener(a -> { rot = (Float) a.getAnimatedValue(); invalidate(); });
+            va.start();
+            Fx.track(getContext(), va);
+        }
+        @Override protected void onVisibilityChanged(View changed, int vis) {
+            super.onVisibilityChanged(changed, vis);
+            if (!spin || !isAttachedToWindow()) return;
+            if (isShown()) startSpin();
+            else if (va != null) { va.cancel(); va = null; }
+        }
         @Override protected void onSizeChanged(int w, int h, int ow, int oh) {
             float r = Math.min(w, h) / 2f;
             dash = new DashPathEffect(new float[]{r * 0.45f, r * 0.22f}, 0);
         }
         @Override protected void onAttachedToWindow() {
             super.onAttachedToWindow();
-            if (spin) {
-                va = ValueAnimator.ofFloat(0f, 360f);
-                va.setDuration(9000);
-                va.setRepeatCount(ValueAnimator.INFINITE);
-                va.setInterpolator(new LinearInterpolator());
-                va.addUpdateListener(a -> { rot = (Float) a.getAnimatedValue(); invalidate(); });
-                va.start();
-                Fx.track(getContext(), va);
-            }
+            startSpin();
         }
         @Override protected void onDetachedFromWindow() {
             super.onDetachedFromWindow();
@@ -407,6 +422,8 @@ public class GameLauncherActivity extends Activity {
     /** Animated dark background: diagonal stripes, a breathing red glow and a slow light sweep. */
     static final class BgView extends View {
         private final Paint bg = new Paint(), stripe = new Paint(Paint.ANTI_ALIAS_FLAG), glow = new Paint(), sweep = new Paint();
+        private android.graphics.Bitmap cache;
+        private long lastInv;
         private final Path band = new Path();
         private final float d;
         private float phase;
@@ -422,6 +439,7 @@ public class GameLauncherActivity extends Activity {
         @Override protected void onSizeChanged(int w, int h, int ow, int oh) {
             bg.setShader(new LinearGradient(0, 0, 0, h, Color.parseColor("#14141A"), Color.parseColor("#07070A"), Shader.TileMode.CLAMP));
             glow.setShader(new RadialGradient(w * 0.88f, h * 1.05f, h * 1.15f, Color.argb(255, 255, 30, 60), Color.TRANSPARENT, Shader.TileMode.CLAMP));
+            buildCache(w, h);
         }
         @Override protected void onAttachedToWindow() {
             super.onAttachedToWindow();
@@ -429,7 +447,11 @@ public class GameLauncherActivity extends Activity {
             va.setDuration(7000);
             va.setRepeatCount(ValueAnimator.INFINITE);
             va.setInterpolator(new LinearInterpolator());
-            va.addUpdateListener(a -> { phase = (Float) a.getAnimatedValue(); invalidate(); });
+            va.addUpdateListener(a -> {
+                phase = (Float) a.getAnimatedValue();
+                long now = android.os.SystemClock.uptimeMillis();
+                if (now - lastInv >= 33) { lastInv = now; invalidate(); }   // maks ~30 FPS untuk latar
+            });
             va.start();
             Fx.track(getContext(), va);
         }
@@ -437,10 +459,24 @@ public class GameLauncherActivity extends Activity {
             super.onDetachedFromWindow();
             if (va != null) { va.cancel(); va = null; }
         }
+        private void buildCache(int w, int h) {
+            cache = null;
+            if (w <= 0 || h <= 0) return;
+            try {
+                android.graphics.Bitmap b = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888);
+                Canvas bc = new Canvas(b);
+                bc.drawRect(0, 0, w, h, bg);
+                for (float x = -h; x < w; x += 34 * d) bc.drawLine(x, h, x + h * 0.58f, 0, stripe);
+                cache = b;
+            } catch (Throwable t) { cache = null; }
+        }
         @Override protected void onDraw(Canvas cv) {
             int w = getWidth(), h = getHeight();
-            cv.drawRect(0, 0, w, h, bg);
-            for (float x = -h; x < w; x += 34 * d) cv.drawLine(x, h, x + h * 0.58f, 0, stripe);
+            if (cache != null) cv.drawBitmap(cache, 0, 0, null);
+            else {
+                cv.drawRect(0, 0, w, h, bg);
+                for (float x = -h; x < w; x += 34 * d) cv.drawLine(x, h, x + h * 0.58f, 0, stripe);
+            }
             glow.setAlpha((int) (46 + 26 * Math.sin(phase * 2 * Math.PI)));
             cv.drawRect(0, 0, w, h, glow);
             float x = (phase * 1.5f - 0.25f) * w, bw = w * 0.12f, skew = h * 0.58f;
@@ -749,7 +785,24 @@ public class GameLauncherActivity extends Activity {
 
     private void renderList() {
         listCol.removeAllViews();
-        for (int i = 0; i < games.size(); i++) {
+        for (int i = 0; i < games.size(); i++) listCol.addView(buildRow(i), rowLp());
+        introDone = true;
+    }
+
+    private LinearLayout.LayoutParams rowLp() {
+        LinearLayout.LayoutParams rl = new LinearLayout.LayoutParams(-1, -2);
+        rl.bottomMargin = dp(4);
+        return rl;
+    }
+
+    /** Ganti hanya satu baris (dipakai saat memilih game) supaya tidak membangun ulang seluruh daftar. */
+    private void refreshRow(int i) {
+        if (i < 0 || i >= games.size() || i >= listCol.getChildCount()) return;
+        listCol.removeViewAt(i);
+        listCol.addView(buildRow(i), i, rowLp());
+    }
+
+    private View buildRow(int i) {
             final int idx = i;
             final Game g = games.get(i);
             boolean on = i == sel;
@@ -784,18 +837,16 @@ public class GameLauncherActivity extends Activity {
                 row.setTranslationX(-dp(36));
                 row.animate().alpha(1f).translationX(0).setStartDelay(Math.min(i, 10) * 55L + 200).setDuration(340).start();
             }
-            LinearLayout.LayoutParams rl = new LinearLayout.LayoutParams(-1, -2);
-            rl.bottomMargin = dp(4);
-            listCol.addView(row, rl);
-        }
-        introDone = true;
+        return row;
     }
 
     private void select(int i) {
         if (i == sel || i < 0 || i >= games.size()) return;
+        final int prev = sel;
         sel = i;
         playFx(sSelect, 0.8f);
-        renderList();
+        if (listCol.getChildCount() == games.size()) { refreshRow(prev); refreshRow(i); }
+        else renderList();
         updatePreview(true);
     }
 
