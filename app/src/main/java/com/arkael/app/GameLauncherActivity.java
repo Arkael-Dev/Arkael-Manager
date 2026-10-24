@@ -338,12 +338,12 @@ public class GameLauncherActivity extends Activity {
             cv.restore();
             line.setColor(Color.parseColor("#FF7388")); line.setAlpha(255); line.setStrokeWidth(1.5f * d);
             cv.drawPath(path, line);
-            float tw = txt.measureText("MAINKAN");
+            float tw = txt.measureText(Tr.s("MAINKAN"));
             float x0 = (w - (34 * d + tw)) / 2f;
             drawIco(cv, I_BOLT, x0 + 12 * d, h / 2f, 24 * d, Color.WHITE, 1f, ico);
             float cx = x0 + 34 * d + tw / 2f;
-            cv.drawText("MAINKAN", cx, h * 0.5f, txt);
-            cv.drawText("Profil otomatis aktif", cx, h * 0.5f + 15 * d, sub);
+            cv.drawText(Tr.s("MAINKAN"), cx, h * 0.5f, txt);
+            cv.drawText(Tr.s("Profil otomatis aktif"), cx, h * 0.5f + 15 * d, sub);
         }
     }
 
@@ -669,7 +669,7 @@ public class GameLauncherActivity extends Activity {
         tab.setBackground(new Cut(Color.parseColor("#F0181820"), Color.parseColor("#99FF1E3C"), dp(1.4f), dp(14), true, true, true, true));
         tab.addView(new Ico(this, I_GEAR, RED), new LinearLayout.LayoutParams(dp(18), dp(18)));
         TextView tt = new TextView(this);
-        tt.setText("SETELAN GAME");
+        tt.setText(Tr.s("SETELAN GAME"));
         tt.setTextColor(Color.WHITE);
         tt.setTextSize(13);
         tt.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD_ITALIC));
@@ -683,7 +683,7 @@ public class GameLauncherActivity extends Activity {
         root.addView(tab, tl);
 
         emptyView = new TextView(this);
-        emptyView.setText("Belum ada game terdeteksi.\nTekan + untuk menambah game secara manual.");
+        emptyView.setText(Tr.s("Belum ada game terdeteksi.\nTekan + untuk menambah game secara manual."));
         emptyView.setTextColor(SUB);
         emptyView.setGravity(Gravity.CENTER);
         emptyView.setVisibility(View.GONE);
@@ -837,7 +837,7 @@ public class GameLauncherActivity extends Activity {
             if (p.headsUp) on.add("Pop-up diblok");
             if (p.thermalRelax) on.add("Thermal longgar");
             if (p.cleanRam) on.add("Bersih RAM");
-            if (on.isEmpty()) return "Belum ada boost aktif. Atur di Setelan Game.";
+            if (on.isEmpty()) return Tr.s("Belum ada boost aktif. Atur di Setelan Game.");
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < on.size(); i++) { if (i > 0) sb.append("  •  "); sb.append(on.get(i)); }
             return sb.toString();
@@ -1112,19 +1112,19 @@ public class GameLauncherActivity extends Activity {
             }
             runOnUiThread(() -> {
                 if (isFinishing()) return;
-                if (pk.isEmpty()) { Toast.makeText(this, "Tidak ada aplikasi lain", Toast.LENGTH_SHORT).show(); return; }
+                if (pk.isEmpty()) { Toast.makeText(this, Tr.s("Tidak ada aplikasi lain"), Toast.LENGTH_SHORT).show(); return; }
                 final boolean[] selected = new boolean[pk.size()];
                 new AlertDialog.Builder(this)
-                        .setTitle("Tambah game")
+                        .setTitle(Tr.s("Tambah game"))
                         .setMultiChoiceItems(nm.toArray(new String[0]), selected, (d, i, c) -> selected[i] = c)
-                        .setPositiveButton("Tambah", (d, w) -> {
+                        .setPositiveButton(Tr.s("Tambah"), (d, w) -> {
                             Set<String> man = getSet(K_MANUAL), hid = getSet(K_HIDDEN);
                             for (int i = 0; i < selected.length; i++) if (selected[i]) { man.add(pk.get(i)); hid.remove(pk.get(i)); }
                             putSet(K_MANUAL, man);
                             putSet(K_HIDDEN, hid);
                             loadGames();
                         })
-                        .setNegativeButton("Batal", null)
+                        .setNegativeButton(Tr.s("Batal"), null)
                         .show();
             });
         }).start();
@@ -1133,8 +1133,8 @@ public class GameLauncherActivity extends Activity {
     private void confirmHide(final Game g) {
         new AlertDialog.Builder(this)
                 .setTitle(g.name)
-                .setMessage("Sembunyikan dari Game Launcher? (Game tidak dihapus dari HP. Bisa ditambah lagi lewat tombol +)")
-                .setPositiveButton("Sembunyikan", (d, w) -> {
+                .setMessage(Tr.s("Sembunyikan dari Game Launcher? (Game tidak dihapus dari HP. Bisa ditambah lagi lewat tombol +)"))
+                .setPositiveButton(Tr.s("Sembunyikan"), (d, w) -> {
                     Set<String> hid = getSet(K_HIDDEN), man = getSet(K_MANUAL);
                     hid.add(g.pkg);
                     man.remove(g.pkg);
@@ -1142,7 +1142,7 @@ public class GameLauncherActivity extends Activity {
                     putSet(K_MANUAL, man);
                     loadGames();
                 })
-                .setNegativeButton("Batal", null)
+                .setNegativeButton(Tr.s("Batal"), null)
                 .show();
     }
 
@@ -1152,7 +1152,7 @@ public class GameLauncherActivity extends Activity {
         if (launching) return;
         launching = true;
         ovIcon.set(g.icon, RED);
-        ovText.setText("MEMUAT  " + g.name.toUpperCase());
+        ovText.setText(Tr.s("MEMUAT  ") + g.name.toUpperCase());
         overlay.setAlpha(0f);
         overlay.setVisibility(View.VISIBLE);
         overlay.animate().alpha(1f).setDuration(180).start();
@@ -1176,14 +1176,14 @@ public class GameLauncherActivity extends Activity {
             runOnUiThread(() -> {
                 Intent i = pm.getLaunchIntentForPackage(g.pkg);
                 if (i == null) {
-                    Toast.makeText(this, "Tidak bisa membuka " + g.name, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, Tr.s("Tidak bisa membuka ") + g.name, Toast.LENGTH_SHORT).show();
                     hideOverlay();
                     return;
                 }
                 openGamePanel(g.pkg);   // while we're still in the foreground, so the service may start
                 i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                 try { startActivity(i); } catch (Throwable e) {
-                    Toast.makeText(this, "Gagal membuka " + g.name, Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, Tr.s("Gagal membuka ") + g.name, Toast.LENGTH_SHORT).show();
                     hideOverlay();
                 }
             });

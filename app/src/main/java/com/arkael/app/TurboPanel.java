@@ -374,7 +374,7 @@ final class TurboPanel {
                         return true;
                     case MotionEvent.ACTION_MOVE:
                         pending = clamp(s0 * (1f + (e.getRawX() - x0) / panelPx), SCALE_MIN, SCALE_MAX);
-                        say(tr("Size ", "Ukuran ") + Math.round(pending * 100) + "%  (" + tr("release to apply", "lepas untuk terapkan") + ")");
+                        say(tr("Size ", "Ukuran ") + Math.round(pending * 100) + "%  (" + tr("release to apply", Tr.s("lepas untuk terapkan")) + ")");
                         return true;
                     case MotionEvent.ACTION_UP:
                         sp.edit().putFloat("scale", pending).apply();
@@ -532,7 +532,7 @@ final class TurboPanel {
             @Override public void onClick(View v) { host.screenshot(); }
         });
         boolean rec = Recorder.isRecording();
-        LinearLayout tRec = tile(tr("Record screen", "Rekam layar"), rec ? "ON" : "OFF", rec ? "⏹" : "⏺", rec, new View.OnClickListener() {
+        LinearLayout tRec = tile(tr("Record screen", Tr.s("Rekam layar")), rec ? "ON" : "OFF", rec ? "⏹" : "⏺", rec, new View.OnClickListener() {
             @Override public void onClick(View v) { host.toggleRecord(); }
         });
         addRows(tMon, tDnd, tBoost, tPop, tShot, tRec);
@@ -545,31 +545,31 @@ final class TurboPanel {
         final LinearLayout tAuto = tile(tr("Auto clean RAM", "Bersih RAM otomatis"), prof != null && prof.cleanRam ? "ON" : "OFF", "⚙", prof != null && prof.cleanRam, null);
         tAuto.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) {
-                if (prof == null) { say(tr("Open one of your games to change its profile", "Buka salah satu game untuk ubah profilnya")); return; }
+                if (prof == null) { say(tr("Open one of your games to change its profile", Tr.s("Buka salah satu game untuk ubah profilnya"))); return; }
                 prof.cleanRam = !prof.cleanRam;
                 GameProfiles.save(ctx, act, prof);
                 updateTile(tAuto, prof.cleanRam ? "ON" : "OFF", prof.cleanRam);
             }
         });
-        LinearLayout tStore = tile(tr("Free storage", "Bebaskan penyimpanan"), tr("Clear app caches", "Hapus cache app"), "🗑", false, new View.OnClickListener() {
+        LinearLayout tStore = tile(tr("Free storage", "Bebaskan penyimpanan"), tr("Clear app caches", Tr.s("Hapus cache app")), "🗑", false, new View.OnClickListener() {
             @Override public void onClick(View v) {
                 say(tr("Trimming app caches...", "Memangkas cache..."));
                 host.bg(new Runnable() { @Override public void run() { say(tr("Caches trimmed · ", "Cache dipangkas · ") + Booster.cleanRam(ctx, true)); } });
             }
         });
-        LinearLayout tGames = tile(tr("My games", "Daftar game"), tr("Choose games", "Pilih game"), "🎮", false, new View.OnClickListener() {
+        LinearLayout tGames = tile(tr("My games", "Daftar game"), tr("Choose games", Tr.s("Pilih game")), "🎮", false, new View.OnClickListener() {
             @Override public void onClick(View v) { host.openActivity(GameListActivity.class); }
         });
-        LinearLayout tPerf = tile(tr("Game settings", "Setelan game"), tr("Open Game Mode", "Buka Game Mode"), "🛠", false, new View.OnClickListener() {
+        LinearLayout tPerf = tile(tr("Game settings", Tr.s("Setelan game")), tr("Open Game Mode", Tr.s("Buka Game Mode")), "🛠", false, new View.OnClickListener() {
             @Override public void onClick(View v) { host.openActivity(GameModeActivity.class); }
         });
-        LinearLayout tRestore = tile(tr("Restore settings", "Pulihkan setelan"), tr("Back to normal", "Kembali normal"), "↩", false, new View.OnClickListener() {
+        LinearLayout tRestore = tile(tr("Restore settings", Tr.s("Pulihkan setelan")), tr("Back to normal", Tr.s("Kembali normal")), "↩", false, new View.OnClickListener() {
             @Override public void onClick(View v) {
                 say(tr("Restoring...", "Memulihkan..."));
                 sp.edit().remove("mode").apply();
                 host.bg(new Runnable() { @Override public void run() {
                     Booster.revertAll(ctx);
-                    say(tr("Settings restored", "Setelan dipulihkan"));
+                    say(tr("Settings restored", Tr.s("Setelan dipulihkan")));
                     main.post(new Runnable() { @Override public void run() { if (alive && tab == 0) renderBody(); } });
                 } });
             }
@@ -596,10 +596,10 @@ final class TurboPanel {
         LinearLayout tHp = tile(tr("Edge handle", "Handle tepi"), tr("Bigger", "Perbesar"), "➕", false, new View.OnClickListener() {
             @Override public void onClick(View v) { host.resizeHandle(0.25f); }
         });
-        LinearLayout tHh = tile(tr("Edge handle", "Handle tepi"), tr("Hide", "Sembunyikan"), "🙈", false, new View.OnClickListener() {
+        LinearLayout tHh = tile(tr("Edge handle", "Handle tepi"), tr("Hide", Tr.s("Sembunyikan")), "🙈", false, new View.OnClickListener() {
             @Override public void onClick(View v) { host.hideHandle(); }
         });
-        LinearLayout tDiag = tile(tr("Diagnose", "Diagnosa"), tr("Save FPS/temp log", "Simpan log FPS/suhu"), "🧾", false, new View.OnClickListener() {
+        LinearLayout tDiag = tile(tr("Diagnose", "Diagnosa"), tr("Save FPS/temp log", Tr.s("Simpan log FPS/suhu")), "🧾", false, new View.OnClickListener() {
             @Override public void onClick(View v) { host.diagnose(); }
         });
         addRows(tAuto, tStore, tGames, tPerf, tRestore, tReset, tPm, tPp, tPr, tHm, tHp, tHh, tDiag);
@@ -687,16 +687,16 @@ final class TurboPanel {
     private String applyMode(int m) {
         List<String> gov = Booster.governors();
         if (m == 0) {
-            if (!gov.contains("powersave")) return tr("This kernel has no powersave governor", "Kernel ini tidak punya governor powersave");
+            if (!gov.contains("powersave")) return tr("This kernel has no powersave governor", Tr.s("Kernel ini tidak punya governor powersave"));
             Booster.setGovernor(ctx, "powersave");
             return tr("Saver: powersave governor", "Hemat: governor powersave");
         }
         if (m == 1) {
             Booster.restoreGovernor(ctx);
             Booster.restoreGpu(ctx);
-            return tr("Balanced: your normal CPU/GPU settings", "Seimbang: setelan CPU/GPU normal");
+            return tr("Balanced: your normal CPU/GPU settings", Tr.s("Seimbang: setelan CPU/GPU normal"));
         }
-        if (!gov.contains("performance")) return tr("This kernel has no performance governor", "Kernel ini tidak punya governor performance");
+        if (!gov.contains("performance")) return tr("This kernel has no performance governor", Tr.s("Kernel ini tidak punya governor performance"));
         Booster.setGovernor(ctx, "performance");
         if (m == 2) return tr("Performance: CPU at max speed", "Performa: CPU kecepatan maks");
         StringBuilder sb = new StringBuilder(tr("Turbo: CPU max", "Turbo: CPU maks"));
@@ -832,7 +832,7 @@ final class TurboPanel {
                     List<String> l = dockApps();
                     l.remove(pkg);
                     saveDock(l);
-                    say(tr("Removed from dock", "Dihapus dari dock"));
+                    say(tr("Removed from dock", Tr.s("Dihapus dari dock")));
                     refreshDock();
                     return true;
                 }
@@ -883,9 +883,9 @@ final class TurboPanel {
             @Override public void onClick(View v) { pickerOpen = false; renderBody(); }
         });
         bar.addView(back);
-        bar.addView(txt(tr("Add apps to the dock", "Tambah app ke dock"), Color.WHITE, 14, true));
+        bar.addView(txt(tr("Add apps to the dock", Tr.s("Tambah app ke dock")), Color.WHITE, 14, true));
         body.addView(bar);
-        final TextView loading = txt(tr("Loading apps...", "Memuat aplikasi..."), MUTED, 12, false);
+        final TextView loading = txt(tr("Loading apps...", Tr.s("Memuat aplikasi...")), MUTED, 12, false);
         loading.setPadding(0, dp(10), 0, dp(10));
         body.addView(loading);
         fit();

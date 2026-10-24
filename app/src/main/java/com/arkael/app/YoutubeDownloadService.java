@@ -124,7 +124,7 @@ public class YoutubeDownloadService extends Service {
             } else {
                 fetch(videoUrl, tv, prog, shown);
                 fetch(audioUrl, ta, prog, shown);
-                postProgress(shown, "Menggabungkan video dan suara…", 100, true, true);
+                postProgress(shown, Tr.s("Menggabungkan video dan suara…"), 100, true, true);
                 mux(tv, ta, tm, "webm".equals(kind));
                 result = tm;
             }
@@ -133,13 +133,13 @@ public class YoutubeDownloadService extends Service {
             String mime = video ? ("webm".equals(ext) ? "video/webm" : "video/mp4") : ("m4a".equals(ext) ? "audio/mp4" : "audio/webm");
             String name = safe(title) + (label.isEmpty() ? "" : " [" + label + "]") + "." + ext;
             Uri saved = save(result, name, mime, video);
-            report(shown, "Selesai · tersimpan di " + (video ? "Movies" : "Music") + "/Arkael", saved, mime, false);
+            report(shown, Tr.s("Selesai · tersimpan di ") + (video ? "Movies" : "Music") + "/Arkael", saved, mime, false);
         } catch (Exception e) {
             if (cancel || "cancelled".equals(e.getMessage())) {
                 report(shown, "Download dibatalkan", null, null, true);
             } else {
                 Log.e(TAG, "download failed", e);
-                report(shown, "Gagal: " + e.getMessage(), null, null, true);
+                report(shown, Tr.s("Gagal: ") + e.getMessage(), null, null, true);
             }
         } finally {
             tv.delete(); ta.delete(); tm.delete();
@@ -211,7 +211,7 @@ public class YoutubeDownloadService extends Service {
                 }
                 in.close();
                 c.disconnect();
-                if (got == 0) throw new IOException("data kosong");
+                if (got == 0) throw new IOException(Tr.s("data kosong"));
                 pos += got;
                 if (len <= 0 && got < CHUNK) break;   // size unknown: a short piece means the end
             }
@@ -238,7 +238,7 @@ public class YoutubeDownloadService extends Service {
             ev.setDataSource(v.getAbsolutePath());
             ea.setDataSource(a.getAbsolutePath());
             int vi = pickTrack(ev, "video/"), ai = pickTrack(ea, "audio/");
-            if (vi < 0 || ai < 0) throw new IOException("track video/suara tidak ditemukan");
+            if (vi < 0 || ai < 0) throw new IOException(Tr.s("track video/suara tidak ditemukan"));
             ev.selectTrack(vi);
             ea.selectTrack(ai);
             mm = new MediaMuxer(out.getAbsolutePath(), webm ? MediaMuxer.OutputFormat.MUXER_OUTPUT_WEBM : MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
@@ -287,9 +287,9 @@ public class YoutubeDownloadService extends Service {
             cv.put(MediaStore.MediaColumns.IS_PENDING, 1);
             Uri col = video ? MediaStore.Video.Media.EXTERNAL_CONTENT_URI : MediaStore.Audio.Media.EXTERNAL_CONTENT_URI;
             Uri u = getContentResolver().insert(col, cv);
-            if (u == null) throw new IOException("tidak bisa membuat file di penyimpanan");
+            if (u == null) throw new IOException(Tr.s("tidak bisa membuat file di penyimpanan"));
             OutputStream os = getContentResolver().openOutputStream(u);
-            if (os == null) throw new IOException("tidak bisa menulis file");
+            if (os == null) throw new IOException(Tr.s("tidak bisa menulis file"));
             copy(f, os);
             ContentValues done = new ContentValues();
             done.put(MediaStore.MediaColumns.IS_PENDING, 0);
@@ -297,7 +297,7 @@ public class YoutubeDownloadService extends Service {
             return u;
         }
         File d = getExternalFilesDir(video ? Environment.DIRECTORY_MOVIES : Environment.DIRECTORY_MUSIC);
-        if (d == null) throw new IOException("penyimpanan tidak tersedia");
+        if (d == null) throw new IOException(Tr.s("penyimpanan tidak tersedia"));
         File o = new File(d, name);
         copy(f, new FileOutputStream(o));
         MediaScannerConnection.scanFile(this, new String[]{o.getAbsolutePath()}, new String[]{mime}, null);
@@ -332,7 +332,7 @@ public class YoutubeDownloadService extends Service {
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setProgress(100, pct, indeterminate)
-                .addAction(0, "Batal", cancelPi);
+                .addAction(0, Tr.s("Batal"), cancelPi);
         return b.build();
     }
 

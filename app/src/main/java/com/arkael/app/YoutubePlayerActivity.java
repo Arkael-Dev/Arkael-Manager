@@ -326,7 +326,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         chips.addView(chipAudio);
         chips.addView(chipQuality);
         chips.addView(chip("💬  Subtitle", v -> showSubtitleDialog()));
-        chips.addView(chip("🔊  Suara", v -> showAudioLangDialog()));
+        chips.addView(chip(Tr.s("🔊  Suara"), v -> showAudioLangDialog()));
         chips.addView(chip("⬇  Download", v -> showDownloadDialog()));
         chips.addView(chip("🧩  Extras", v -> showExtrasDialog()));
         chipMode = chip("🔁  Otomatis", v -> showModeDialog());
@@ -571,7 +571,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         playerView.setPlayer(controller);
         long exResume = YtExtras.getPosition(this, videoUrl);
         controller.setMediaItem(item, exResume);
-        if (exResume > 0) Toast.makeText(this, "Lanjut dari " + fmtDuration(exResume / 1000), Toast.LENGTH_SHORT).show();
+        if (exResume > 0) Toast.makeText(this, Tr.s("Lanjut dari ") + fmtDuration(exResume / 1000), Toast.LENGTH_SHORT).show();
         exApplyRepeat();
         applyTrackPrefs();
         controller.setPlayWhenReady(true);
@@ -647,7 +647,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                     refreshChips();
                     d.dismiss();
                 })
-                .setNegativeButton("Batal", null)
+                .setNegativeButton(Tr.s("Batal"), null)
                 .show();
     }
 
@@ -719,7 +719,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
 
     private void showSubtitleDialog() {
         if (subOpts.isEmpty()) {
-            Toast.makeText(this, "Video ini tidak punya subtitle", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, Tr.s("Video ini tidak punya subtitle"), Toast.LENGTH_SHORT).show();
             return;
         }
         String[] labels = new String[subOpts.size() + 1];
@@ -732,7 +732,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                     if (which == 0) { stopSubtitles(); return; }
                     loadSubtitle(which - 1);
                 })
-                .setNegativeButton("Batal", null)
+                .setNegativeButton(Tr.s("Batal"), null)
                 .show();
     }
 
@@ -747,7 +747,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     private void loadSubtitle(final int idx) {
         final int gen = ++subGen;
         final SubOpt o = subOpts.get(idx);
-        Toast.makeText(this, "Memuat subtitle…", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, Tr.s("Memuat subtitle…"), Toast.LENGTH_SHORT).show();
         new Thread(() -> {
             List<Cue> cues = new ArrayList<Cue>();
             String err = null;
@@ -769,7 +769,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                     in.close();
                     String body = bo.toString("UTF-8");
                     org.json.JSONArray ev = new org.json.JSONObject(body).optJSONArray("events");
-                    if (ev == null) err = "kosong";
+                    if (ev == null) err = Tr.s("kosong");
                     else for (int i = 0; i < ev.length(); i++) {
                         org.json.JSONObject e = ev.getJSONObject(i);
                         org.json.JSONArray segs = e.optJSONArray("segs");
@@ -784,7 +784,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                         cu.text = t;
                         cues.add(cu);
                     }
-                    if (err == null && cues.isEmpty()) err = "tidak ada teks";
+                    if (err == null && cues.isEmpty()) err = Tr.s("tidak ada teks");
                 }
                 c.disconnect();
             } catch (Exception e) {
@@ -796,7 +796,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
             runOnUiThread(() -> {
                 if (isFinishing() || gen != subGen) return;
                 if (ferr != null) {
-                    Toast.makeText(this, "Subtitle tidak bisa dimuat (" + ferr + "). Coba bahasa lain.", Toast.LENGTH_LONG).show();
+                    Toast.makeText(this, Tr.s("Subtitle tidak bisa dimuat (") + ferr + Tr.s("). Coba bahasa lain."), Toast.LENGTH_LONG).show();
                     return;
                 }
                 java.util.Collections.sort(fc, (a, b) -> Long.compare(a.start, b.start));
@@ -821,7 +821,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
             gs.add(g);
         }
         if (gs.size() < 2) {
-            Toast.makeText(this, "Video ini cuma punya satu bahasa suara", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, Tr.s("Video ini cuma punya satu bahasa suara"), Toast.LENGTH_SHORT).show();
             return;
         }
         String[] labels = new String[gs.size()];
@@ -831,7 +831,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
             if (gs.get(i).isSelected()) checked = i;
         }
         new AlertDialog.Builder(this)
-                .setTitle("Bahasa suara")
+                .setTitle(Tr.s("Bahasa suara"))
                 .setSingleChoiceItems(labels, checked, (d, which) -> {
                     Tracks.Group g = gs.get(which);
                     TrackSelectionParameters.Builder b = controller.getTrackSelectionParameters().buildUpon();
@@ -841,7 +841,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                     getSharedPreferences(PREFS, MODE_PRIVATE).edit().putString(K_AUDIOLANG, lang == null ? "" : lang).apply();
                     d.dismiss();
                 })
-                .setNegativeButton("Batal", null)
+                .setNegativeButton(Tr.s("Batal"), null)
                 .show();
     }
 
@@ -912,7 +912,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                 String x = v.getFormat() == null ? "" : v.getFormat().getSuffix();
                 if (!"mp4".equals(x)) continue;
                 DlOpt o = new DlOpt();
-                o.res = r; o.h = hOf(r); o.label = r + " · MP4 (langsung, ada suara)";
+                o.res = r; o.h = hOf(r); o.label = r + Tr.s(" · MP4 (langsung, ada suara)");
                 o.kind = "direct"; o.ext = "mp4"; o.video = u;
                 vids.add(o);
             }
@@ -929,13 +929,13 @@ public class YoutubePlayerActivity extends AppCompatActivity {
 
     private void showDownloadDialog() {
         if (curInfo == null) {
-            Toast.makeText(this, "Video belum siap, tunggu sebentar", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, Tr.s("Video belum siap, tunggu sebentar"), Toast.LENGTH_SHORT).show();
             return;
         }
         final StreamInfo info = curInfo;
         final List<DlOpt> opts = downloadOptions(info);
         if (opts.isEmpty()) {
-            Toast.makeText(this, "Tidak ada file yang bisa diunduh untuk video ini", Toast.LENGTH_LONG).show();
+            Toast.makeText(this, Tr.s("Tidak ada file yang bisa diunduh untuk video ini"), Toast.LENGTH_LONG).show();
             return;
         }
         String[] labels = new String[opts.size()];
@@ -949,7 +949,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                             o.kind, o.video, o.audio, o.ext, "audio".equals(o.kind) ? "" : o.res);
                     Toast.makeText(this, "Download dimulai, lihat di notifikasi", Toast.LENGTH_SHORT).show();
                 })
-                .setNegativeButton("Batal", null)
+                .setNegativeButton(Tr.s("Batal"), null)
                 .show();
     }
 
@@ -963,14 +963,14 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         }
         liked = YtStore.toggleLike(this, e);
         refreshChips();
-        Toast.makeText(this, liked ? "Disimpan ke Disukai" : "Dihapus dari Disukai", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, liked ? "Disimpan ke Disukai" : Tr.s("Dihapus dari Disukai"), Toast.LENGTH_SHORT).show();
     }
 
     private void refreshChips() {
         if (chipLike == null) return;
         chipLike.setText(liked ? "👍  Disukai" : "👍  Suka");
         styleChip(chipLike, liked);
-        chipAudio.setText(audioMode ? "🎧  Audio: aktif" : "🎧  Audio");
+        chipAudio.setText(audioMode ? Tr.s("🎧  Audio: aktif") : "🎧  Audio");
         styleChip(chipAudio, audioMode);
         chipQuality.setText("⚙  " + (manualHeight > 0 ? manualHeight + "p" : "Otomatis"));
         styleChip(chipQuality, manualHeight > 0);
@@ -1290,7 +1290,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
             descBody.setEllipsize(null);
             Linkify.addLinks(descBody, Linkify.WEB_URLS);     // links work once expanded
             descBody.setMovementMethod(LinkMovementMethod.getInstance());
-            descMore.setText("Tampilkan lebih sedikit");
+            descMore.setText(Tr.s("Tampilkan lebih sedikit"));
         } else {
             descBody.setMaxLines(3);
             descBody.setEllipsize(TextUtils.TruncateAt.END);
@@ -1317,13 +1317,13 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                 commentsLoading = false;
                 commentsLabel.setVisibility(View.VISIBLE);
                 if (fci == null || fci.isCommentsDisabled()) {
-                    commentsLabel.setText(ferr != null ? "Komentar tidak bisa dimuat" : "Komentar dimatikan untuk video ini");
+                    commentsLabel.setText(ferr != null ? Tr.s("Komentar tidak bisa dimuat") : Tr.s("Komentar dimatikan untuk video ini"));
                     return;
                 }
                 curComments = fci;
                 commentsPage = fci.getNextPage();
                 List<CommentsInfoItem> items = fci.getRelatedItems();
-                if (items == null || items.isEmpty()) { commentsLabel.setText("Belum ada komentar"); return; }
+                if (items == null || items.isEmpty()) { commentsLabel.setText(Tr.s("Belum ada komentar")); return; }
                 commentsLabel.setText("Komentar");
                 addComments(items);
                 commentsMore.setVisibility(fci.hasNextPage() ? View.VISIBLE : View.GONE);
@@ -1334,7 +1334,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
     private void loadMoreComments() {
         if (commentsLoading || curComments == null || commentsPage == null) return;
         commentsLoading = true;
-        commentsMore.setText("Memuat…");
+        commentsMore.setText(Tr.s("Memuat…"));
         final String url = videoUrl;
         final CommentsInfo ci = curComments;
         final Page pg = commentsPage;
@@ -1350,7 +1350,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                 if (isFinishing() || !url.equals(videoUrl)) return;
                 commentsLoading = false;
                 commentsMore.setText("Muat komentar lainnya");
-                if (fres == null) { Toast.makeText(this, "Gagal memuat komentar", Toast.LENGTH_SHORT).show(); return; }
+                if (fres == null) { Toast.makeText(this, Tr.s("Gagal memuat komentar"), Toast.LENGTH_SHORT).show(); return; }
                 commentsPage = fres.getNextPage();
                 addComments(fres.getItems());
                 commentsMore.setVisibility(fres.hasNextPage() ? View.VISIBLE : View.GONE);
@@ -1608,7 +1608,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
 
     private void showExtrasDialog() {
         final String[] keys = {"ex_sb", "ex_ryd", "ex_dearrow"};
-        String[] names = {"SponsorBlock (lewati sponsor)", "Return YouTube Dislike (jumlah dislike)", "DeArrow (judul tidak clickbait)"};
+        String[] names = {"SponsorBlock (lewati sponsor)", "Return YouTube Dislike (jumlah dislike)", Tr.s("DeArrow (judul tidak clickbait)")};
         final boolean[] on = new boolean[keys.length];
         for (int i = 0; i < keys.length; i++) on[i] = exOn(keys[i]);
         new AlertDialog.Builder(this)
@@ -1622,7 +1622,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                     }
                     if (videoUrl != null) loadExtras(videoUrl);
                 })
-                .setNegativeButton("Batal", null)
+                .setNegativeButton(Tr.s("Batal"), null)
                 .show();
     }
 
@@ -1700,7 +1700,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
             if (n >= exQueueUrls.size()) {
                 if (exMode() == 3) n = 0;
                 else {
-                    if (manual) Toast.makeText(this, "Sudah di akhir " + (exQueueName == null || exQueueName.isEmpty() ? "antrean" : exQueueName), Toast.LENGTH_SHORT).show();
+                    if (manual) Toast.makeText(this, Tr.s("Sudah di akhir ") + (exQueueName == null || exQueueName.isEmpty() ? "antrean" : exQueueName), Toast.LENGTH_SHORT).show();
                     return false;
                 }
             }
@@ -1723,7 +1723,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
             }
             if (fallback != null) { exSwitch(fallback.getUrl(), fallback.getName()); return true; }
         }
-        if (manual) Toast.makeText(this, "Tidak ada video berikutnya", Toast.LENGTH_SHORT).show();
+        if (manual) Toast.makeText(this, Tr.s("Tidak ada video berikutnya"), Toast.LENGTH_SHORT).show();
         return false;
     }
 
@@ -1737,7 +1737,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                     exRefreshChips();
                     d.dismiss();
                 })
-                .setNegativeButton("Batal", null)
+                .setNegativeButton(Tr.s("Batal"), null)
                 .show();
     }
 
@@ -1796,18 +1796,18 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         names[0] = "➕  Playlist baru…";
         for (int i = 0; i < pls.size(); i++) names[i + 1] = pls.get(i).name + "  (" + pls.get(i).videos.size() + ")";
         new AlertDialog.Builder(this)
-                .setTitle("Simpan ke playlist")
+                .setTitle(Tr.s("Simpan ke playlist"))
                 .setItems(names, (d, which) -> {
                     if (which == 0) exNewPlaylistThenAdd();
                     else exAddTo(pls.get(which - 1));
                 })
-                .setNegativeButton("Batal", null)
+                .setNegativeButton(Tr.s("Batal"), null)
                 .show();
     }
 
     private void exAddTo(YtLibrary.Pl pl) {
         boolean added = YtLibrary.addToPlaylist(this, pl.id, exEntry());
-        Toast.makeText(this, added ? "Disimpan ke " + pl.name : "Sudah ada di " + pl.name, Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, added ? "Disimpan ke " + pl.name : Tr.s("Sudah ada di ") + pl.name, Toast.LENGTH_SHORT).show();
     }
 
     private void exNewPlaylistThenAdd() {
@@ -1820,12 +1820,12 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
                 .setTitle("Playlist baru")
                 .setView(box)
-                .setPositiveButton("Buat & simpan", (d, w) -> {
+                .setPositiveButton(Tr.s("Buat & simpan"), (d, w) -> {
                     String n = et.getText().toString().trim();
                     if (n.isEmpty()) return;
                     exAddTo(YtLibrary.createPlaylist(this, n));
                 })
-                .setNegativeButton("Batal", null)
+                .setNegativeButton(Tr.s("Batal"), null)
                 .show();
     }
 
@@ -1835,7 +1835,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
             return;
         }
         if (audioMode) {
-            Toast.makeText(this, "Matikan mode audio untuk memakai mini-player", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, Tr.s("Matikan mode audio untuk memakai mini-player"), Toast.LENGTH_SHORT).show();
             return;
         }
         if (player == null) return;

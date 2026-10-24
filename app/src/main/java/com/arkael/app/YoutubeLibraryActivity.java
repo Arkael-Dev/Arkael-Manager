@@ -109,7 +109,7 @@ public class YoutubeLibraryActivity extends Activity {
         actionRow = new LinearLayout(this);
         actionRow.setOrientation(LinearLayout.HORIZONTAL);
         actionRow.setPadding(0, dp(12), 0, 0);
-        actionRow.addView(actionBtn("▶  Putar semua", false));
+        actionRow.addView(actionBtn(Tr.s("▶  Putar semua"), false));
         actionRow.addView(actionBtn("🔀  Acak", true));
         actionRow.setVisibility(View.GONE);
         col.addView(actionRow);
@@ -241,7 +241,7 @@ public class YoutubeLibraryActivity extends Activity {
             items.add(r);
         }
         adapter.notifyDataSetChanged();
-        status.setText(items.size() == 1 ? "Belum ada playlist.\nBuka video lalu tap ➕ Playlist." : "");
+        status.setText(items.size() == 1 ? Tr.s("Belum ada playlist.\nBuka video lalu tap ➕ Playlist.") : "");
     }
 
     private void showPlaylist(String id) {
@@ -264,7 +264,7 @@ public class YoutubeLibraryActivity extends Activity {
             items.add(r);
         }
         adapter.notifyDataSetChanged();
-        status.setText(items.isEmpty() ? "Playlist kosong.\nBuka video lalu tap ➕ Playlist." : "");
+        status.setText(items.isEmpty() ? Tr.s("Playlist kosong.\nBuka video lalu tap ➕ Playlist.") : "");
     }
 
     private void showChannels() {
@@ -282,7 +282,7 @@ public class YoutubeLibraryActivity extends Activity {
             items.add(r);
         }
         adapter.notifyDataSetChanged();
-        status.setText(items.isEmpty() ? "Belum ada langganan.\nBuka video lalu tap Langganan di bawah judul.\nTanpa akun Google." : "");
+        status.setText(items.isEmpty() ? Tr.s("Belum ada langganan.\nBuka video lalu tap Langganan di bawah judul.\nTanpa akun Google.") : "");
     }
 
     private void showChannel(final String id, final String name) {
@@ -312,7 +312,7 @@ public class YoutubeLibraryActivity extends Activity {
                     items.add(r);
                 }
                 adapter.notifyDataSetChanged();
-                status.setText(f.isEmpty() ? "Tidak bisa memuat video channel ini. Cek koneksi." : "");
+                status.setText(f.isEmpty() ? Tr.s("Tidak bisa memuat video channel ini. Cek koneksi.") : "");
             });
         }).start();
     }
@@ -371,7 +371,7 @@ public class YoutubeLibraryActivity extends Activity {
                     YtLibrary.createPlaylist(this, n);
                     showPlaylists();
                 })
-                .setNegativeButton("Batal", null)
+                .setNegativeButton(Tr.s("Batal"), null)
                 .show();
     }
 
@@ -436,9 +436,9 @@ public class YoutubeLibraryActivity extends Activity {
             }));
         } else if (r.type == 1) {
             row.addView(trailing("🗑", v -> new AlertDialog.Builder(this)
-                    .setMessage("Hapus playlist \"" + r.title + "\"?")
-                    .setPositiveButton("Hapus", (d, w) -> { YtLibrary.deletePlaylist(this, r.id); showPlaylists(); })
-                    .setNegativeButton("Batal", null)
+                    .setMessage(Tr.s("Hapus playlist \"") + r.title + "\"?")
+                    .setPositiveButton(Tr.s("Hapus"), (d, w) -> { YtLibrary.deletePlaylist(this, r.id); showPlaylists(); })
+                    .setNegativeButton(Tr.s("Batal"), null)
                     .show()));
         } else if (r.type == 2) {
             TextView b = new TextView(this);

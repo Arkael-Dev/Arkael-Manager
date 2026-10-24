@@ -1,0 +1,69 @@
+== SISA TEKS INDONESIA DI JAVA (belum diterjemahkan) ==
+Booster.java:38: manual
+Booster.java:40: manual
+GameLauncherActivity.java:73: manual
+GameProfiles.java:34: manual_panel
+GameProfiles.java:35: manual_panel
+TurboPanel.java:545: Bersih RAM otomatis
+TurboPanel.java:701: Performa: CPU kecepatan maks
+YoutubeLibraryActivity.java:104: Langganan
+YoutubeLibraryActivity.java:113: 🔀  Acak
+YoutubeLibraryActivity.java:232: ➕  Playlist baru
+YoutubeLibraryActivity.java:273: Langganan
+YoutubeLibraryActivity.java:361: Nama playlist
+YoutubeLibraryActivity.java:366: Playlist baru
+YoutubePlayerActivity.java:324: ⚙  Otomatis
+YoutubePlayerActivity.java:332: 🔁  Otomatis
+YoutubePlayerActivity.java:334: ⏭  Berikutnya
+YoutubePlayerActivity.java:638: Otomatis
+YoutubePlayerActivity.java:642: Kualitas video
+YoutubePlayerActivity.java:703:  (otomatis)
+YoutubePlayerActivity.java:714:  (terjemahan otomatis)
+YoutubePlayerActivity.java:950: Download dimulai, lihat di notifikasi
+YoutubePlayerActivity.java:966: Disimpan ke Disukai
+YoutubePlayerActivity.java:971: 👍  Disukai
+YoutubePlayerActivity.java:975: Otomatis
+YoutubePlayerActivity.java:1635: Otomatis
+YoutubePlayerActivity.java:1731: Berhenti setelah selesai
+YoutubePlayerActivity.java:1731: Putar otomatis (playlist / video berikutnya)
+YoutubePlayerActivity.java:1731: Ulangi video ini
+YoutubePlayerActivity.java:1731: Ulangi playlist (balik ke awal)
+YoutubePlayerActivity.java:1733: Mode putar
+YoutubePlayerActivity.java:1755: Langganan
+YoutubePlayerActivity.java:1796: ➕  Playlist baru…
+YoutubePlayerActivity.java:1816: Nama playlist
+YoutubePlayerActivity.java:1821: Playlist baru
+YoutubeSearchActivity.java:94: Tanpa iklan, tanpa akun. Pilih video dari Beranda, atau cari di atas. Buka video lalu keluar dari app untuk mode layar k
+YoutubeSearchActivity.java:161: Beranda
+YoutubeSearchActivity.java:163: Disukai
+YoutubeSearchActivity.java:164: Langganan
+YoutubeSearchActivity.java:194: musik terbaru
+YoutubeSearchActivity.java:194: gameplay game terbaru
+YoutubeSearchActivity.java:196: film terbaru
+YoutubeSearchActivity.java:352: populer hari ini
+YoutubeSearchActivity.java:352: musik terbaru
+YoutubeSearchActivity.java:352: gameplay terbaru
+YoutubeSearchActivity.java:550: 👥  Kelola langganan (
+YoutubeSearchActivity.java:586: Langganan
+YoutubeSearchActivity.java:586: Disukai
+YoutubeSearchActivity.java:601: Terbaru
+YoutubeSearchActivity.java:628: Terbaru
+
+== TEKS DI XML (layout/menu/xml) ==
+layout/activity_main.xml:113: Semua game di HP ini, sekali ketuk langsung main
+layout/activity_main.xml:124: Slide to adjust CPU max frequency (manual)
+
+== STATIS (teks baru ikut bahasa baru setelah app dibuka ulang) ==
+YoutubeSearchActivity.java: private static final String[] F_TIME = {"Semua waktu", "Hari ini", "Minggu ini", "Bulan ini", "Tahun ini"};
+
+== POTONGAN KALIMAT (cek susunan di bahasa lain) ==
+GameLauncherActivity.java: ovText.setText("MEMUAT  " + g.name.toUpperCase());
+GameLauncherActivity.java: Toast.makeText(this, "Tidak bisa membuka " + g.name, Toast.LENGTH_SHORT).show();
+GameLauncherActivity.java: Toast.makeText(this, "Gagal membuka " + g.name, Toast.LENGTH_SHORT).show();
+YoutubeDownloadService.java: report(shown, "Selesai · tersimpan di " + (video ? "Movies" : "Music") + "/Arkael", saved, mime, false);
+YoutubeDownloadService.java: report(shown, "Gagal: " + e.getMessage(), null, null, true);
+YoutubePlayerActivity.java: if (exResume > 0) Toast.makeText(this, "Lanjut dari " + fmtDuration(exResume / 1000), Toast.LENGTH_SHORT).show
+YoutubePlayerActivity.java: Toast.makeText(this, "Subtitle tidak bisa dimuat (" + ferr + "). Coba bahasa lain.", Toast.LENGTH_LONG).show()
+YoutubePlayerActivity.java: o.res = r; o.h = hOf(r); o.label = r + " · MP4 (langsung, ada suara)";
+YoutubePlayerActivity.java: if (manual) Toast.makeText(this, "Sudah di akhir " + (exQueueName == null || exQueueName.isEmpty() ? "antrean"
+YoutubePlayerActivity.java: Toast.makeText(this, added ? "Disimpan ke " + pl.name : "Sudah ada di " + pl.name, Toast.LENGTH_SHORT).show();

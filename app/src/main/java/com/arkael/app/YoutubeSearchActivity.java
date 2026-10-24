@@ -66,7 +66,7 @@ public class YoutubeSearchActivity extends Activity {
     private TextView tabSubs, tabLists, chipTime, chipSort;
     private int fTime = 0;     // 0 semua waktu, 1 hari ini, 2 minggu ini, 3 bulan ini, 4 tahun ini
     private int fSort = 0;     // 0 relevansi, 1 terbaru
-    private static final String[] F_TIME = {"Semua waktu", "Hari ini", "Minggu ini", "Bulan ini", "Tahun ini"};
+    private static final String[] F_TIME = {Tr.s("Semua waktu"), "Hari ini", "Minggu ini", "Bulan ini", "Tahun ini"};
     private static final long[] F_MS = {0L, 86400000L, 7 * 86400000L, 30 * 86400000L, 365 * 86400000L};
     private int searchGen = 0;   // bumped on every new search so a slow old search can't overwrite a newer result
 
@@ -159,7 +159,7 @@ public class YoutubeSearchActivity extends Activity {
         tabs.setGravity(Gravity.CENTER_VERTICAL);
         tabs.setPadding(0, dp(10), 0, 0);
         tabHome = tab("Beranda", 3);
-        tabHistory = tab("Riwayat", 1);
+        tabHistory = tab(Tr.s("Riwayat"), 1);
         tabLikes = tab("Disukai", 2);
         tabSubs = tab("Langganan", 4);
         tabLists = tab("Playlist", 5);
@@ -171,7 +171,7 @@ public class YoutubeSearchActivity extends Activity {
         View grow = new View(this);
         tabs.addView(grow, new LinearLayout.LayoutParams(0, 1, 1f));
         clearBtn = new TextView(this);
-        clearBtn.setText("Hapus riwayat");
+        clearBtn.setText(Tr.s("Hapus riwayat"));
         clearBtn.setTextColor(Color.parseColor("#FF6B6B"));
         clearBtn.setTextSize(12);
         clearBtn.setPadding(dp(8), dp(8), dp(4), dp(8));
@@ -191,7 +191,7 @@ public class YoutubeSearchActivity extends Activity {
         LinearLayout catRow = new LinearLayout(this);
         catRow.setOrientation(LinearLayout.HORIZONTAL);
         catRow.setPadding(0, dp(10), 0, 0);
-        String[][] cat = {{"🎵 Musik", "musik terbaru"}, {"🎮 Game", "gameplay game terbaru"}, {"🎌 Anime", "anime sub indo"},
+        String[][] cat = {{Tr.s("🎵 Musik"), "musik terbaru"}, {"🎮 Game", "gameplay game terbaru"}, {"🎌 Anime", "anime sub indo"},
                 {"🐉 Donghua", "donghua sub indo"}, {"📰 Berita", "berita hari ini"}, {"💻 Teknologi", "review teknologi"},
                 {"🎬 Film", "film terbaru"}};
         for (final String[] c : cat) catRow.addView(catChip(c[0], c[1]));
@@ -378,7 +378,7 @@ public class YoutubeSearchActivity extends Activity {
                 if (!copy.isEmpty()) spinner.setVisibility(View.GONE);
                 if (done) {
                     spinner.setVisibility(View.GONE);
-                    status.setText(copy.isEmpty() ? "Gagal memuat beranda. Cek koneksi, lalu tap Beranda lagi." : "");
+                    status.setText(copy.isEmpty() ? Tr.s("Gagal memuat beranda. Cek koneksi, lalu tap Beranda lagi.") : "");
                 }
             }
         });
@@ -402,21 +402,21 @@ public class YoutubeSearchActivity extends Activity {
         }
         adapter.notifyDataSetChanged();
         status.setText(items.isEmpty()
-                ? (m == 2 ? "Belum ada video yang disukai." : "Belum ada riwayat tontonan. Cari video di atas.")
+                ? (m == 2 ? Tr.s("Belum ada video yang disukai.") : Tr.s("Belum ada riwayat tontonan. Cari video di atas."))
                 : "");
         updateTabs();
     }
 
     private void confirmClearHistory() {
         new android.app.AlertDialog.Builder(this)
-                .setMessage("Hapus semua riwayat tontonan?")
-                .setPositiveButton("Hapus", new android.content.DialogInterface.OnClickListener() {
+                .setMessage(Tr.s("Hapus semua riwayat tontonan?"))
+                .setPositiveButton(Tr.s("Hapus"), new android.content.DialogInterface.OnClickListener() {
                     @Override public void onClick(android.content.DialogInterface d, int w) {
                         YtStore.clearHistory(YoutubeSearchActivity.this);
                         showStored(1);
                     }
                 })
-                .setNegativeButton("Batal", null)
+                .setNegativeButton(Tr.s("Batal"), null)
                 .show();
     }
 
@@ -507,7 +507,7 @@ public class YoutubeSearchActivity extends Activity {
                         items.clear();
                         items.addAll(result);
                         adapter.notifyDataSetChanged();
-                        status.setText(result.isEmpty() ? (fTime != 0 ? "Tidak ada video dalam rentang waktu ini. Coba waktu yang lebih luas." : "No results") : "");
+                        status.setText(result.isEmpty() ? (fTime != 0 ? Tr.s("Tidak ada video dalam rentang waktu ini. Coba waktu yang lebih luas.") : "No results") : "");
                     }
                 });
             }
@@ -533,7 +533,7 @@ public class YoutubeSearchActivity extends Activity {
         final int n = YtLibrary.subs(this).size();
         if (n == 0) {
             spinner.setVisibility(View.GONE);
-            status.setText("Belum ada langganan.\nBuka video lalu tap Langganan di bawah judul.\nTanpa akun Google.");
+            status.setText(Tr.s("Belum ada langganan.\nBuka video lalu tap Langganan di bawah judul.\nTanpa akun Google."));
             return;
         }
         spinner.setVisibility(View.VISIBLE);
@@ -548,7 +548,7 @@ public class YoutubeSearchActivity extends Activity {
                         Row m = new Row();
                         m.url = null;
                         m.title = "👥  Kelola langganan (" + n + ")";
-                        m.uploader = "Lihat atau berhenti berlangganan channel";
+                        m.uploader = Tr.s("Lihat atau berhenti berlangganan channel");
                         items.add(m);
                         for (YtLibrary.FeedItem f : feed) {
                             Row r = new Row();
@@ -561,7 +561,7 @@ public class YoutubeSearchActivity extends Activity {
                             items.add(r);
                         }
                         adapter.notifyDataSetChanged();
-                        status.setText(feed.isEmpty() ? "Gagal memuat video langganan. Cek koneksi, lalu tap Langganan lagi." : "");
+                        status.setText(feed.isEmpty() ? Tr.s("Gagal memuat video langganan. Cek koneksi, lalu tap Langganan lagi.") : "");
                     }
                 });
             }
@@ -618,7 +618,7 @@ public class YoutubeSearchActivity extends Activity {
                         reSearch();
                     }
                 })
-                .setNegativeButton("Batal", null)
+                .setNegativeButton(Tr.s("Batal"), null)
                 .show();
     }
 
@@ -633,7 +633,7 @@ public class YoutubeSearchActivity extends Activity {
                         reSearch();
                     }
                 })
-                .setNegativeButton("Batal", null)
+                .setNegativeButton(Tr.s("Batal"), null)
                 .show();
     }
 
