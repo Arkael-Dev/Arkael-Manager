@@ -58,7 +58,7 @@
         <activity android:name=".GameLauncherActivity" android:exported="false" android:label="Game Launcher"
             android:configChanges="orientation|screenSize|keyboardHidden"/>
 
-        <activity android:name=".EqualizerActivity" android:exported="false" android:label="Equalizer"
+        <activity android:name=".EqualizerActivity" android:exported="false" android:label="@string/ax_eq_title"
             android:configChanges="orientation|screenSize|keyboardHidden"/>
 
         <service android:name=".EqService" android:exported="false" android:foregroundServiceType="specialUse">

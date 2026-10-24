@@ -290,7 +290,7 @@ public class EqService extends Service {
     private Notification buildNote() {
         NotificationManager nm = (NotificationManager) getSystemService(Context.NOTIFICATION_SERVICE);
         if (Build.VERSION.SDK_INT >= 26 && nm != null && nm.getNotificationChannel(CH) == null) {
-            NotificationChannel ch = new NotificationChannel(CH, "Equalizer", NotificationManager.IMPORTANCE_LOW);
+            NotificationChannel ch = new NotificationChannel(CH, getString(R.string.ax_eq_title), NotificationManager.IMPORTANCE_LOW);
             ch.setShowBadge(false);
             nm.createNotificationChannel(ch);
         }
@@ -299,11 +299,11 @@ public class EqService extends Service {
         PendingIntent stop = PendingIntent.getService(this, 1, new Intent(this, EqService.class).setAction(ACTION_STOP), pf);
         Notification.Builder b = Build.VERSION.SDK_INT >= 26 ? new Notification.Builder(this, CH) : new Notification.Builder(this);
         b.setSmallIcon(android.R.drawable.ic_lock_silent_mode_off)
-                .setContentTitle("Equalizer aktif")
-                .setContentText(status)
+                .setContentTitle(getString(R.string.ax_eq_note_title))
+                .setContentText(EqText.loc(this, status))
                 .setContentIntent(open)
                 .setOngoing(true)
-                .addAction(new Notification.Action.Builder(0, "Matikan", stop).build());
+                .addAction(new Notification.Action.Builder(0, getString(R.string.ax_eq_note_stop), stop).build());
         return b.build();
     }
 }
