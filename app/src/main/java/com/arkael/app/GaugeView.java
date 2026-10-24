@@ -67,7 +67,7 @@ public class GaugeView extends View {
         pulseAnim.setDuration(1800);
         pulseAnim.setRepeatMode(ValueAnimator.REVERSE);
         pulseAnim.setRepeatCount(ValueAnimator.INFINITE);
-        pulseAnim.addUpdateListener(v -> { pulse = (float) v.getAnimatedValue(); invalidate(); });
+        pulseAnim.addUpdateListener(v -> { pulse = (float) v.getAnimatedValue(); });
         pulseAnim.start();
     }
     @Override protected void onDetachedFromWindow() {
