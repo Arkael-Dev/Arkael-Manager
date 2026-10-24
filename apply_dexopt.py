@@ -1,21 +1,20 @@
 # Jalankan dari ~/Arkael-Manager :  python3 apply_dexopt.py
-# Menambah "Dex2oat Optimizer" (kartu di tab Tools + layar sendiri + registrasi manifest).
-import os, re, sys
+# Dex2oat Optimizer v23: kartu dipasang dari MainActivity (tidak bergantung isi ExtrasEntry.java).
+import glob, os, re, sys
 
 D = 'app/src/main/java/com/arkael/app/'
 MF = 'app/src/main/AndroidManifest.xml'
-EX = D + 'ExtrasEntry.java'
 report = []
-
-if not os.path.exists(D + 'DexOptActivity.java'):
-    print('GAGAL: DexOptActivity.java belum ada. Unzip arkael_dexopt_v22.zip di ~/Arkael-Manager dulu.'); sys.exit(1)
+for need in ('DexOptActivity.java', 'DexOptEntry.java'):
+    if not os.path.exists(D + need):
+        print('GAGAL: %s belum ada. Unzip arkael_dexopt_v23.zip di ~/Arkael-Manager dulu.' % need); sys.exit(1)
 for need in ('Tr.java', 'Notifier.java'):
     if not os.path.exists(D + need):
-        print('GAGAL: %s tidak ada (butuh paket bahasa v15 / extras). Tidak ada yang diubah.' % need); sys.exit(1)
+        print('GAGAL: %s tidak ada. Tidak ada yang diubah.' % need); sys.exit(1)
 
 # ---- Manifest
 if not os.path.exists(MF):
-    report.append('GAGAL  Manifest tidak ditemukan')
+    report.append('GAGAL  Manifest tidak ditemukan (jalankan dari root repo)')
 else:
     m = open(MF, encoding='utf-8').read()
     if '.DexOptActivity' in m:
@@ -28,26 +27,28 @@ else:
         open(MF, 'w', encoding='utf-8').write(m[:ls] + blk + m[ls:])
         report.append('OK     Manifest: DexOptActivity didaftarkan')
 
-# ---- Kartu di tab Tools
-if not os.path.exists(EX):
-    report.append('GAGAL  ExtrasEntry.java tidak ada: pasang kartu manual -> startActivity(new Intent(this, DexOptActivity.class))')
+# ---- kalau patch v22 sudah memasang kartu di ExtrasEntry, jangan dobel
+ex = D + 'ExtrasEntry.java'
+if os.path.exists(ex) and 'DexOptActivity' in open(ex, encoding='utf-8').read():
+    report.append('SUDAH  Kartu sudah dipasang lewat ExtrasEntry (v22), tidak perlu hook MainActivity')
 else:
-    s = open(EX, encoding='utf-8').read()
-    if 'DexOptActivity' in s:
-        report.append('SUDAH  Kartu Tools')
+    mas = glob.glob('app/src/main/java/**/MainActivity.java', recursive=True)
+    if not mas:
+        report.append('GAGAL  MainActivity.java tidak ketemu')
     else:
-        pat = re.compile(r'^([ \t]*)card\(a, col, R\.drawable\.ic_cpu, R\.drawable\.bg_ic_cyan', re.M)
-        found = pat.findall(s)
-        if len(found) != 1:
-            report.append('GAGAL  Kartu: titik sisip tidak ketemu (%d). Tambahkan manual di ExtrasEntry.attach:' % len(found))
-            report.append('       card(a, col, R.drawable.ic_cpu, R.drawable.bg_ic_red, "#FFB300", DexOptActivity.cardTitle(), DexOptActivity.cardSub(), DexOptActivity.class);')
+        ma = mas[0]
+        s = open(ma, encoding='utf-8').read()
+        if 'DexOptEntry.attach' in s:
+            report.append('SUDAH  Hook MainActivity')
         else:
-            ind = found[0]
-            new = (ind + 'card(a, col, R.drawable.ic_cpu, R.drawable.bg_ic_red, "#FFB300",\n'
-                   + ind + '        DexOptActivity.cardTitle(), DexOptActivity.cardSub(), DexOptActivity.class);\n')
-            s = pat.sub(lambda mm: new + mm.group(0), s, count=1)
-            open(EX, 'w', encoding='utf-8').write(s)
-            report.append('OK     Kartu "Dex2oat Optimizer" ditambah di tab Tools')
+            pat = re.compile(r'^([ \t]*)ExtrasEntry\.attach\(this\);[^\n]*$', re.M)
+            if not pat.search(s):
+                report.append('GAGAL  "ExtrasEntry.attach(this);" tidak ada di MainActivity. Tambahkan manual di onCreate setelah setContentView:')
+                report.append('       try { DexOptEntry.attach(this); } catch (Throwable ignored) {}')
+            else:
+                s = pat.sub(lambda mm: mm.group(0) + '\n' + mm.group(1) + 'try { DexOptEntry.attach(this); } catch (Throwable ignored) {}', s, count=1)
+                open(ma, 'w', encoding='utf-8').write(s)
+                report.append('OK     MainActivity: kartu Dex2oat dipasang setelah ExtrasEntry.attach')
 
 print('\n'.join(report))
-print('\nLanjut: git add -A && git commit -m "feat: Dex2oat Optimizer" && git push')
+print('\nLanjut: build ulang & install, lalu git add -A && git commit -m "feat: Dex2oat Optimizer" && git push')
