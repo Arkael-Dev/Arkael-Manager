@@ -498,7 +498,6 @@ public class GameLauncherActivity extends Activity {
     private HexIcon pvIcon, ovIcon, ovRing, ovRing2;
     private Ico muteIco, icBat, icCpu, icGpu;
     private TextView pvName, pvSub, emptyView, stBat, stCpu, stGpu, ovText;
-    private TextView pvScale;
     private SoundPool pool;
     private int sOpen, sLaunch, sSelect, sTab, sel = 0;
     private boolean muted, launching, introDone, pollOn;
@@ -620,18 +619,6 @@ public class GameLauncherActivity extends Activity {
         pvSub.setPadding(0, dp(4), 0, 0);
         pvSub.setMaxLines(2);
         pvContent.addView(pvSub, new LinearLayout.LayoutParams(-1, -2));
-        pvScale = new TextView(this);
-        pvScale.setTextColor(Color.WHITE);
-        pvScale.setTextSize(11);
-        pvScale.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-        pvScale.setGravity(Gravity.CENTER);
-        pvScale.setPadding(dp(14), dp(5), dp(14), dp(5));
-        pvScale.setBackground(new Cut(Color.parseColor("#40181820"), Color.parseColor("#99FF1E3C"), dp(1.2f), dp(8), true, true, true, true));
-        pvScale.setOnClickListener(v -> { if (!games.isEmpty()) { playFx(sTab, 0.9f); Game gg = games.get(sel);
-            AppDownscale.showPicker(this, gg.pkg, gg.name, () -> updatePreview(false)); } });
-        LinearLayout.LayoutParams psl = new LinearLayout.LayoutParams(-2, -2);
-        psl.topMargin = dp(8);
-        pvContent.addView(pvScale, psl);
         previewBox.addView(pvContent, new FrameLayout.LayoutParams(-1, -1));
 
         LinearLayout.LayoutParams pvl = new LinearLayout.LayoutParams(0, -1, 6f);
@@ -820,7 +807,6 @@ public class GameLauncherActivity extends Activity {
         pvIcon.set(g.icon, RED);
         pvName.setText(g.name);
         pvSub.setText(profileSummary(g.pkg));
-        if (pvScale != null) pvScale.setText(getString(R.string.ax_ds_row, AppDownscale.label(this, AppDownscale.get(this, g.pkg))));
         if (anim) {
             pvContent.setAlpha(0f);
             pvContent.setTranslationX(dp(28));
@@ -1174,7 +1160,6 @@ public class GameLauncherActivity extends Activity {
         new Thread(() -> {
             // Same thing Game Mode does when a game starts: the profile saved for this game.
             try { Booster.applyProfile(this, GameProfiles.get(this, g.pkg), false); } catch (Throwable ignored) {}
-            try { AppDownscale.applyFor(this, g.pkg); } catch (Throwable ignored) {}
             long wait = 1100 - (System.currentTimeMillis() - t0);
             if (wait > 0) { try { Thread.sleep(wait); } catch (InterruptedException ignored) {} }
             runOnUiThread(() -> {
