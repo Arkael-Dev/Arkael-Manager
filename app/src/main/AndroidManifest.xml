@@ -91,5 +91,6 @@
         <service android:name=".YoutubeDownloadService" android:exported="false"
             android:foregroundServiceType="dataSync"/>
         <activity android:name=".YoutubeLibraryActivity" android:exported="false" android:label="Library"/>
+        <activity android:name=".DexOptActivity" android:exported="false" android:label="Dex2oat Optimizer"/>
     </application>
 </manifest>

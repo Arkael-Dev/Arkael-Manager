@@ -36,6 +36,8 @@ final class ExtrasEntry {
 
             card(a, col, R.drawable.ic_play_circle, R.drawable.bg_ic_red, "#FF4444",
                     a.getString(R.string.ax_card_anime), a.getString(R.string.ax_card_anime_sub), AnimeHubActivity.class);
+            card(a, col, R.drawable.ic_cpu, R.drawable.bg_ic_red, "#FFB300",
+                    DexOptActivity.cardTitle(), DexOptActivity.cardSub(), DexOptActivity.class);
             card(a, col, R.drawable.ic_cpu, R.drawable.bg_ic_cyan, "#00E5FF",
                     a.getString(R.string.ax_settings), a.getString(R.string.ax_card_settings_sub), AppSettingsActivity.class);
         } catch (Exception ignored) {
