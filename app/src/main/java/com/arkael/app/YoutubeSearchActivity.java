@@ -46,6 +46,11 @@ import org.schabi.newpipe.extractor.stream.StreamInfoItem;
  * (no YouTube app, no WebView, no ads) — see NewPipeExtractorDownloader and YoutubePlayerActivity.
  */
 public class YoutubeSearchActivity extends Activity {
+    @Override
+    protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(LocaleWrap.wrap(base));
+    }
+
     private static final String TAG = "ArkaelYT";
     private static final class Row {
         String url, title, uploader, duration, thumb;

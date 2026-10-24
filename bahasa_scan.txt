@@ -1,0 +1,167 @@
+== CARA APP MENERAPKAN BAHASA ==
+app/src/main/java/com/arkael/app/LocaleHelper.java:6: import androidx.core.os.LocaleListCompat;
+app/src/main/java/com/arkael/app/LocaleHelper.java:23: LocaleListCompat l = AppCompatDelegate.getApplicationLocales();
+app/src/main/java/com/arkael/app/LocaleHelper.java:31: AppCompatDelegate.setApplicationLocales(tag == null || tag.isEmpty()
+app/src/main/java/com/arkael/app/LocaleHelper.java:32: ? LocaleListCompat.getEmptyLocaleList()
+app/src/main/java/com/arkael/app/LocaleHelper.java:33: : LocaleListCompat.forLanguageTags(tag));
+
+== TEKS INDONESIA DI KODE JAVA (jumlah per file) ==
+  36  app/src/main/java/com/arkael/app/YoutubePlayerActivity.java
+  19  app/src/main/java/com/arkael/app/YoutubeSearchActivity.java
+  18  app/src/main/java/com/arkael/app/TurboPanel.java
+  16  app/src/main/java/com/arkael/app/GameLauncherActivity.java
+  10  app/src/main/java/com/arkael/app/EqEngine.java
+   9  app/src/main/java/com/arkael/app/YoutubeDownloadService.java
+   9  app/src/main/java/com/arkael/app/YoutubeLibraryActivity.java
+   7  app/src/main/java/com/arkael/app/EqService.java
+   3  app/src/main/java/com/arkael/app/EqRootDaemon.java
+   3  app/src/main/java/com/arkael/app/EqText.java
+   2  app/src/main/java/com/arkael/app/LocaleHelper.java
+   1  app/src/main/java/com/arkael/app/EqualizerActivity.java
+
+== DETAIL ==
+# app/src/main/java/com/arkael/app/YoutubePlayerActivity.java
+  329: 🔊  Suara
+  574: Lanjut dari 
+  650: Batal
+  722: Video ini tidak punya subtitle
+  735: Batal
+  750: Memuat subtitle…
+  772: kosong
+  787: tidak ada teks
+  799: Subtitle tidak bisa dimuat (
+  799: ). Coba bahasa lain.
+  824: Video ini cuma punya satu bahasa suara
+  834: Bahasa suara
+  844: Batal
+  915:  · MP4 (langsung, ada suara)
+  932: Video belum siap, tunggu sebentar
+  938: Tidak ada file yang bisa diunduh untuk video ini
+  952: Batal
+  966: Dihapus dari Disukai
+  973: 🎧  Audio: aktif
+  1293: Tampilkan lebih sedikit
+  1320: Komentar tidak bisa dimuat
+  1320: Komentar dimatikan untuk video ini
+  1326: Belum ada komentar
+  1337: Memuat…
+  1353: Gagal memuat komentar
+  1611: DeArrow (judul tidak clickbait)
+  1625: Batal
+  1703: Sudah di akhir 
+  1726: Tidak ada video berikutnya
+  1740: Batal
+  1799: Simpan ke playlist
+  1804: Batal
+  1810: Sudah ada di 
+  1823: Buat & simpan
+  1828: Batal
+  1838: Matikan mode audio untuk memakai mini-player
+# app/src/main/java/com/arkael/app/YoutubeSearchActivity.java
+  64: Semua waktu
+  89: Tanpa iklan, tanpa akun. Pilih video dari Beranda, atau cari di atas. Buka video lalu keluar dari app untuk mo
+  157: Riwayat
+  169: Hapus riwayat
+  189: 🎵 Musik
+  189: musik terbaru
+  347: musik terbaru
+  376: Gagal memuat beranda. Cek koneksi, lalu tap Beranda lagi.
+  400: Belum ada video yang disukai.
+  400: Belum ada riwayat tontonan. Cari video di atas.
+  407: Hapus semua riwayat tontonan?
+  408: Hapus
+  414: Batal
+  505: Tidak ada video dalam rentang waktu ini. Coba waktu yang lebih luas.
+  531: Belum ada langganan.\nBuka video lalu tap Langganan di bawah judul.\nTanpa akun Google.
+  546: Lihat atau berhenti berlangganan channel
+  559: Gagal memuat video langganan. Cek koneksi, lalu tap Langganan lagi.
+  616: Batal
+  631: Batal
+# app/src/main/java/com/arkael/app/TurboPanel.java
+  377: lepas untuk terapkan
+  535: Rekam layar
+  548: Buka salah satu game untuk ubah profilnya
+  554: Hapus cache app
+  560: Pilih game
+  563: Setelan game
+  563: Buka Game Mode
+  566: Pulihkan setelan
+  566: Kembali normal
+  572: Setelan dipulihkan
+  599: Sembunyikan
+  602: Simpan log FPS/suhu
+  690: Kernel ini tidak punya governor powersave
+  697: Seimbang: setelan CPU/GPU normal
+  699: Kernel ini tidak punya governor performance
+  835: Dihapus dari dock
+  886: Tambah app ke dock
+  888: Memuat aplikasi...
+# app/src/main/java/com/arkael/app/GameLauncherActivity.java
+  336: MAINKAN
+  340: MAINKAN
+  341: Profil otomatis aktif
+  667: SETELAN GAME
+  681: Belum ada game terdeteksi.\nTekan + untuk menambah game secara manual.
+  835: Belum ada boost aktif. Atur di Setelan Game.
+  1110: Tidak ada aplikasi lain
+  1113: Tambah game
+  1115: Tambah
+  1122: Batal
+  1131: Sembunyikan dari Game Launcher? (Game tidak dihapus dari HP. Bisa ditambah lagi lewat tombol +)
+  1132: Sembunyikan
+  1140: Batal
+  1150: MEMUAT  
+  1174: Tidak bisa membuka 
+  1181: Gagal membuka 
+# app/src/main/java/com/arkael/app/EqEngine.java
+  81: GAGAL Global (session 0) tidak bisa dibuat. Lihat Diagnostik.
+  82: Global gagal, pindah ke per-sesi
+  90: GAGAL Ada 
+  90:  sesi audio tapi efek tidak bisa dipasang. Lihat Diagnostik.
+  91: OK Per-sesi · menunggu ada suara diputar
+  197:  gagal: 
+  288: EQ gagal di sesi 
+  294: Bass gagal: 
+  300: 3D gagal: 
+  308: Loudness gagal: 
+# app/src/main/java/com/arkael/app/YoutubeDownloadService.java
+  127: Menggabungkan video dan suara…
+  136: Selesai · tersimpan di 
+  142: Gagal: 
+  214: data kosong
+  241: track video/suara tidak ditemukan
+  290: tidak bisa membuat file di penyimpanan
+  292: tidak bisa menulis file
+  300: penyimpanan tidak tersedia
+  335: Batal
+# app/src/main/java/com/arkael/app/YoutubeLibraryActivity.java
+  107: ▶  Putar semua
+  239: Belum ada playlist.\nBuka video lalu tap ➕ Playlist.
+  262: Playlist kosong.\nBuka video lalu tap ➕ Playlist.
+  280: Belum ada langganan.\nBuka video lalu tap Langganan di bawah judul.\nTanpa akun Google.
+  310: Tidak bisa memuat video channel ini. Cek koneksi.
+  369: Batal
+  434: Hapus playlist \"
+  435: Hapus
+  436: Batal
+# app/src/main/java/com/arkael/app/EqService.java
+  42: (belum ada log)
+  60: Gagal start service: 
+  181: GAGAL 
+  194: Root tidak tersedia / ditolak
+  223: daemon tidak menjawab dalam 8 detik
+  238: GAGAL
+  263: kirim ke daemon gagal: 
+# app/src/main/java/com/arkael/app/EqRootDaemon.java
+  115: LOG probe session 0 dengan paket '
+  119: LOG session 0 tidak bisa dibuat oleh root di ROM ini; hanya jalur per-sesi yang mungkin
+  151: ' gagal: 
+# app/src/main/java/com/arkael/app/EqText.java
+  19: menunggu ada suara diputar
+  22: GAGAL
+  22: GAGAL
+# app/src/main/java/com/arkael/app/LocaleHelper.java
+  16: Bahasa Indonesia
+  16: Bahasa Melayu
+# app/src/main/java/com/arkael/app/EqualizerActivity.java
+  815: GAGAL

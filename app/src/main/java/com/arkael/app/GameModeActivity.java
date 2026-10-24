@@ -27,6 +27,11 @@ import android.widget.Toast;
 
 /** Control screen for the performance overlay. Built in code, no layout XML. */
 public class GameModeActivity extends Activity {
+    @Override
+    protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(LocaleWrap.wrap(base));
+    }
+
     private Switch swOverlay, swAuto, swPanel;
     private TextView tvBoost, tvGames;
     private TextView tvPerm, tvRoot;

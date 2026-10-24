@@ -33,6 +33,11 @@ import java.util.Locale;
  * Dari sini playlist / video channel bisa diputar berurutan: video berikutnya jalan sendiri.
  */
 public class YoutubeLibraryActivity extends Activity {
+    @Override
+    protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(LocaleWrap.wrap(base));
+    }
+
     private static final int V_PLS = 0, V_CHS = 1, V_PL = 2, V_CH = 3;
     private static final int C_BG = Color.parseColor("#0A0D12");
     private static final int C_CARD = Color.parseColor("#141A22");

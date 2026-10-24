@@ -64,6 +64,11 @@ import java.util.Set;
  * Mainkan = apply the game's saved profile, switch the Game Panel on, then launch with animation + sound.
  */
 public class GameLauncherActivity extends Activity {
+    @Override
+    protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(LocaleWrap.wrap(base));
+    }
+
     private static final String PREFS = "gl_prefs";
     private static final String K_MANUAL = "manual", K_HIDDEN = "hidden", K_MUTE = "mute";
 

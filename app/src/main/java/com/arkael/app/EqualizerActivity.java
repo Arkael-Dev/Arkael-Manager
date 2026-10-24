@@ -46,6 +46,11 @@ import java.util.Locale;
 
 /** Arkael Equalizer: EQ 10-band, visualizer ala Cava, preset (simpan/impor/ekspor/bagikan), bass, surround 3D, loudness. View dibuat lewat kode. */
 public class EqualizerActivity extends Activity {
+    @Override
+    protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(LocaleWrap.wrap(base));
+    }
+
     private static final int BG = Color.parseColor("#0B0D12");
     private static final int PANEL = Color.parseColor("#141821");
     private static final int CYAN = Color.parseColor("#00E5FF");

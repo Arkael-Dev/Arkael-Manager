@@ -37,6 +37,11 @@ import java.util.Set;
 
 /** Pick which installed apps are games, edit each game's profile, or start one with its profile applied. */
 public class GameListActivity extends Activity {
+    @Override
+    protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(LocaleWrap.wrap(base));
+    }
+
     private static final class Item {
         String pkg, name;
         android.graphics.drawable.Drawable icon;

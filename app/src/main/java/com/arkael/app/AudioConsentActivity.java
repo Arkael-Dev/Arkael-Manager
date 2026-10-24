@@ -11,6 +11,11 @@ import android.os.Bundle;
  * normally skipped (PROJECT_MEDIA appop is allowed first); otherwise the user taps "Start now" once.
  */
 public class AudioConsentActivity extends Activity {
+    @Override
+    protected void attachBaseContext(android.content.Context base) {
+        super.attachBaseContext(LocaleWrap.wrap(base));
+    }
+
     @Override protected void onCreate(Bundle b) {
         super.onCreate(b);
         try {
