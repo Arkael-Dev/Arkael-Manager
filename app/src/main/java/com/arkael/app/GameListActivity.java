@@ -231,6 +231,7 @@ public class GameListActivity extends Activity {
         new Thread(new Runnable() {
             @Override public void run() {
                 Booster.applyProfile(GameListActivity.this, p, true);
+                if (AppDownscale.get(GameListActivity.this, it.pkg) != 100) AppDownscale.applyFor(GameListActivity.this, it.pkg);
                 runOnUiThread(new Runnable() { @Override public void run() { startActivity(launch); } });
             }
         }).start();
@@ -317,6 +318,20 @@ public class GameListActivity extends Activity {
         spZ.setAdapter(new ArrayAdapter<String>(dc, android.R.layout.simple_spinner_dropdown_item, zn));
         spZ.setSelection(zsel);
         col.addView(spZ);
+
+        col.addView(lbl(dc, "DOWNSCALE (game resolution, applied on PLAY)"));
+        final android.widget.Button btnDs = new android.widget.Button(dc);
+        btnDs.setAllCaps(false);
+        final Runnable refreshDs = new Runnable() {
+            @Override public void run() {
+                btnDs.setText("Downscale: " + AppDownscale.label(GameListActivity.this, AppDownscale.get(GameListActivity.this, it.pkg)));
+            }
+        };
+        refreshDs.run();
+        btnDs.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) { AppDownscale.showPicker(GameListActivity.this, it.pkg, it.name, refreshDs); }
+        });
+        col.addView(btnDs);
 
         col.addView(lbl(dc, "ON GAME START"));
         final CheckBox cThermal = cb(dc, "Relax thermal control (stops thermal services, restored at 78°C)", p.thermalRelax);

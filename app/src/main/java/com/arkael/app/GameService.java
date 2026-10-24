@@ -155,6 +155,7 @@ public class GameService extends Service {
         thermalActive = p.thermalRelax;
         if (GameProfiles.panel(this)) main.post(new Runnable() { @Override public void run() { addHandle(); } });
         Booster.applyProfile(this, p, false);
+        if (AppDownscale.get(this, pkg) != 100) AppDownscale.applyFor(this, pkg);
         if (p.overlay && !OverlayPrefs.enabled(this) && Settings.canDrawOverlays(this)) {
             try {
                 OverlayService.start(this);
