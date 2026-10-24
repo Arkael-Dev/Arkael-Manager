@@ -97,7 +97,7 @@ final class AppDownscale {
             }
             String f = String.format(java.util.Locale.US, "%.2f", pct / 100f);
             RootShell.run("cmd game set --mode 2 --downscale " + f + " " + pkg + " 2>&1");
-            RootShell.run("device_config put game_overlay " + pkg + " mode=2:downscaleFactor=" + f + " 2>&1");
+            RootShell.run("device_config put game_overlay " + pkg + " mode=2,downscaleFactor=" + f + ":mode=3,downscaleFactor=" + f + " 2>&1");
             RootShell.run("cmd game mode 2 " + pkg + " 2>&1");
             String chk = RootShell.run("cmd game list-configs " + pkg + " 2>&1");
             try { java.io.FileWriter w = new java.io.FileWriter("/sdcard/Download/arkael_downscale_log.txt", true);
