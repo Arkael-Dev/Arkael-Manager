@@ -1,0 +1,217 @@
+== RINGKASAN (jumlah per file) ==
+# ANIMASI TAK TERBATAS
+    4  GameLauncherActivity.java
+    2  BannerFxView.java
+    1  GaugeView.java
+    1  MainActivity.java
+    1  TurboPanel.java
+# POLLING <=1500ms
+    4  YoutubePlayerActivity.java
+    3  RecOverlay.java
+    2  EqualizerActivity.java
+    2  OverlayService.java
+    1  GameLauncherActivity.java
+# THREAD BARU (cek apakah di dalam loop/poll)
+   21  MainActivity.java
+    7  YoutubePlayerActivity.java
+    4  GameLauncherActivity.java
+    4  Recorder.java
+    3  GameListActivity.java
+    3  GameModeActivity.java
+    3  YoutubeSearchActivity.java
+    2  GameService.java
+# ROOT SHELL
+   19  Booster.java
+    9  Recorder.java
+    5  AppDownscale.java
+    5  FpsProbe.java
+    5  GameService.java
+    2  GameLauncherActivity.java
+    2  SysProbe.java
+    1  AudioCapService.java
+# SLEEP
+    2  MainActivity.java
+    1  Booster.java
+    1  EqRootDaemon.java
+    1  FpsProbe.java
+    1  GameLauncherActivity.java
+    1  GameService.java
+# BERAT DI UI? (icon/bitmap/daftar app)
+    3  GameLauncherActivity.java
+    2  GameListActivity.java
+    2  TurboPanel.java
+# LAYER SOFTWARE
+    1  GaugeView.java
+# BLUR/SHADOW
+    3  GameLauncherActivity.java
+    1  GaugeView.java
+    1  YoutubePlayerActivity.java
+# WAKELOCK/SERVICE
+    2  AudioCapService.java
+    2  EqService.java
+    2  GameService.java
+    2  OverlayService.java
+    2  YoutubeDownloadService.java
+# RECEIVER (cek unregister)
+    4  YoutubePlayerActivity.java
+    3  EqService.java
+    1  BatteryInfo.java
+    1  GameLauncherActivity.java
+    1  MainActivity.java
+    1  SysProbe.java
+    1  TurboPanel.java
+
+== DETAIL ==
+# ANIMASI TAK TERBATAS
+  BannerFxView.java:115: clock.setRepeatCount(ValueAnimator.INFINITE);
+  BannerFxView.java:124: livePulse.setRepeatCount(ValueAnimator.INFINITE);
+  GameLauncherActivity.java:249: va.setRepeatCount(ValueAnimator.INFINITE);
+  GameLauncherActivity.java:315: va.setRepeatCount(ValueAnimator.INFINITE);
+  GameLauncherActivity.java:379: va.setRepeatCount(ValueAnimator.INFINITE);
+  GameLauncherActivity.java:430: va.setRepeatCount(ValueAnimator.INFINITE);
+  GaugeView.java:69: pulseAnim.setRepeatCount(ValueAnimator.INFINITE);
+  MainActivity.java:1099: a.setRepeatCount(android.animation.ValueAnimator.INFINITE); a.start();
+  TurboPanel.java:738: phaseAnim.setRepeatCount(ValueAnimator.INFINITE);
+# POLLING <=1500ms
+  EqualizerActivity.java:87: ui.postDelayed(this, 1000);
+  EqualizerActivity.java:743: if (now) ui.post(pushRun); else ui.postDelayed(pushRun, 150);
+  GameLauncherActivity.java:1229: if (launching) main.postDelayed(this::hideOverlay, 400);   // came back from the game
+  OverlayService.java:142: if (bg != null && running) bg.postDelayed(this, 1000);
+  OverlayService.java:153: main.postDelayed(this, 66);
+  RecOverlay.java:85: main.postDelayed(go, 300);
+  RecOverlay.java:90: main.postDelayed(this, 1000);
+  RecOverlay.java:210: main.postDelayed(this, 1000);
+  YoutubePlayerActivity.java:137: subHandler.postDelayed(this, 200);
+  YoutubePlayerActivity.java:190: exHandler.postDelayed(this, 500);
+  YoutubePlayerActivity.java:1112: playerFrame.postDelayed(() -> setRequestedOrientation(ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED), 1500);
+  YoutubePlayerActivity.java:1528: exHandler.postDelayed(exTick, 500);
+# THREAD BARU (cek apakah di dalam loop/poll)
+  AppDownscale.java:118: new Thread(new Runnable() {
+  AudioCapService.java:91: active = new Thread(new Runnable() { @Override public void run() { s.capture(outFile); } }, "ark-audio");
+  EqRootDaemon.java:124: Thread ticker = new Thread(new Runnable() {
+  EqService.java:200: Thread t = new Thread(new Runnable() {
+  GameLauncherActivity.java:901: new Thread(() -> {
+  GameLauncherActivity.java:1066: new Thread(() -> {
+  GameLauncherActivity.java:1104: new Thread(() -> {
+  GameLauncherActivity.java:1174: new Thread(() -> {
+  GameListActivity.java:179: new Thread(new Runnable() {
+  GameListActivity.java:231: new Thread(new Runnable() {
+  GameListActivity.java:254: new Thread(new Runnable() {
+  GameModeActivity.java:461: new Thread(new Runnable() {
+  GameModeActivity.java:474: new Thread(new Runnable() {
+  GameModeActivity.java:515: new Thread(new Runnable() {
+  GameService.java:404: private void bgRun(Runnable r) { new Thread(r).start(); }
+  GameService.java:588: new Thread(new Runnable() { @Override public void run() { Booster.revertAll(app); } }).start();
+  MainActivity.java:347: new Thread(() -> {
+  MainActivity.java:476: new Thread(() -> {
+  MainActivity.java:499: new Thread(() -> {
+  MainActivity.java:514: new Thread(() -> {
+  MainActivity.java:530: new Thread(() -> {
+  MainActivity.java:572: new Thread(() -> {
+  MainActivity.java:587: new Thread(() -> {
+  MainActivity.java:602: new Thread(() -> {
+  MainActivity.java:614: new Thread(() -> {
+  MainActivity.java:629: new Thread(() -> {
+  MainActivity.java:686: new Thread(() -> {
+  MainActivity.java:901: new Thread(() -> {
+  MainActivity.java:1190: new Thread(() -> {
+  MainActivity.java:1197: new Thread(() -> {
+  MainActivity.java:1218: new Thread(() -> {
+  MainActivity.java:1226: new Thread(() -> {
+  MainActivity.java:1239: new Thread(() -> {
+  MainActivity.java:1273: new Thread(() -> {
+  MainActivity.java:1296: new Thread(() -> {
+  MainActivity.java:1340: new Thread(() -> {
+  MainActivity.java:1369: new Thread(() -> {
+  Recorder.java:67: new Thread(new Runnable() { @Override public void run() {
+  Recorder.java:94: new Thread(new Runnable() { @Override public void run() {
+  Recorder.java:119: worker = new Thread(new Runnable() {
+# ROOT SHELL
+  AppDownscale.java:94: RootShell.run("cmd game reset " + pkg + " 2>/dev/null");
+  AppDownscale.java:95: RootShell.run("device_config delete game_overlay " + pkg + " 2>/dev/null");
+  AppDownscale.java:99: String o = RootShell.run("cmd game set --mode performance --downscale " + f + " " + pkg + " 2>&1");
+  AppDownscale.java:101: RootShell.run("device_config put game_overlay " + pkg + " mode=2:downscaleFactor=" + f + " 2>&1");
+  AppDownscale.java:103: RootShell.run("cmd game mode performance " + pkg + " 2>/dev/null");
+  AudioCapService.java:58: RootShell.run("pm grant " + p + " android.permission.RECORD_AUDIO 2>/dev/null; appops set " + p + " PROJECT_MEDIA allow 
+  Booster.java:63: RootShell.run(sb.toString());
+  Booster.java:73: String o = RootShell.run("cat /sys/devices/system/cpu/cpufreq/policy0/scaling_available_governors 2>/dev/null || " +
+  Booster.java:85: String o = RootShell.run("for p in " + POLICIES + "; do echo \"$p $(cat $p/scaling_governor 2>/dev/null)\"; done");
+  Booster.java:88: RootShell.run("for p in " + POLICIES + "; do echo " + gov + " > $p/scaling_governor 2>/dev/null; done");
+  Booster.java:103: if (sb.length() > 0) RootShell.run(sb.toString());
+  Booster.java:117: String o = RootShell.run(
+  Booster.java:156: String cur = RootShell.run("cat " + g.maxPath).trim();
+  Booster.java:159: RootShell.run("echo " + raw + " > " + g.maxPath + " 2>/dev/null");
+  Booster.java:169: RootShell.run("echo " + t[1] + " > " + t[0] + " 2>/dev/null");
+  Booster.java:179: RootShell.run(
+  Booster.java:203: String o = RootShell.run(s.toString());
+  Booster.java:210: for (String n : names.split("\\s+")) if (WORD.matcher(n).matches()) RootShell.run("start " + n);
+  Booster.java:221: String z = RootShell.run("settings get global zen_mode").trim();
+  Booster.java:224: RootShell.run("cmd notification set_dnd priority 2>/dev/null || settings put global zen_mode 1");
+  Booster.java:228: if (z.equals("0")) RootShell.run("cmd notification set_dnd off 2>/dev/null || settings put global zen_mode 0");
+  Booster.java:229: else RootShell.run("settings put global zen_mode " + z);
+  Booster.java:238: String v = RootShell.run("settings get global heads_up_notifications_enabled").trim();
+  Booster.java:241: RootShell.run("settings put global heads_up_notifications_enabled 0");
+  Booster.java:245: RootShell.run("settings put global heads_up_notifications_enabled " + v);
+  EqService.java:79: @Override public String sh(String cmd) { return RootShell.run(cmd); }
+  Foreground.java:18: String out = RootShell.run(
+  FpsProbe.java:55: return parse(RootShell.run("dumpsys SurfaceFlinger --timestats -dump 2>/dev/null | grep -E 'layerName|totalFrames'"));
+  FpsProbe.java:60: RootShell.run("dumpsys SurfaceFlinger --timestats -enable >/dev/null 2>&1");
+  FpsProbe.java:157: String o = RootShell.run("for f in /sys/class/drm/sde-crtc-0/measured_fps /sys/class/graphics/fb0/measured_fps " +
+  FpsProbe.java:176: String o = RootShell.run("service call SurfaceFlinger 1013 2>/dev/null");
+  FpsProbe.java:195: RootShell.run("{ echo \"pkg=" + pkg.replaceAll("[^A-Za-z0-9_.]", "") + "\"; getprop ro.build.version.release; getprop ro
+  GameLauncherActivity.java:947: out = RootShell.run("echo \"" + gpuPath + "|$(cat " + gpuPath + " 2>/dev/null | head -n 1)\"");
+  GameLauncherActivity.java:950: out = RootShell.run("for f in " + GPU_CANDIDATES + "; do [ -r \"$f\" ] || continue; v=$(cat \"$f\" 2>/dev/null | head -n
+  GameService.java:162: RootShell.run("am start-foreground-service -n " + getPackageName() + "/com.arkael.app.OverlayService");
+  GameService.java:487: RootShell.run("am start-foreground-service -n " + getPackageName() + "/com.arkael.app.OverlayService"); } }); }
+  GameService.java:496: RootShell.run("mkdir -p /sdcard/Pictures/Arkael; screencap -p /sdcard/Pictures/Arkael/shot_$(date +%Y%m%d_%H%M%S).png");
+  GameService.java:509: RootShell.run("monkey -p " + pkg + " -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1"); } });
+  GameService.java:526: RootShell.run(
+  Recorder.java:95: RootShell.run("pkill -x getevent 2>/dev/null; killall getevent 2>/dev/null");
+# SLEEP
+  Booster.java:64: try { Thread.sleep(400); } catch (InterruptedException ignored) {}
+  EqRootDaemon.java:127: try { Thread.sleep(3000); } catch (InterruptedException e) { return; }
+  FpsProbe.java:67: try { Thread.sleep(500); } catch (InterruptedException ignored) {}
+  GameLauncherActivity.java:1179: if (wait > 0) { try { Thread.sleep(wait); } catch (InterruptedException ignored) {} }
+  GameService.java:495: try { Thread.sleep(600); } catch (InterruptedException ignored) {}
+  MainActivity.java:1300: try { Thread.sleep(500); } catch (Exception e){}
+  MainActivity.java:1379: try { Thread.sleep(5000); } catch (Exception e){}
+# BERAT DI UI? (icon/bitmap/daftar app)
+  GameLauncherActivity.java:1070: for (ResolveInfo ri : pm.queryIntentActivities(q, 0)) {
+  GameLauncherActivity.java:1080: g.icon = ri.loadIcon(pm);
+  GameLauncherActivity.java:1109: List<ResolveInfo> all = pm.queryIntentActivities(q, 0);
+  GameListActivity.java:183: List<ResolveInfo> ris = pm.queryIntentActivities(main, 0);
+  GameListActivity.java:192: it.icon = ri.loadIcon(pm);
+  TurboPanel.java:895: List<ResolveInfo> ris = pm.queryIntentActivities(q, 0);
+  TurboPanel.java:904: try { it.icon = ri.loadIcon(pm); } catch (Exception ignored) {}
+# LAYER SOFTWARE
+  GaugeView.java:31: setLayerType(LAYER_TYPE_SOFTWARE, null);
+# BLUR/SHADOW
+  GameLauncherActivity.java:552: title.setShadowLayer(14, 0, 0, RED);
+  GameLauncherActivity.java:611: pvName.setShadowLayer(18, 0, 0, RED);
+  GameLauncherActivity.java:876: ovText.setShadowLayer(16, 0, 0, RED);
+  GaugeView.java:101: glow.setMaskFilter(new BlurMaskFilter(sw * (0.8f + 0.5f * pulse), BlurMaskFilter.Blur.NORMAL));
+  YoutubePlayerActivity.java:235: subText.setShadowLayer(4f, 0f, 0f, Color.BLACK);
+# WAKELOCK/SERVICE
+  AudioCapService.java:114: if (Build.VERSION.SDK_INT >= 29) startForeground(4711, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PROJECTION);
+  AudioCapService.java:115: else startForeground(4711, n);
+  EqService.java:283: if (Build.VERSION.SDK_INT >= 34) startForeground(NID, n, 0x40000000 /* specialUse */);
+  EqService.java:284: else startForeground(NID, n);
+  GameService.java:570: if (Build.VERSION.SDK_INT >= 29) startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MANIFEST);
+  GameService.java:571: else startForeground(NOTIF_ID, n);
+  OverlayService.java:172: if (Build.VERSION.SDK_INT >= 29) startForeground(NOTIF_ID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_MANIFEST);
+  OverlayService.java:173: else startForeground(NOTIF_ID, n);
+  YoutubeDownloadService.java:80: if (Build.VERSION.SDK_INT >= 29) startForeground(NID, n, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC);
+  YoutubeDownloadService.java:81: else startForeground(NID, n);
+# RECEIVER (cek unregister)
+  BatteryInfo.java:15: Intent i = c.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+  EqService.java:115: if (Build.VERSION.SDK_INT >= 33) registerReceiver(sessRx, f, Context.RECEIVER_EXPORTED);
+  EqService.java:116: else registerReceiver(sessRx, f);
+  EqService.java:139: if (sessRegistered) try { unregisterReceiver(sessRx); } catch (Throwable ignored) { }
+  GameLauncherActivity.java:976: Intent i = registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+  MainActivity.java:925: Intent batteryStatus = registerReceiver(null, ifilter);
+  SysProbe.java:168: Intent b = ctx.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+  TurboPanel.java:768: Intent i = ctx.registerReceiver(null, new IntentFilter(Intent.ACTION_BATTERY_CHANGED));
+  YoutubePlayerActivity.java:1903: if (Build.VERSION.SDK_INT >= 33) registerReceiver(pipReceiver, f, Context.RECEIVER_NOT_EXPORTED);
+  YoutubePlayerActivity.java:1904: else registerReceiver(pipReceiver, f);
+  YoutubePlayerActivity.java:1907: try { unregisterReceiver(pipReceiver); } catch (Exception ignored) {}
+  YoutubePlayerActivity.java:1927: if (pipReceiver != null) { try { unregisterReceiver(pipReceiver); } catch (Exception ignored) {} }

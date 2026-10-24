@@ -250,6 +250,7 @@ public class GameLauncherActivity extends Activity {
                 va.setInterpolator(new LinearInterpolator());
                 va.addUpdateListener(a -> { rot = (Float) a.getAnimatedValue(); invalidate(); });
                 va.start();
+                Fx.track(getContext(), va);
             }
         }
         @Override protected void onDetachedFromWindow() {
@@ -319,6 +320,7 @@ public class GameLauncherActivity extends Activity {
                 invalidate();
             });
             va.start();
+            Fx.track(getContext(), va);
         }
         @Override protected void onDetachedFromWindow() {
             super.onDetachedFromWindow();
@@ -378,6 +380,7 @@ public class GameLauncherActivity extends Activity {
                 va.setInterpolator(new LinearInterpolator());
                 va.addUpdateListener(a -> { phase = (Float) a.getAnimatedValue(); invalidate(); });
                 va.start();
+                Fx.track(getContext(), va);
             }
         }
         @Override protected void onDetachedFromWindow() {
@@ -428,6 +431,7 @@ public class GameLauncherActivity extends Activity {
             va.setInterpolator(new LinearInterpolator());
             va.addUpdateListener(a -> { phase = (Float) a.getAnimatedValue(); invalidate(); });
             va.start();
+            Fx.track(getContext(), va);
         }
         @Override protected void onDetachedFromWindow() {
             super.onDetachedFromWindow();
@@ -912,7 +916,7 @@ public class GameLauncherActivity extends Activity {
                     }
                 }).start();
             }
-            main.postDelayed(this, 2000);
+            main.postDelayed(this, Fx.pollMs(GameLauncherActivity.this));
         }
     };
 
@@ -1221,6 +1225,7 @@ public class GameLauncherActivity extends Activity {
     @Override
     protected void onResume() {
         super.onResume();
+        Fx.resumeAll();
         if (launching) main.postDelayed(this::hideOverlay, 400);   // came back from the game
         pollOn = true;
         main.removeCallbacks(poll);
@@ -1230,6 +1235,7 @@ public class GameLauncherActivity extends Activity {
     @Override
     protected void onPause() {
         super.onPause();
+        Fx.pauseAll();
         pollOn = false;
         main.removeCallbacks(poll);
     }

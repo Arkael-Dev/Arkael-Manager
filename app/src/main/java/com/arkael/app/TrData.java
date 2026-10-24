@@ -88,6 +88,11 @@ final class TrData {
         "Playlist kosong.\nBuka video lalu tap ➕ Playlist.",
         "Tidak bisa memuat video channel ini. Cek koneksi.",
         "Hapus playlist \"",
+        "Otomatis",
+        "Terapkan",
+        "Geser untuk atur resolusi",
+        "Resolusi",
+        "Otomatis: disesuaikan dengan HP ini",
     };
 
     static String[] get(String lang) {
@@ -199,6 +204,11 @@ final class TrData {
             "Playlist is empty.\nOpen a video, then tap ➕ Playlist.",
             "Couldn't load this channel's videos. Check your connection.",
             "Delete playlist \"",
+            "Auto",
+            "Apply",
+            "Drag to set the resolution",
+            "Resolution",
+            "Auto: tuned for this phone",
         };
     }
 
@@ -289,6 +299,11 @@ final class TrData {
             "Senarai main kosong.\nBuka video kemudian ketik ➕ Senarai main.",
             "Tidak dapat memuatkan video saluran ini. Semak sambungan.",
             "Padam senarai main \"",
+            "Auto",
+            "Guna",
+            "Seret untuk tetapkan resolusi",
+            "Resolusi",
+            "Auto: disesuaikan dengan telefon ini",
         };
     }
 
@@ -379,6 +394,11 @@ final class TrData {
             "قائمة التشغيل فارغة.\nافتح فيديو ثم اضغط ➕ قائمة تشغيل.",
             "تعذّر تحميل فيديوهات هذه القناة. تحقق من الاتصال.",
             "حذف قائمة التشغيل \"",
+            "تلقائي",
+            "تطبيق",
+            "اسحب لضبط الدقة",
+            "الدقة",
+            "تلقائي: مناسب لهذا الهاتف",
         };
     }
 
@@ -469,6 +489,11 @@ final class TrData {
             "Playlist ist leer.\nÖffne ein Video und tippe auf ➕ Playlist.",
             "Videos dieses Kanals konnten nicht geladen werden. Verbindung prüfen.",
             "Playlist löschen \"",
+            "Automatisch",
+            "Anwenden",
+            "Ziehen, um die Auflösung einzustellen",
+            "Auflösung",
+            "Automatisch: an dieses Handy angepasst",
         };
     }
 
@@ -559,6 +584,11 @@ final class TrData {
             "La lista está vacía.\nAbre un vídeo y toca ➕ Lista.",
             "No se pudieron cargar los vídeos de este canal. Revisa la conexión.",
             "Eliminar lista \"",
+            "Automático",
+            "Aplicar",
+            "Desliza para ajustar la resolución",
+            "Resolución",
+            "Automático: ajustado a este teléfono",
         };
     }
 
@@ -649,6 +679,11 @@ final class TrData {
             "La playlist est vide.\nOuvrez une vidéo puis touchez ➕ Playlist.",
             "Impossible de charger les vidéos de cette chaîne. Vérifiez la connexion.",
             "Supprimer la playlist \"",
+            "Automatique",
+            "Appliquer",
+            "Faites glisser pour régler la résolution",
+            "Résolution",
+            "Automatique : adapté à ce téléphone",
         };
     }
 
@@ -739,6 +774,11 @@ final class TrData {
             "प्लेलिस्ट खाली है।\nवीडियो खोलें और ➕ प्लेलिस्ट पर टैप करें।",
             "इस चैनल के वीडियो लोड नहीं हो सके। कनेक्शन जाँचें।",
             "प्लेलिस्ट हटाएँ \"",
+            "ऑटो",
+            "लागू करें",
+            "रिज़ॉल्यूशन सेट करने के लिए खींचें",
+            "रिज़ॉल्यूशन",
+            "ऑटो: इस फ़ोन के अनुसार",
         };
     }
 
@@ -829,6 +869,11 @@ final class TrData {
             "La playlist è vuota.\nApri un video e tocca ➕ Playlist.",
             "Impossibile caricare i video di questo canale. Controlla la connessione.",
             "Elimina playlist \"",
+            "Automatico",
+            "Applica",
+            "Trascina per impostare la risoluzione",
+            "Risoluzione",
+            "Automatico: adattato a questo telefono",
         };
     }
 
@@ -919,6 +964,11 @@ final class TrData {
             "プレイリストは空です。\n動画を開いて ➕ プレイリスト をタップしてください。",
             "このチャンネルの動画を読み込めません。接続を確認してください。",
             "プレイリストを削除 \"",
+            "自動",
+            "適用",
+            "スライドして解像度を設定",
+            "解像度",
+            "自動: この端末に最適化",
         };
     }
 
@@ -1009,6 +1059,11 @@ final class TrData {
             "재생목록이 비어 있습니다.\n동영상을 열고 ➕ 재생목록을 탭하세요.",
             "이 채널의 동영상을 불러올 수 없습니다. 연결을 확인하세요.",
             "재생목록 삭제 \"",
+            "자동",
+            "적용",
+            "밀어서 해상도 설정",
+            "해상도",
+            "자동: 이 휴대폰에 맞춤",
         };
     }
 
@@ -1099,6 +1154,11 @@ final class TrData {
             "A playlist está vazia.\nAbra um vídeo e toque em ➕ Playlist.",
             "Não foi possível carregar os vídeos deste canal. Verifique a conexão.",
             "Excluir playlist \"",
+            "Automático",
+            "Aplicar",
+            "Deslize para ajustar a resolução",
+            "Resolução",
+            "Automático: ajustado a este celular",
         };
     }
 
@@ -1189,6 +1249,11 @@ final class TrData {
             "Плейлист пуст.\nОткройте видео и нажмите ➕ Плейлист.",
             "Не удалось загрузить видео этого канала. Проверьте соединение.",
             "Удалить плейлист \"",
+            "Авто",
+            "Применить",
+            "Перетащите, чтобы задать разрешение",
+            "Разрешение",
+            "Авто: подбирается под этот телефон",
         };
     }
 
@@ -1279,6 +1344,11 @@ final class TrData {
             "เพลย์ลิสต์ว่างเปล่า\nเปิดวิดีโอแล้วแตะ ➕ เพลย์ลิสต์",
             "โหลดวิดีโอของช่องนี้ไม่ได้ ตรวจสอบการเชื่อมต่อ",
             "ลบเพลย์ลิสต์ \"",
+            "อัตโนมัติ",
+            "ใช้",
+            "ลากเพื่อตั้งค่าความละเอียด",
+            "ความละเอียด",
+            "อัตโนมัติ: ปรับตามโทรศัพท์เครื่องนี้",
         };
     }
 
@@ -1369,6 +1439,11 @@ final class TrData {
             "Oynatma listesi boş.\nBir videoyu açıp ➕ Liste'ye dokunun.",
             "Bu kanalın videoları yüklenemedi. Bağlantıyı kontrol edin.",
             "Oynatma listesini sil \"",
+            "Otomatik",
+            "Uygula",
+            "Çözünürlüğü ayarlamak için kaydırın",
+            "Çözünürlük",
+            "Otomatik: bu telefona göre ayarlanır",
         };
     }
 
@@ -1459,6 +1534,11 @@ final class TrData {
             "Danh sách phát trống.\nMở một video rồi chạm ➕ Danh sách phát.",
             "Không tải được video của kênh này. Kiểm tra kết nối.",
             "Xóa danh sách phát \"",
+            "Tự động",
+            "Áp dụng",
+            "Kéo để chỉnh độ phân giải",
+            "Độ phân giải",
+            "Tự động: điều chỉnh theo điện thoại này",
         };
     }
 
@@ -1549,6 +1629,11 @@ final class TrData {
             "播放列表为空。\n打开视频后点按 ➕ 播放列表。",
             "无法加载此频道的视频。请检查网络连接。",
             "删除播放列表 \"",
+            "自动",
+            "应用",
+            "拖动以设置分辨率",
+            "分辨率",
+            "自动:根据本机调整",
         };
     }
 
