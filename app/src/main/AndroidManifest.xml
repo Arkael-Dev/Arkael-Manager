@@ -92,5 +92,10 @@
             android:foregroundServiceType="dataSync"/>
         <activity android:name=".YoutubeLibraryActivity" android:exported="false" android:label="Library"/>
         <activity android:name=".DexOptActivity" android:exported="false" android:label="Dex2oat Optimizer"/>
+        <service android:name="com.arkael.app.AutoTileService" android:exported="true"
+        android:label="Auto game mode" android:icon="@drawable/ax_ic_tile"
+        android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+        <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE"/></intent-filter>
+    </service>
     </application>
 </manifest>

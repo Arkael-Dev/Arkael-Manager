@@ -79,6 +79,27 @@ public class GameListActivity extends Activity {
         sub.setPadding(0, dp(4), 0, dp(10));
         col.addView(sub);
 
+        LinearLayout tools = new LinearLayout(this);
+        tools.setOrientation(LinearLayout.HORIZONTAL);
+        String[] toolNames = {"Backup", "Restore", "Stats", "Clean"};
+        for (int ti = 0; ti < toolNames.length; ti++) {
+            final int tk = ti;
+            android.widget.Button tb = new android.widget.Button(this);
+            tb.setText(toolNames[ti]);
+            tb.setAllCaps(false);
+            tb.setTextSize(12);
+            tb.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    if (tk == 0) ProfileTools.backup(GameListActivity.this);
+                    else if (tk == 1) ProfileTools.restore(GameListActivity.this);
+                    else if (tk == 2) ProfileTools.stats(GameListActivity.this);
+                    else ProfileTools.cleanNow(GameListActivity.this);
+                }
+            });
+            tools.addView(tb, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        }
+        col.addView(tools);
+
         empty = new TextView(this);
         empty.setText("Loading apps...");
         empty.setTextColor(Color.parseColor("#8B95A3"));

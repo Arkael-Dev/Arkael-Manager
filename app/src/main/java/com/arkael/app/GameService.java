@@ -149,6 +149,7 @@ public class GameService extends Service {
             }
         }
         if (!active.isEmpty() && thermalActive && (++tick % 4) == 0) checkHeat();
+        if (!active.isEmpty()) SessionStats.sample(this);
     }
 
     private void enter(String pkg) {
@@ -158,6 +159,7 @@ public class GameService extends Service {
         if (GameProfiles.panel(this)) main.post(new Runnable() { @Override public void run() { addHandle(); } });
         Booster.applyProfile(this, p, false);
         if (AppDownscale.get(this, pkg) != 100) AppDownscale.applyFor(this, pkg);
+        SessionStats.begin(this, pkg);
         RefreshLock.apply(this, pkg);
         if (p.overlay && !OverlayPrefs.enabled(this) && Settings.canDrawOverlays(this)) {
             try {
@@ -181,6 +183,7 @@ public class GameService extends Service {
         }
         RefreshLock.restore(this);
         toast("Game mode off, settings restored");
+        { String ss = SessionStats.end(this); if (ss != null) toast(ss); }
     }
 
     private void checkHeat() {

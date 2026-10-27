@@ -137,6 +137,7 @@ public class OverlayService extends Service {
                 final int fps = (s.root && (m & (OverlayPrefs.M_FPS | OverlayPrefs.M_GRAPH)) != 0) ? fpsProbe.read() : -1;
                 final float temp = (m & (OverlayPrefs.M_TEMP | OverlayPrefs.M_GRAPH)) != 0
                         ? tempProbe.read(s.root, OverlayPrefs.tempSrc(OverlayService.this), BatteryInfo.temp(OverlayService.this)) : -1f;
+                SessionStats.fps(fps);
                 main.post(new Runnable() { @Override public void run() { render(s, fps, temp); } });
             } catch (Exception ignored) {}
             if (bg != null && running) bg.postDelayed(this, 1000);
