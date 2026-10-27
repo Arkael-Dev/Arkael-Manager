@@ -333,6 +333,36 @@ public class GameListActivity extends Activity {
         });
         col.addView(btnDs);
 
+        col.addView(lbl(dc, "REFRESH RATE LOCK (Auto game mode)"));
+        final android.widget.Button btnHz = new android.widget.Button(dc);
+        btnHz.setAllCaps(false);
+        final Runnable refreshHz = new Runnable() {
+            @Override public void run() {
+                btnHz.setText("Refresh rate: " + RefreshLock.label(RefreshLock.get(GameListActivity.this, it.pkg)));
+            }
+        };
+        refreshHz.run();
+        btnHz.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                final String[] names = new String[RefreshLock.HZ.length];
+                int cur = 0;
+                for (int i = 0; i < names.length; i++) {
+                    names[i] = RefreshLock.label(RefreshLock.HZ[i]);
+                    if (RefreshLock.HZ[i] == RefreshLock.get(GameListActivity.this, it.pkg)) cur = i;
+                }
+                new android.app.AlertDialog.Builder(GameListActivity.this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                        .setTitle("Refresh rate · " + it.name)
+                        .setSingleChoiceItems(names, cur, new android.content.DialogInterface.OnClickListener() {
+                            @Override public void onClick(android.content.DialogInterface dlg, int which) {
+                                RefreshLock.set(GameListActivity.this, it.pkg, RefreshLock.HZ[which]);
+                                refreshHz.run();
+                                dlg.dismiss();
+                            }
+                        }).show();
+            }
+        });
+        col.addView(btnHz);
+
         col.addView(lbl(dc, "ON GAME START"));
         final CheckBox cThermal = cb(dc, "Relax thermal control (stops thermal services, restored at 78°C)", p.thermalRelax);
         final CheckBox cClean = cb(dc, "Clean RAM", p.cleanRam);

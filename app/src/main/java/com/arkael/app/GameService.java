@@ -142,6 +142,8 @@ public class GameService extends Service {
                 enter(pkg);
             } else if (!isGame && !active.isEmpty()) {
                 leave();
+            } else if (!isGame && RefreshLock.pending(this)) {
+                RefreshLock.restore(this);
             } else if (!isGame && Booster.leftover(this)) {
                 Booster.revertAll(this);                                  // a session that ended badly
             }
@@ -156,6 +158,7 @@ public class GameService extends Service {
         if (GameProfiles.panel(this)) main.post(new Runnable() { @Override public void run() { addHandle(); } });
         Booster.applyProfile(this, p, false);
         if (AppDownscale.get(this, pkg) != 100) AppDownscale.applyFor(this, pkg);
+        RefreshLock.apply(this, pkg);
         if (p.overlay && !OverlayPrefs.enabled(this) && Settings.canDrawOverlays(this)) {
             try {
                 OverlayService.start(this);
@@ -176,6 +179,7 @@ public class GameService extends Service {
             stopService(new Intent(this, OverlayService.class));
             startedOverlay = false;
         }
+        RefreshLock.restore(this);
         toast("Game mode off, settings restored");
     }
 
