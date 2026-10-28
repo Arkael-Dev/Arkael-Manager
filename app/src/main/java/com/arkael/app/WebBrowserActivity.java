@@ -43,7 +43,8 @@ import java.util.Locale;
 /** Browser umum bebas iklan: pemblokir host + JS kosmetik dari AdBlock, tanpa pop-up, tanpa redirect otomatis. */
 public class WebBrowserActivity extends AppCompatActivity {
     static final String EXTRA_URL = "url";
-    private static final String HOME = "https://duckduckgo.com/";
+    private static final String HOME = "https://search.brave.com/";
+    private static final String SEARCH = "https://search.brave.com/search?q=";
     private static final String DESKTOP_UA = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36";
 
     private WebView web;
@@ -154,7 +155,7 @@ public class WebBrowserActivity extends AppCompatActivity {
         String url;
         if (s.matches("(?i)^https?://\\S+$")) url = s;
         else if (!s.contains(" ") && s.contains(".")) url = "https://" + s;
-        else url = HOME + "?q=" + Uri.encode(s);
+        else url = SEARCH + Uri.encode(s);
         web.loadUrl(url);
     }
 
