@@ -38,6 +38,8 @@ final class ExtrasEntry {
                     a.getString(R.string.ax_card_anime), a.getString(R.string.ax_card_anime_sub), AnimeHubActivity.class);
             card(a, col, R.drawable.ic_cpu, R.drawable.bg_ic_red, "#FFB300",
                     DexOptActivity.cardTitle(), DexOptActivity.cardSub(), DexOptActivity.class);
+            card(a, col, R.drawable.ax_ic_browser, R.drawable.bg_ic_cyan, "#00E5FF",
+                    "Browser No Ads", "Fast web browser without ads", WebBrowserActivity.class);
             card(a, col, R.drawable.ic_cpu, R.drawable.bg_ic_cyan, "#00E5FF",
                     a.getString(R.string.ax_settings), a.getString(R.string.ax_card_settings_sub), AppSettingsActivity.class);
         } catch (Exception ignored) {

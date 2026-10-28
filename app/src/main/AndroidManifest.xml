@@ -97,5 +97,8 @@
         android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
         <intent-filter><action android:name="android.service.quicksettings.action.QS_TILE"/></intent-filter>
     </service>
+        <activity android:name="com.arkael.app.WebBrowserActivity" android:exported="false"
+        android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"
+        android:windowSoftInputMode="adjustResize"/>
     </application>
 </manifest>
