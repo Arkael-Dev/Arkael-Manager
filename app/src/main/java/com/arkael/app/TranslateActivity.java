@@ -18,6 +18,6 @@ public class TranslateActivity extends Activity {
             startService(new Intent(this, TranslateService.class));
             Toast.makeText(this, "Translate aktif. Buka game, tap tombol biru 文A", Toast.LENGTH_LONG).show();
         }
-        finish();
+        finishAndRemoveTask();
     }
 }

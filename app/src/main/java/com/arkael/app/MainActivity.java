@@ -246,6 +246,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_youtube).setOnClickListener(v -> startActivity(new Intent(this, YoutubeSearchActivity.class)));
         findViewById(R.id.btn_equalizer).setOnClickListener(v -> startActivity(new Intent(this, EqualizerActivity.class)));
         findViewById(R.id.btn_game_launcher).setOnClickListener(v -> startActivity(new Intent(this, GameLauncherActivity.class)));
+        findViewById(R.id.btn_translate).setOnClickListener(v -> toggleTranslate());
         findViewById(R.id.btn_keybox_generator).setOnClickListener(v -> launchKeyboxGenerator());
 
         navSystem.setOnClickListener(v -> { 
@@ -1331,6 +1332,21 @@ public class MainActivity extends AppCompatActivity {
             p.waitFor(); return output.toString().trim();
         } catch (Exception e) { return ""; }
     }
+    private void toggleTranslate() {
+        if (!android.provider.Settings.canDrawOverlays(this)) {
+            android.widget.Toast.makeText(this, "Aktifkan 'Tampilkan di atas aplikasi lain' untuk Arkael", android.widget.Toast.LENGTH_LONG).show();
+            startActivity(new Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:" + getPackageName())));
+            return;
+        }
+        if (TranslateService.running) {
+            stopService(new Intent(this, TranslateService.class));
+            android.widget.Toast.makeText(this, "Auto Translate dimatikan", android.widget.Toast.LENGTH_SHORT).show();
+        } else {
+            startService(new Intent(this, TranslateService.class));
+            android.widget.Toast.makeText(this, "Auto Translate aktif. Buka game, tap tombol biru \u6587A", android.widget.Toast.LENGTH_LONG).show();
+        }
+    }
+
     private void launchKeyboxGenerator() {
         String[] modes = {"Mode 1: Direct Source (Fast)", "Mode 2: Advanced Engine (Complete)", "Check Integrity Status"};
         new AlertDialog.Builder(this)

@@ -67,12 +67,14 @@ public class TranslateService extends Service {
     private FrameLayout layer;
     private TextView btn;
     private boolean busy = false, showing = false;
+    static volatile boolean running = false;
     private int shotW = 0;
 
     @Override public IBinder onBind(Intent i) { return null; }
 
     @Override public void onCreate() {
         super.onCreate();
+        running = true;
         wm = (WindowManager) getSystemService(WINDOW_SERVICE);
         recognizers.add(TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS));
         recognizers.add(TextRecognition.getClient(new ChineseTextRecognizerOptions.Builder().build()));
@@ -252,6 +254,7 @@ public class TranslateService extends Service {
         for (TextRecognizer r : recognizers) r.close();
         if (langId != null) langId.close();
         exec.shutdownNow();
+        running = false;
         super.onDestroy();
     }
 }
