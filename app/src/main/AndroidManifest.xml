@@ -102,12 +102,5 @@
         android:windowSoftInputMode="adjustResize"/>
     
         <service android:name=".TranslateService" android:exported="false" />
-        <activity android:name=".TranslateActivity" android:label="Translate" android:exported="true"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" android:excludeFromRecents="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-            </intent-filter>
-        </activity>
     </application>
 </manifest>

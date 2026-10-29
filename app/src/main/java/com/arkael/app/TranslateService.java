@@ -12,6 +12,7 @@ import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
+import android.util.Log;
 import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.MotionEvent;
@@ -23,6 +24,7 @@ import android.widget.Toast;
 
 import androidx.core.widget.TextViewCompat;
 
+import com.google.android.gms.tasks.Task;
 import com.google.android.gms.tasks.Tasks;
 import com.google.mlkit.common.model.DownloadConditions;
 import com.google.mlkit.nl.languageid.LanguageIdentification;
@@ -42,33 +44,54 @@ import com.google.mlkit.vision.text.latin.TextRecognizerOptions;
 
 import java.io.File;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 
 /**
- * Auto-translate layar game: screencap (root) -> OCR (semua aksara) -> deteksi bahasa -> terjemah ke Indonesia.
- * Hanya MEMBACA layar dan menggambar overlay; tidak menyentuh file/memori game.
- * Tap tombol = terjemahkan / hapus hasil. Tekan lama tombol = matikan fitur.
+ * Auto-translate layar game, MANUAL satu ketukan (tidak ada scan otomatis):
+ * tap tombol -> screencap (root) -> OCR -> deteksi bahasa -> terjemah ke Indonesia -> kotak terjemahan
+ * tampil di atas teks asli dan TETAP ada sampai kamu tap tombol lagi (tombol jadi tanda silang).
+ * Tekan lama tombol = matikan fitur. Hanya membaca layar; tidak menyentuh file/memori game.
+ * Log untuk diagnosa: logcat -s ArkTr
  */
 public class TranslateService extends Service {
+    static volatile boolean running = false;
+
+    private static final String TAG = "ArkTr";
     private static final String TARGET = TranslateLanguage.INDONESIAN;
+    private static final String LABEL = "\u6587A";
+    private static final String CLOSE = "\u2715";
+    private static final int MAX_BLOCKS = 30;
 
     private static class Item { Rect r; String t; }
+    private static class Pending { Rect r; String src; Task<String> task; }
 
     private final Handler ui = new Handler(Looper.getMainLooper());
     private final ExecutorService exec = Executors.newSingleThreadExecutor();
-    private final Map<String, Translator> translators = new HashMap<>();
+    private final Map<String, Translator> translators = new ConcurrentHashMap<>();
+    private final Set<String> ready = ConcurrentHashMap.newKeySet();
     private final List<TextRecognizer> recognizers = new ArrayList<>();
     private LanguageIdentifier langId;
     private WindowManager wm;
     private FrameLayout layer;
     private TextView btn;
-    private boolean busy = false, showing = false;
-    static volatile boolean running = false;
-    private int shotW = 0;
+    private boolean busy = false, showing = false;   // hanya diakses dari thread UI
+    private volatile int shotW = 0;
+
+    /** Pengaman: kalau proses macet, tombol dikembalikan supaya tidak terkunci. */
+    private final Runnable watchdog = new Runnable() {
+        @Override public void run() {
+            busy = false;
+            if (btn != null) btn.setText(showing ? CLOSE : LABEL);
+            Toast.makeText(TranslateService.this, "Terlalu lama, coba lagi", Toast.LENGTH_SHORT).show();
+        }
+    };
 
     @Override public IBinder onBind(Intent i) { return null; }
 
@@ -76,13 +99,19 @@ public class TranslateService extends Service {
         super.onCreate();
         running = true;
         wm = (WindowManager) getSystemService(WINDOW_SERVICE);
-        recognizers.add(TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS));
-        recognizers.add(TextRecognition.getClient(new ChineseTextRecognizerOptions.Builder().build()));
-        recognizers.add(TextRecognition.getClient(new JapaneseTextRecognizerOptions.Builder().build()));
-        recognizers.add(TextRecognition.getClient(new KoreanTextRecognizerOptions.Builder().build()));
-        langId = LanguageIdentification.getClient();
+        addRecognizer("latin", () -> TextRecognition.getClient(TextRecognizerOptions.DEFAULT_OPTIONS));
+        addRecognizer("chinese", () -> TextRecognition.getClient(new ChineseTextRecognizerOptions.Builder().build()));
+        addRecognizer("japanese", () -> TextRecognition.getClient(new JapaneseTextRecognizerOptions.Builder().build()));
+        addRecognizer("korean", () -> TextRecognition.getClient(new KoreanTextRecognizerOptions.Builder().build()));
+        try { langId = LanguageIdentification.getClient(); } catch (Throwable t) { Log.e(TAG, "langId", t); }
         addLayer();
         addButton();
+        // Unduh model Inggris -> Indonesia sekarang, supaya tap pertama di game langsung cepat.
+        new Thread(() -> prefetch("en"), "ArkTrPrefetch").start();
+    }
+
+    private void addRecognizer(String name, Callable<TextRecognizer> c) {
+        try { recognizers.add(c.call()); } catch (Throwable t) { Log.e(TAG, "recognizer " + name, t); }
     }
 
     private int type() {
@@ -100,13 +129,14 @@ public class TranslateService extends Service {
                         | WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT);
         lp.gravity = Gravity.TOP | Gravity.START;
+        lp.alpha = 0.8f;   // batas Android 12+ untuk overlay yang tembus sentuh
         if (Build.VERSION.SDK_INT >= 28) lp.layoutInDisplayCutoutMode = WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES;
         wm.addView(layer, lp);
     }
 
     private void addButton() {
         btn = new TextView(this);
-        btn.setText("\u6587A");
+        btn.setText(LABEL);
         btn.setTextColor(Color.WHITE);
         btn.setTextSize(14);
         btn.setGravity(Gravity.CENTER);
@@ -144,30 +174,49 @@ public class TranslateService extends Service {
         wm.addView(btn, lp);
     }
 
+    /** Tap: kalau hasil sedang tampil -> tutup. Kalau tidak -> terjemahkan layar sekarang. */
     private void onTap() {
         if (busy) return;
-        if (showing) { layer.removeAllViews(); showing = false; return; }
+        if (showing) {
+            layer.removeAllViews();
+            showing = false;
+            btn.setText(LABEL);
+            return;
+        }
         busy = true;
         btn.setText("...");
-        btn.setVisibility(View.INVISIBLE);   // sembunyikan agar tidak ikut ter-OCR
-        ui.postDelayed(new Runnable() { @Override public void run() { exec.execute(new Runnable() { @Override public void run() { scan(); } }); } }, 250);
+        // Tombol tidak disembunyikan; posisinya dicatat supaya hurufnya tidak ikut diterjemahkan.
+        int[] loc = new int[2];
+        btn.getLocationOnScreen(loc);
+        final Rect btnRect = new Rect(loc[0] - dp(8), loc[1] - dp(8), loc[0] + btn.getWidth() + dp(8), loc[1] + btn.getHeight() + dp(8));
+        ui.postDelayed(watchdog, 120000);
+        try {
+            exec.execute(() -> scan(btnRect));
+        } catch (Throwable t) {
+            Log.e(TAG, "exec", t);
+            finishScan(null);
+        }
     }
 
     private void toast(final String s) {
-        ui.post(new Runnable() { @Override public void run() { Toast.makeText(TranslateService.this, s, Toast.LENGTH_SHORT).show(); } });
+        ui.post(() -> Toast.makeText(TranslateService.this, s, Toast.LENGTH_LONG).show());
     }
 
-    private void finish(final List<Item> items) {
-        ui.post(new Runnable() { @Override public void run() {
-            btn.setVisibility(View.VISIBLE);
-            btn.setText("\u6587A");
+    private void finishScan(final List<Item> items) {
+        ui.post(() -> {
+            ui.removeCallbacks(watchdog);
             busy = false;
-            if (items == null) return;
-            if (items.isEmpty()) { toast("Tidak ada teks terdeteksi"); return; }
+            if (items == null || items.isEmpty()) {
+                btn.setText(showing ? CLOSE : LABEL);
+                return;
+            }
             layer.removeAllViews();
-            for (Item it : items) addBox(it);
+            for (Item it : items) {
+                try { addBox(it); } catch (Throwable t) { Log.e(TAG, "addBox", t); }
+            }
             showing = true;
-        } });
+            btn.setText(CLOSE);
+        });
     }
 
     private void addBox(Item it) {
@@ -187,44 +236,94 @@ public class TranslateService extends Service {
         layer.addView(tv, p);
     }
 
-    /** Berjalan di thread background. */
-    private void scan() {
-        String path = new File(getCacheDir(), "tr_cap.png").getAbsolutePath();
-        RootShell.run("rm -f " + path + "; screencap -p " + path + "; chmod 666 " + path);
-        Bitmap bmp = BitmapFactory.decodeFile(path);
-        if (bmp == null) { toast("Screencap gagal (cek akses root)"); finish(null); return; }
-        shotW = bmp.getWidth();
-        List<Item> out = new ArrayList<>();
+    /** Berjalan di thread background. Apa pun yang terjadi, tombol dikembalikan di blok finally. */
+    private void scan(final Rect btnRect) {
+        final File shot = new File(getCacheDir(), "tr_cap.png");
+        final String path = shot.getAbsolutePath();
+        List<Item> out = null;
         try {
+            int uid = android.os.Process.myUid();
+            RootShell.run("rm -f " + path + "; screencap -p " + path + "; chmod 666 " + path
+                    + "; chown " + uid + ":" + uid + " " + path + "; restorecon " + path + " 2>/dev/null");
+            Bitmap bmp = BitmapFactory.decodeFile(path);
+            if (bmp == null) {
+                String info = RootShell.run("ls -l " + path + " 2>&1").trim();
+                Log.e(TAG, "decodeFile null: " + info);
+                toast("Screencap gagal. " + info);
+                return;
+            }
+            shotW = bmp.getWidth();
+            Log.i(TAG, "screenshot " + bmp.getWidth() + "x" + bmp.getHeight());
+            if (recognizers.isEmpty()) { toast("OCR tidak tersedia (lihat logcat ArkTr)"); return; }
+
+            // OCR semua aksara PARALEL, bukan satu per satu.
+            InputImage img = InputImage.fromBitmap(bmp, 0);
+            List<Task<Text>> ocr = new ArrayList<>();
+            for (TextRecognizer r : recognizers) ocr.add(r.process(img));
             Text best = null;
             int bestLen = -1;
-            for (int i = 0; i < recognizers.size(); i++) {
-                Text t = Tasks.await(recognizers.get(i).process(InputImage.fromBitmap(bmp, 0)));
-                int len = t.getText().length();
-                if (len > bestLen) { best = t; bestLen = len; }
-                if (i == 0 && len >= 30) break;   // dialog Latin/Inggris jelas: tidak perlu coba aksara lain
-            }
-            if (best != null) {
-                for (Text.TextBlock b : best.getTextBlocks()) {
-                    String src = b.getText().replace('\n', ' ').trim();
-                    Rect r = b.getBoundingBox();
-                    if (r == null || !hasLetter(src)) continue;
-                    String tr = translate(src);
-                    if (tr == null) continue;
-                    Item it = new Item(); it.r = r; it.t = tr;
-                    out.add(it);
+            for (int i = 0; i < ocr.size(); i++) {
+                try {
+                    Text t = Tasks.await(ocr.get(i), 20, TimeUnit.SECONDS);
+                    int len = t.getText().length();
+                    Log.i(TAG, "ocr#" + i + " len=" + len);
+                    if (len > bestLen) { best = t; bestLen = len; }
+                    if (i == 0 && len >= 30) break;   // dialog Latin/Inggris jelas: tidak perlu tunggu aksara lain
+                } catch (Exception e) {
+                    Log.e(TAG, "ocr#" + i, e);
                 }
             }
-        } catch (Exception e) {
-            toast("Gagal: " + e.getMessage());
-            bmp.recycle();
-            new File(path).delete();
-            finish(null);
-            return;
+
+            // Deteksi bahasa + mulai terjemah semua blok, lalu kumpulkan hasilnya.
+            List<Pending> pend = new ArrayList<>();
+            int valid = 0;
+            String lastErr = null;
+            if (best != null) {
+                for (Text.TextBlock b : best.getTextBlocks()) {
+                    if (pend.size() >= MAX_BLOCKS) break;
+                    String src = b.getText().replace('\n', ' ').trim();
+                    Rect r = b.getBoundingBox();
+                    if (r == null || !hasLetter(src) || Rect.intersects(r, btnRect)) continue;
+                    valid++;
+                    try {
+                        Translator tr = translatorFor(src);
+                        if (tr == null) continue;
+                        Pending p = new Pending();
+                        p.r = r; p.src = src; p.task = tr.translate(src);
+                        pend.add(p);
+                    } catch (Exception e) {
+                        Log.e(TAG, "prepare", e);
+                        lastErr = e.getClass().getSimpleName() + ": " + e.getMessage();
+                    }
+                }
+            }
+            out = new ArrayList<>();
+            for (Pending p : pend) {
+                try {
+                    String res = Tasks.await(p.task, 20, TimeUnit.SECONDS);
+                    if (res != null && !res.trim().isEmpty() && !res.trim().equalsIgnoreCase(p.src)) {
+                        Item it = new Item();
+                        it.r = p.r; it.t = res;
+                        out.add(it);
+                    }
+                } catch (Exception e) {
+                    Log.e(TAG, "translate", e);
+                    lastErr = e.getClass().getSimpleName() + ": " + e.getMessage();
+                }
+            }
+            if (out.isEmpty()) {
+                if (lastErr != null) toast("Terjemah gagal: " + lastErr);
+                else if (valid == 0) toast("OCR tidak menemukan teks di layar");
+                else toast("Ada " + valid + " teks, tapi sudah berbahasa Indonesia / bahasa tidak didukung");
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "scan", t);
+            toast("Gagal: " + t.getClass().getSimpleName() + " " + t.getMessage());
+            out = null;
+        } finally {
+            shot.delete();
+            finishScan(out);
         }
-        bmp.recycle();
-        new File(path).delete();
-        finish(out);
     }
 
     private static boolean hasLetter(String s) {
@@ -232,29 +331,55 @@ public class TranslateService extends Service {
         return false;
     }
 
-    private String translate(String text) throws Exception {
-        String tag = Tasks.await(langId.identifyLanguage(text));
-        if (tag == null || tag.equals("und")) tag = "en";
+    /** Terjemahan siap pakai untuk bahasa teks ini, atau null kalau tidak perlu (sudah Indonesia / tidak didukung). */
+    private Translator translatorFor(String text) throws Exception {
+        String tag = "en";
+        if (langId != null) {
+            tag = Tasks.await(langId.identifyLanguage(text), 10, TimeUnit.SECONDS);
+            if (tag == null || "und".equals(tag)) tag = "en";
+        }
         String src = TranslateLanguage.fromLanguageTag(tag);
         if (src == null && tag.contains("-")) src = TranslateLanguage.fromLanguageTag(tag.substring(0, tag.indexOf('-')));
-        if (src == null || src.equals(TARGET)) return null;   // sudah Indonesia / tidak didukung
+        if (src == null || src.equals(TARGET)) return null;
+        Translator tr = getTranslator(src);
+        ensureModel(tr, src);
+        return tr;
+    }
+
+    private synchronized Translator getTranslator(String src) {
         Translator tr = translators.get(src);
         if (tr == null) {
             tr = Translation.getClient(new TranslatorOptions.Builder().setSourceLanguage(src).setTargetLanguage(TARGET).build());
             translators.put(src, tr);
         }
-        Tasks.await(tr.downloadModelIfNeeded(new DownloadConditions.Builder().build()));   // sekali saja, perlu internet
-        return Tasks.await(tr.translate(text));
+        return tr;
+    }
+
+    private void ensureModel(Translator tr, String src) throws Exception {
+        if (ready.contains(src)) return;
+        toast("Menyiapkan bahasa " + src + " (sekali saja, butuh internet)...");
+        Tasks.await(tr.downloadModelIfNeeded(new DownloadConditions.Builder().build()), 240, TimeUnit.SECONDS);
+        ready.add(src);
+    }
+
+    private void prefetch(String src) {
+        try {
+            ensureModel(getTranslator(src), src);
+            Log.i(TAG, "model " + src + " siap");
+        } catch (Throwable t) {
+            Log.e(TAG, "prefetch " + src, t);
+        }
     }
 
     @Override public void onDestroy() {
+        running = false;
+        ui.removeCallbacks(watchdog);
         try { wm.removeView(layer); } catch (Exception ignored) {}
         try { wm.removeView(btn); } catch (Exception ignored) {}
-        for (Translator t : translators.values()) t.close();
-        for (TextRecognizer r : recognizers) r.close();
-        if (langId != null) langId.close();
+        for (Translator t : translators.values()) { try { t.close(); } catch (Exception ignored) {} }
+        for (TextRecognizer r : recognizers) { try { r.close(); } catch (Exception ignored) {} }
+        if (langId != null) { try { langId.close(); } catch (Exception ignored) {} }
         exec.shutdownNow();
-        running = false;
         super.onDestroy();
     }
 }
