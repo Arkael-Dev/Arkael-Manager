@@ -73,7 +73,6 @@ final class AiVideo {
     private static final class Mux {
         MediaMuxer m = null;
         int track = -1;
-        int lastId = -1;
         boolean started = false;
 
         /** Buat muxer sekali saja, saat encoder pertama kali melaporkan format outputnya. */
@@ -85,10 +84,10 @@ final class AiVideo {
             started = true;
         }
 
-        /** Tulis satu buffer output encoder ke muxer. */
-        void write(MediaCodec codec, MediaCodec.BufferInfo info) {
-            if (!started || m == null || track < 0 || lastId < 0 || info.size <= 0) return;
-            ByteBuffer ob = codec.getOutputBuffer(lastId);
+        /** Tulis satu buffer output encoder ke muxer. id = index dari dequeueOutputBuffer. */
+        void write(MediaCodec codec, int id, MediaCodec.BufferInfo info) {
+            if (!started || m == null || track < 0 || id < 0 || info.size <= 0) return;
+            ByteBuffer ob = codec.getOutputBuffer(id);
             if (ob == null) return;
             ob.position(info.offset);
             ob.limit(info.offset + info.size);
@@ -124,7 +123,7 @@ final class AiVideo {
             fmt.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
 
             codec = openEncoder(mime, fmt);
-            final boolean planar = fmt.getInteger(MediaFormat.KEY_COLOR_FORMAT)
+            final boolean planar = chosenColorFormat
                     == MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420Planar;
             codec.start();
 
@@ -142,7 +141,7 @@ final class AiVideo {
                 if (idx != cachedIdx) {
                     Bitmap frame = frameFor(clips.get(idx), w, h);
                     frame.getPixels(argb, 0, w, 0, 0, w, h);
-                    frame.recycle();
+                    frame.recycle();          // sudah disalin ke argb, kembalikan memori
                     cachedIdx = idx;
                     if (planar) argbToYuv420Planar(argb, yuv, w, h);
                     else argbToYuv420SemiPlanar(argb, yuv, w, h);
@@ -157,6 +156,10 @@ final class AiVideo {
                 ByteBuffer ib = codec.getInputBuffer(in);
                 if (ib == null) throw new Exception("input buffer encoder null");
                 ib.clear();
+                if (ib.capacity() < yuvBytes.length) {
+                    throw new Exception("buffer encoder terlalu kecil: " + ib.capacity()
+                            + " < " + yuvBytes.length + " (" + w + "x" + h + ")");
+                }
                 ib.put(yuvBytes);
                 codec.queueInputBuffer(in, 0, yuvBytes.length, f * 1000000L / FPS, 0);
 
@@ -178,8 +181,7 @@ final class AiVideo {
                     continue;
                 }
                 if (id < 0) continue;
-                mux.lastId = id;
-                mux.write(codec, info);
+                mux.write(codec, id, info);
                 boolean eos = (info.flags & MediaCodec.BUFFER_FLAG_END_OF_STREAM) != 0;
                 codec.releaseOutputBuffer(id, false);
                 if (eos) break;
@@ -202,8 +204,7 @@ final class AiVideo {
             if (id == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) { mux.ensure(codec, out); continue; }
             if (id == MediaCodec.INFO_TRY_AGAIN_LATER) return;
             if (id < 0) continue;
-            mux.lastId = id;
-            mux.write(codec, info);
+            mux.write(codec, id, info);
             codec.releaseOutputBuffer(id, false);
         }
     }
@@ -232,7 +233,9 @@ final class AiVideo {
                 Color.parseColor("#0A0D12"), Color.parseColor("#12304A"), Shader.TileMode.CLAMP));
         cv.drawRect(0, 0, w, h, bg);
 
-        String text = (c.text == null || c.text.trim().isEmpty()) ? AiPersona.NAME : c.text.trim();
+        String name = AiPersona.NAME == null ? "" : AiPersona.NAME.trim();
+        String text = (c.text == null || c.text.trim().isEmpty())
+                ? (name.isEmpty() ? "Arkael" : name) : c.text.trim();
         Paint p = new Paint(Paint.ANTI_ALIAS_FLAG);
         p.setColor(Color.WHITE);
         p.setTextSize(Math.max(22f, w / 18f));
@@ -251,7 +254,7 @@ final class AiVideo {
         mark.setColor(Color.parseColor("#00E5FF"));
         mark.setTextSize(p.getTextSize() * 0.42f);
         mark.setTextAlign(Paint.Align.CENTER);
-        cv.drawText(AiPersona.NAME, w / 2f, h - mark.getTextSize(), mark);
+        if (!name.isEmpty()) cv.drawText(name, w / 2f, h - mark.getTextSize(), mark);
         return out;
     }
 
@@ -293,6 +296,9 @@ final class AiVideo {
      * SemiPlanar (NV12). Coba planar dulu, lalu semiplanar, lalu flexible.
      * Hasil akhir ditentukan oleh configure() yang berhasil, bukan tebakan.
      */
+    /** Format warna yang benar-benar diterima encoder; dibaca setelah configure() berhasil. */
+    private static int chosenColorFormat = -1;
+
     static MediaCodec openEncoder(String mime, MediaFormat fmt) throws Exception {
         int[] tries = {
                 MediaCodecInfo.CodecCapabilities.COLOR_FormatYUV420SemiPlanar,
@@ -305,6 +311,7 @@ final class AiVideo {
                 fmt.setInteger(MediaFormat.KEY_COLOR_FORMAT, cf);
                 c = MediaCodec.createEncoderByType(mime);
                 c.configure(fmt, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
+                chosenColorFormat = cf;
                 return c;
             } catch (Exception e) {
                 last = e;
