@@ -336,8 +336,9 @@ public class AiChatActivity extends AppCompatActivity {
                 if (out.trim().isEmpty()) out = "(tidak ada output)";
 
                 final String o = out;
+                final String nm = name;
                 runOnUiThread(() -> {
-                    TextView t = bubble("OUTPUT \u00B7 " + name, o, false);
+                    TextView t = bubble("OUTPUT \u00B7 " + nm, o, false);
                     showMedia(t, o);
                 });
 
