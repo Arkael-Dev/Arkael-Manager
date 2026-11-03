@@ -45,10 +45,10 @@ final class AiStore {
     /** Model default per provider (boleh ditimpa). */
     static String defModel(String p) {
         switch (p) {
-            case "deepseek":   return "deepseek-chat";
+            case "deepseek":   return "deepseek-flash";
             case "openai":     return "gpt-4o-mini";
-            case "gemini":     return "gemini-2.0-flash";
-            case "claude":     return "claude-3-5-sonnet-latest";
+            case "gemini":     return "gemini-2.5-flash";
+            case "claude":     return "claude-sonnet-5-5";
             case "openrouter": return "openrouter/auto";
             case "groq":       return "llama-3.3-70b-versatile";
             case "ollama":     return "qwen2.5:3b";
@@ -58,6 +58,30 @@ final class AiStore {
 
     /** Ollama tidak butuh key. */
     static boolean needsKey(String p) { return !"ollama".equals(p); }
+
+    /**
+     * Nama field batas token, sama seperti TOKEN_FIELD di ai-agent-chat.sh:
+     * model OpenAI terbaru menolak max_tokens dan hanya menerima max_completion_tokens.
+     */
+    static String tokenField(String p) {
+        return "openai".equals(p) ? "max_completion_tokens" : "max_tokens";
+    }
+
+    static int maxTokens(Context c) {
+        int v = sp(c).getInt("max_tokens", 8000);
+        return v <= 0 ? 8000 : v;
+    }
+
+    static void setMaxTokens(Context c, int v) {
+        sp(c).edit().putInt("max_tokens", v <= 0 ? 8000 : v).apply();
+    }
+
+    /** "key …938b" untuk ditampilkan; key utuh tidak pernah dicetak. */
+    static String keyMask(String k) {
+        if (k == null || k.isEmpty()) return "belum ada";
+        if (k.length() <= 8) return "\u2026" + k;
+        return k.substring(0, 3) + "\u2026" + k.substring(k.length() - 4);
+    }
 
     private AiStore() {}
 
@@ -102,6 +126,14 @@ final class AiStore {
     }
     static void setAgent(Context c, boolean v)   { sp(c).edit().putBoolean("agent", v).apply(); }
     static void setConfirm(Context c, boolean v) { sp(c).edit().putBoolean("confirm", v).apply(); }
+
+    /** Kenapa belum siap, atau "" kalau siap. */
+    static String problem(Context c) {
+        String p = provider(c);
+        if (!needsKey(p)) return "";
+        if (key(c).isEmpty()) return "API key " + label(p) + " belum diisi";
+        return "";
+    }
 
     /** Siap dipakai: provider butuh key dan key sudah ada. */
     static boolean ready(Context c) {

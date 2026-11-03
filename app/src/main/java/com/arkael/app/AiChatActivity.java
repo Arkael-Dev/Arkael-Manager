@@ -76,7 +76,9 @@ public class AiChatActivity extends AppCompatActivity {
             bubble("AI", "API key belum diisi.\n\nTekan tombol gear di kanan atas, pilih AI-nya, tempel API key, lalu Simpan.\n\nProvider awal: DeepSeek", false);
             openSettings();
         } else {
-            bubble("AI", "Siap.\n" + AiStore.label(AiStore.provider(this)) + " \u00B7 " + AiStore.model(this)
+            String prov = AiStore.provider(this);
+            bubble("AI", "Siap.\n" + AiStore.label(prov) + " \u00B7 " + AiStore.model(this)
+                    + "\nkey " + (AiStore.needsKey(prov) ? AiStore.keyMask(AiStore.key(this)) : "tidak perlu")
                     + "\nMode agent: " + (AiStore.agent(this) ? "AKTIF (perintah dijalankan sebagai root)" : "nonaktif"), false);
         }
         refreshStatus();
@@ -206,15 +208,21 @@ public class AiChatActivity extends AppCompatActivity {
     }
 
     private void refreshStatus() {
+        String prov = AiStore.provider(this);
         String mode = AiStore.agent(this) ? "agent: root" : "mode chat";
-        status.setText(AiStore.label(AiStore.provider(this)) + "  \u00B7  " + AiStore.model(this) + "  \u00B7  " + mode);
+        String k = AiStore.needsKey(prov) ? "key " + AiStore.keyMask(AiStore.key(this)) : "tanpa key";
+        status.setText(AiStore.label(prov) + "  \u00B7  " + AiStore.model(this) + "  \u00B7  " + k + "  \u00B7  " + mode);
     }
 
     private void onSend() {
         if (busy) { Toast.makeText(this, "Tunggu jawaban sebelumnya", Toast.LENGTH_SHORT).show(); return; }
         final String q = input.getText().toString().trim();
         if (q.isEmpty()) return;
-        if (!AiStore.ready(this)) { openSettings(); return; }
+        if (!AiStore.ready(this)) {
+            bubble("AI", AiStore.problem(this) + ".\n\nMenu \u2699 terbuka: pilih AI, tempel key, tekan Tes.", false);
+            openSettings();
+            return;
+        }
 
         input.setText("");
         try {
@@ -240,7 +248,8 @@ public class AiChatActivity extends AppCompatActivity {
         JSONArray msgs = buildMessages();
         final String prov = AiStore.provider(this);
         final String ep = AiStore.url(prov, AiStore.customUrl(this));
-        AiClient.chat(ep, prov, AiStore.key(this), AiStore.model(this), msgs,
+        AiClient.chat(ep, prov, AiStore.key(this), AiStore.model(this),
+                AiStore.tokenField(prov), AiStore.maxTokens(this), msgs,
                 AiStore.agent(this) ? tools() : null, true, new AiClient.Sink() {
             @Override public void onDelta(final String text) {
                 runOnUiThread(() -> {
@@ -525,7 +534,8 @@ public class AiChatActivity extends AppCompatActivity {
             msgs.put(m);
         } catch (Exception ignore) {}
 
-        AiClient.chat(ep, prov, key, shownModel, msgs, null, false, new AiClient.Sink() {
+        AiClient.chat(ep, prov, key, shownModel, AiStore.tokenField(prov),
+                AiStore.maxTokens(this), msgs, null, false, new AiClient.Sink() {
             @Override public void onDelta(String t) {}
             @Override public void onDone(String full, JSONArray calls) {
                 runOnUiThread(() -> {

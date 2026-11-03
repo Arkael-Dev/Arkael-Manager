@@ -26,6 +26,7 @@ final class AiClient {
     private AiClient() {}
 
     static void chat(final String url, final String provider, final String key, final String model,
+                     final String tokenField, final int maxTokens,
                      final JSONArray messages, final JSONArray tools,
                      final boolean stream, final Sink sink) {
         new Thread(new Runnable() {
@@ -41,7 +42,7 @@ final class AiClient {
                     c.setConnectTimeout(20000);
                     c.setReadTimeout(240000);
                     c.setRequestProperty("Content-Type", "application/json");
-                    c.setRequestProperty("Authorization", "Bearer " + key);
+                    c.setRequestProperty("Authorization", "Bearer " + (key == null ? "" : key.trim()));
                     if ("claude".equals(provider)) {
                         /* ai-agent-chat.sh: Claude butuh header sendiri selain Bearer */
                         c.setRequestProperty("x-api-key", key);
@@ -51,7 +52,9 @@ final class AiClient {
 
                     JSONObject body = new JSONObject();
                     body.put("model", model);
-                    body.put("max_tokens", 8000);
+                    String tf = (tokenField == null || tokenField.trim().isEmpty())
+                            ? "max_tokens" : tokenField.trim();
+                    body.put(tf, maxTokens <= 0 ? 8000 : maxTokens);
                     body.put("messages", messages);
                     body.put("stream", stream);
                     if (tools != null && tools.length() > 0) {
@@ -67,8 +70,24 @@ final class AiClient {
 
                     int code = c.getResponseCode();
                     if (code < 200 || code >= 300) {
-                        String err = slurp(c.getErrorStream());
-                        sink.onError("HTTP " + code + ": " + err.trim());
+                        String err = slurp(c.getErrorStream()).trim();
+                        /* ai-agent-chat.sh: tampilkan pesan .error.message kalau ada, kalau tidak body mentah */
+                        String msg = err;
+                        try {
+                            JSONObject ej = new JSONObject(err);
+                            JSONObject e = ej.optJSONObject("error");
+                            if (e != null && !e.optString("message", "").isEmpty()) msg = e.optString("message");
+                            else if (!ej.optString("message", "").isEmpty()) msg = ej.optString("message");
+                        } catch (Exception ignore) {}
+                        String tip = "";
+                        if (code == 401 || code == 403) {
+                            tip = "\n\nKey ditolak provider (" + provider + ")."
+                                + "\n\u2022 Cek key di menu \u2699 \u2192 " + provider + ": " + keyMask(key)
+                                + "\n\u2022 Pastikan tidak ada spasi/baris baru saat menempel"
+                                + "\n\u2022 Pastikan key milik provider yang sama dengan endpoint"
+                                + " " + ep;
+                        }
+                        sink.onError("HTTP " + code + ": " + msg + tip);
                         return;
                     }
 
@@ -137,6 +156,14 @@ final class AiClient {
                 }
             }
         }, "arkael-ai").start();
+    }
+
+    /** Sisa bagian key untuk pesan galat, tanpa membocorkan key utuh. */
+    private static String keyMask(String k) {
+        if (k == null || k.trim().isEmpty()) return "(kosong)";
+        String v = k.trim();
+        if (v.length() <= 8) return "\u2026" + v;
+        return v.substring(0, 3) + "\u2026" + v.substring(v.length() - 4);
     }
 
     private static String slurp(java.io.InputStream is) {
