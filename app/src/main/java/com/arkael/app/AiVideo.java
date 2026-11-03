@@ -61,7 +61,11 @@ final class AiVideo {
         }
     }
 
-    static int clampSeconds(int s) { return s <= 0 ? 10 : Math.min(s, MAX_SECONDS); }
+    /** Durasi: kosong = 15 detik, minimum 5 detik supaya hasil tidak terasa terpotong. */
+    static int clampSeconds(int s) { return s <= 0 ? 15 : Math.max(5, Math.min(s, MAX_SECONDS)); }
+
+    /** Tiap berapa frame gambar digambar ulang untuk gerak zoom halus (0,25 detik). */
+    private static final int ZOOM_EVERY = 6;
 
     static File videoDir(Context ctx) {
         File d = new File(ctx.getExternalFilesDir(null), "Movies");
@@ -131,21 +135,23 @@ final class AiVideo {
             final int totalFrames = seconds * FPS;
             final int perClip = Math.max(1, (int) Math.ceil((double) totalFrames / clips.size()));
             final int[] argb = new int[w * h];
-            final int[] yuv = new int[w * h * 3 / 2];
-            final byte[] yuvBytes = new byte[yuv.length];
+            byte[] yuvBytes = null;
+            int stride = -1;
 
-            // Render tiap clip sekali saja; frame statis tak perlu digambar ulang 24x per detik.
-            int cachedIdx = -1;
+            // Gambar digambar ulang tiap ZOOM_EVERY frame dengan zoom naik pelan,
+            // jadi video dari satu foto tetap terlihat hidup, bukan frame mati 6 detik.
+            int cachedIdx = -1, cachedStep = -1;
             for (int f = 0; f < totalFrames; f++) {
                 int idx = Math.min(clips.size() - 1, f / perClip);
-                if (idx != cachedIdx) {
-                    Bitmap frame = frameFor(clips.get(idx), w, h);
+                int step = (f - idx * perClip) / ZOOM_EVERY;
+                if (idx != cachedIdx || step != cachedStep) {
+                    int steps = Math.max(1, (int) Math.ceil((double) perClip / ZOOM_EVERY));
+                    float zoom = zoomAt(clips.get(idx), step, steps);
+                    Bitmap frame = frameFor(clips.get(idx), w, h, zoom);
                     frame.getPixels(argb, 0, w, 0, 0, w, h);
                     frame.recycle();          // sudah disalin ke argb, kembalikan memori
                     cachedIdx = idx;
-                    if (planar) argbToYuv420Planar(argb, yuv, w, h);
-                    else argbToYuv420SemiPlanar(argb, yuv, w, h);
-                    for (int k = 0; k < yuv.length; k++) yuvBytes[k] = (byte) yuv[k];
+                    cachedStep = step;
                 }
 
                 int in = codec.dequeueInputBuffer(10000);
@@ -156,12 +162,16 @@ final class AiVideo {
                 ByteBuffer ib = codec.getInputBuffer(in);
                 if (ib == null) throw new Exception("input buffer encoder null");
                 ib.clear();
-                if (ib.capacity() < yuvBytes.length) {
-                    throw new Exception("buffer encoder terlalu kecil: " + ib.capacity()
-                            + " < " + yuvBytes.length + " (" + w + "x" + h + ")");
+                int cap = ib.capacity();
+                if (cap < w * h * 3 / 2) {
+                    throw new Exception("buffer encoder terlalu kecil: " + cap
+                            + " < " + (w * h * 3 / 2) + " (" + w + "x" + h + ")");
                 }
-                ib.put(yuvBytes);
-                codec.queueInputBuffer(in, 0, yuvBytes.length, f * 1000000L / FPS, 0);
+                if (stride < 0) stride = strideFor(cap, w, h);
+                if (yuvBytes == null || yuvBytes.length < cap) yuvBytes = new byte[cap];
+                fillYuv(yuvBytes, cap, stride, w, h, argb, planar);
+                ib.put(yuvBytes, 0, cap);
+                codec.queueInputBuffer(in, 0, cap, f * 1000000L / FPS, 0);
 
                 pump(codec, mux, info, out);
             }
@@ -210,7 +220,17 @@ final class AiVideo {
     }
 
     /** Render satu clip ke bitmap ukuran video: gambar di-crop tengah, teks digambar di kartu gradasi. */
-    static Bitmap frameFor(Clip c, int w, int h) {
+    static Bitmap frameFor(Clip c, int w, int h) { return frameFor(c, w, h, 1f); }
+
+    /** Zoom halus untuk klip gambar; klip teks tidak di-zoom. */
+    static float zoomAt(Clip c, int step, int steps) {
+        if (c.img == null) return 1f;
+        float p = steps <= 1 ? 0f : Math.min(1f, (float) step / (steps - 1));
+        return 1f + 0.10f * p;
+    }
+
+    static Bitmap frameFor(Clip c, int w, int h, float zoom) {
+        if (zoom < 1f) zoom = 1f;
         Bitmap out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888);
         Canvas cv = new Canvas(out);
 
@@ -218,7 +238,7 @@ final class AiVideo {
             Bitmap src = decode(c.img, w, h);
             if (src != null) {
                 // center-crop: penuhi bingkai tanpa gepeng
-                float s = Math.max((float) w / src.getWidth(), (float) h / src.getHeight());
+                float s = Math.max((float) w / src.getWidth(), (float) h / src.getHeight()) * zoom;
                 int dw = Math.round(src.getWidth() * s);
                 int dh = Math.round(src.getHeight() * s);
                 Rect dst = new Rect((w - dw) / 2, (h - dh) / 2, (w - dw) / 2 + dw, (h - dh) / 2 + dh);
@@ -322,43 +342,63 @@ final class AiVideo {
                 + (last == null ? "tidak diketahui" : last.getMessage()));
     }
 
-    /** NV12: Y penuh, lalu U/V berselang-seling. */
-    private static void argbToYuv420SemiPlanar(int[] argb, int[] yuv, int w, int h) {
-        final int frames = w * h;
-        for (int j = 0; j < h; j++) {
-            for (int i = 0; i < w; i++) {
-                int c = argb[j * w + i];
-                int r = (c >> 16) & 0xff, g = (c >> 8) & 0xff, b = c & 0xff;
-                yuv[j * w + i] = ((66 * r + 129 * g + 25 * b + 128) >> 8) + 16;
-            }
+    /**
+     * Stride buffer encoder sering lebih lebar dari lebar gambar (mis. 720 -> 768).
+     * Kalau baris dijejalkan selebar w, hasilnya video miring/rusak. Stride dihitung
+     * dari kapasitas buffer: cap = stride * h * 3/2.
+     */
+    static int strideFor(int cap, int w, int h) {
+        long need = 3L * h;
+        if (cap > w * h * 3 / 2 && (2L * cap) % need == 0) {
+            int sd = (int) (2L * cap / need);
+            if (sd >= w && (sd & 1) == 0) return sd;
         }
-        int uv = frames;
-        for (int j = 0; j < h; j += 2) {
-            for (int i = 0; i < w; i += 2) {
-                int c = argb[j * w + i];
-                int r = (c >> 16) & 0xff, g = (c >> 8) & 0xff, b = c & 0xff;
-                yuv[uv++] = ((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128;
-                yuv[uv++] = ((112 * r - 94 * g - 18 * b + 128) >> 8) + 128;
-            }
-        }
+        return w;
     }
 
-    private static void argbToYuv420Planar(int[] argb, int[] yuv, int w, int h) {
-        final int frames = w * h;
+    /** Isi buffer encoder dengan YUV420 sesuai stride; sisa baris diisi hitam/netral. */
+    static void fillYuv(byte[] dst, int cap, int stride, int w, int h, int[] argb, boolean planar) {
+        if (stride != w && (long) stride * h * 3 / 2 > cap) stride = w;
+        int ySize = stride * h;
+        if (ySize > cap) { stride = w; ySize = stride * h; }
+        for (int i = 0; i < ySize && i < cap; i++) dst[i] = 16;
+        for (int i = ySize; i < cap; i++) dst[i] = (byte) 128;
+
         for (int j = 0; j < h; j++) {
+            int ro = j * stride, ao = j * w;
             for (int i = 0; i < w; i++) {
-                int c = argb[j * w + i];
+                int c = argb[ao + i];
                 int r = (c >> 16) & 0xff, g = (c >> 8) & 0xff, b = c & 0xff;
-                yuv[j * w + i] = ((66 * r + 129 * g + 25 * b + 128) >> 8) + 16;
+                dst[ro + i] = (byte) (((66 * r + 129 * g + 25 * b + 128) >> 8) + 16);
             }
         }
-        final int uOff = frames, vOff = frames + frames / 4, halfW = w / 2;
-        for (int j = 0; j < h; j += 2) {
-            for (int i = 0; i < w; i += 2) {
-                int c = argb[j * w + i];
-                int r = (c >> 16) & 0xff, g = (c >> 8) & 0xff, b = c & 0xff;
-                yuv[uOff + (j / 2) * halfW + i / 2] = ((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128;
-                yuv[vOff + (j / 2) * halfW + i / 2] = ((112 * r - 94 * g - 18 * b + 128) >> 8) + 128;
+
+        int cw = w / 2, ch = h / 2, half = stride / 2;
+        if (planar) {
+            int uo = ySize, vo = ySize + half * ch;
+            for (int j = 0; j < ch; j++) {
+                for (int i = 0; i < cw; i++) {
+                    int c = argb[(j * 2) * w + i * 2];
+                    int r = (c >> 16) & 0xff, g = (c >> 8) & 0xff, b = c & 0xff;
+                    int u = ((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128;
+                    int v = ((112 * r - 94 * g - 18 * b + 128) >> 8) + 128;
+                    if (uo + j * half + i < cap) dst[uo + j * half + i] = (byte) u;
+                    if (vo + j * half + i < cap) dst[vo + j * half + i] = (byte) v;
+                }
+            }
+        } else {
+            for (int j = 0; j < ch; j++) {
+                int ro = ySize + j * stride;
+                for (int i = 0; i < cw; i++) {
+                    int c = argb[(j * 2) * w + i * 2];
+                    int r = (c >> 16) & 0xff, g = (c >> 8) & 0xff, b = c & 0xff;
+                    int u = ((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128;
+                    int v = ((112 * r - 94 * g - 18 * b + 128) >> 8) + 128;
+                    if (ro + i * 2 + 1 < cap) {
+                        dst[ro + i * 2] = (byte) u;
+                        dst[ro + i * 2 + 1] = (byte) v;
+                    }
+                }
             }
         }
     }

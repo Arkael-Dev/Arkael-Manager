@@ -726,6 +726,14 @@ public class AiChatActivity extends AppCompatActivity {
                     out = toolReadFile(args);
                 } else if ("write_file".equals(name)) {
                     out = toolWriteFile(args);
+                } else if ("list_dir".equals(name)) {
+                    out = toolListDir(args);
+                } else if ("make_dir".equals(name)) {
+                    out = toolMakeDir(args);
+                } else if ("save_to_gallery".equals(name)) {
+                    out = toolToGallery(args);
+                } else if ("find_image".equals(name)) {
+                    out = toolFindImage(args);
                 } else if ("unzip".equals(name)) {
                     out = toolUnzip(args);
                 } else if (name.startsWith("git_")) {
@@ -771,6 +779,16 @@ public class AiChatActivity extends AppCompatActivity {
         return out;
     }
 
+    /** Salin hasil ke galeri perangkat (muncul di aplikasi Galeri). */
+    private String toGalleryLine(File f, String kind) {
+        try {
+            AiPublish.toGallery(this, f, kind);
+            return "galeri: sudah masuk " + ("video".equals(kind) ? "Movies/Arkael" : "Pictures/Arkael");
+        } catch (Exception e) {
+            return "galeri: gagal (" + e.getMessage() + ")";
+        }
+    }
+
     /** generate_image: hasil berupa path file, lalu ditampilkan di dalam chat. */
     private String toolImage(JSONObject args) {
         String prompt = args.optString("prompt", "");
@@ -786,8 +804,15 @@ public class AiChatActivity extends AppCompatActivity {
             String path = AiImage.generate(this, prov, AiStore.key(this),
                     AiStore.customUrl(this), prompt, size, ref);
             File f = new File(path);
+            String gal;
+            try {
+                AiPublish.toGallery(this, f, "image");
+                gal = "galeri: sudah masuk Pictures/Arkael\n";
+            } catch (Exception e) {
+                gal = "galeri: gagal (" + e.getMessage() + ")\n";
+            }
             return "gambar tersimpan\n" + path + "\nukuran file: " + (f.length() / 1024) + " KB"
-                    + "\nformat: " + AiImage.normSize(size);
+                    + "\nformat: " + AiImage.normSize(size) + "\n" + gal;
         } catch (Exception e) {
             return "gagal membuat gambar: " + e.getMessage()
                     + "\n\nPetunjuk: kalau provider butuh key (OpenAI), isi key di menu \u2699. "
@@ -804,7 +829,7 @@ public class AiChatActivity extends AppCompatActivity {
      */
     private String toolVideo(JSONObject args) {
         String mode = args.optString("mode", "text").trim().toLowerCase();
-        int seconds = AiVideo.clampSeconds(args.optInt("seconds", 10));
+        int seconds = AiVideo.clampSeconds(args.optInt("seconds", 0));
         String sizeStr = args.optString("size", "portrait");
         runOnUiThread(() -> bubble("AGENT \u00B7 make_video", mode + " \u00B7 " + seconds + " dtk \u00B7 " + sizeStr, false));
 
@@ -815,7 +840,7 @@ public class AiChatActivity extends AppCompatActivity {
                 File in = resolve(src);
                 if (!in.isFile()) return "file video tidak ditemukan: " + src;
                 String out = AiVideo.trim(this, in, seconds);
-                return "video dipotong " + seconds + " dtk\n" + out;
+                return "video dipotong " + seconds + " dtk\n" + out + "\n" + toGalleryLine(new File(out), "video");
             }
 
             List<AiVideo.Clip> clips = new ArrayList<>();
@@ -858,7 +883,8 @@ public class AiChatActivity extends AppCompatActivity {
             return "video dibuat\n" + out
                     + "\ndurasi: " + seconds + " detik \u00B7 " + wh[0] + "x" + wh[1]
                     + " \u00B7 " + AiVideo.FPS + " fps \u00B7 " + clips.size() + " bagian"
-                    + "\nukuran file: " + (f.length() / 1024) + " KB";
+                    + "\nukuran file: " + (f.length() / 1024) + " KB"
+                    + "\n" + toGalleryLine(f, "video");
         } catch (Exception e) {
             return "gagal membuat video: " + e.getMessage();
         }
@@ -974,7 +1000,7 @@ public class AiChatActivity extends AppCompatActivity {
             JSONArray arr = new JSONArray();
             arr.put(img.getAbsolutePath());
             a.put("images", arr);
-            a.put("seconds", 6);
+            a.put("seconds", 15);
             a.put("size", "portrait");
             return toolVideo(a);
         } catch (Exception e) {
@@ -1114,6 +1140,44 @@ public class AiChatActivity extends AppCompatActivity {
             wp.put("required", new JSONArray().put("path").put("content"));
             list.add(fnTool("write_file", "Menulis (atau menimpa) satu file teks di perangkat.", wp));
 
+            JSONObject lp = new JSONObject();
+            lp.put("type", "object");
+            JSONObject lpf = new JSONObject();
+            lpf.put("type", "string");
+            lpf.put("description", "Folder yang dilihat. Kosong = repo agent.");
+            lp.put("properties", new JSONObject().put("path", lpf));
+            list.add(fnTool("list_dir", "Melihat isi folder: nama, ukuran, dan tanda [dir] untuk subfolder.", lp));
+
+            JSONObject mp = new JSONObject();
+            mp.put("type", "object");
+            JSONObject mpf = new JSONObject();
+            mpf.put("type", "string");
+            mpf.put("description", "Folder yang dibuat (path absolut, atau relatif ke repo agent).");
+            mp.put("properties", new JSONObject().put("path", mpf));
+            mp.put("required", new JSONArray().put("path"));
+            list.add(fnTool("make_dir", "Membuat folder baru beserta folder induknya.", mp));
+
+            JSONObject gp = new JSONObject();
+            gp.put("type", "object");
+            JSONObject gpf = new JSONObject();
+            gpf.put("type", "string");
+            gpf.put("description", "Path file gambar/video yang sudah ada di perangkat.");
+            gp.put("properties", new JSONObject().put("path", gpf));
+            gp.put("required", new JSONArray().put("path"));
+            list.add(fnTool("save_to_gallery", "Menyalin file gambar/video ke galeri perangkat "
+                    + "(Pictures/Arkael atau Movies/Arkael) supaya muncul di aplikasi Galeri.", gp));
+
+            JSONObject fp = new JSONObject();
+            fp.put("type", "object");
+            JSONObject fpq = new JSONObject();
+            fpq.put("type", "string");
+            fpq.put("description", "Kata kunci gambar yang dicari, mis. \"red panda\" atau \"Monas Jakarta\".");
+            fp.put("properties", new JSONObject().put("query", fpq));
+            fp.put("required", new JSONArray().put("query"));
+            list.add(fnTool("find_image", "Mencari gambar asli (foto nyata, bukan hasil AI) di internet "
+                    + "lewat Wikimedia Commons, mengunduhnya, lalu menyimpannya ke galeri perangkat. "
+                    + "Pakai ini kalau pengguna minta \"carikan gambar/foto ...\".", fp));
+
             JSONObject up = new JSONObject();
             up.put("type", "object");
             JSONObject upz = new JSONObject();
@@ -1225,6 +1289,121 @@ public class AiChatActivity extends AppCompatActivity {
             return false;
         } catch (Exception e) {
             return true;
+        }
+    }
+
+    /** list_dir: isi folder, dir ditandai, ukuran file ditulis. */
+    private String toolListDir(JSONObject args) {
+        String p = args.optString("path", "").trim();
+        File dir = p.isEmpty() ? AiGit.repo(this) : resolveIn(p);
+        if (!dir.exists()) {
+            File alt = resolve(p);
+            if (alt.exists()) dir = alt;
+        }
+        if (!dir.isDirectory()) {
+            return dir.getAbsolutePath() + " bukan folder"
+                    + "\n\nPetunjuk: pakai path folder, mis. " + AiGit.repo(this).getAbsolutePath();
+        }
+        File[] kids = dir.listFiles();
+        if (kids == null) return "tidak bisa membaca folder " + dir.getAbsolutePath();
+        java.util.Arrays.sort(kids, new java.util.Comparator<File>() {
+            @Override public int compare(File a, File b) {
+                if (a.isDirectory() != b.isDirectory()) return a.isDirectory() ? -1 : 1;
+                return a.getName().compareToIgnoreCase(b.getName());
+            }
+        });
+        StringBuilder sb = new StringBuilder();
+        sb.append("folder: ").append(dir.getAbsolutePath()).append("\n");
+        int d = 0, f = 0;
+        for (File k : kids) {
+            if (k.isDirectory()) {
+                d++;
+                int n = k.listFiles() == null ? 0 : k.listFiles().length;
+                sb.append("[dir]  ").append(k.getName()).append("/  (").append(n).append(" item)\n");
+            } else {
+                f++;
+                sb.append("       ").append(k.getName()).append("  ").append(AiFiles.humanSize(k.length())).append("\n");
+            }
+        }
+        if (kids.length == 0) sb.append("(folder kosong)\n");
+        sb.append("\n").append(d).append(" folder, ").append(f).append(" file");
+        return sb.toString();
+    }
+
+    /** make_dir: bikin folder, induk sekalian. */
+    private String toolMakeDir(JSONObject args) {
+        String p = args.optString("path", "").trim();
+        if (p.isEmpty()) return "path kosong";
+        File f = new File(p);
+        if (!f.isAbsolute()) f = new File(AiGit.repo(this), p);
+        if (isForbidden(f)) return "menolak membuat folder di area sistem: " + f.getAbsolutePath();
+        if (f.isDirectory()) return "folder sudah ada: " + f.getAbsolutePath();
+        if (f.isFile()) return "sudah ada file dengan nama itu: " + f.getAbsolutePath();
+        if (!f.mkdirs()) return "gagal membuat folder: " + f.getAbsolutePath();
+        int n = f.listFiles() == null ? 0 : f.listFiles().length;
+        return "folder dibuat: " + f.getAbsolutePath() + "\nisi: " + n + " item";
+    }
+
+    /** save_to_gallery: file yang sudah ada -> koleksi galeri perangkat. */
+    private String toolToGallery(JSONObject args) {
+        String p = args.optString("path", "").trim();
+        if (p.isEmpty()) return "path kosong";
+        File f = resolveIn(p);
+        if (!f.isFile()) {
+            File alt = resolve(p);
+            if (alt.isFile()) f = alt;
+        }
+        if (!f.isFile()) return "file tidak ditemukan: " + p;
+        final String path = f.getAbsolutePath();
+        runOnUiThread(() -> bubble("AGENT \u00B7 save_to_gallery", path, false));
+        try {
+            String kind = AiPublish.kindOf(f);
+            android.net.Uri u = AiPublish.toGallery(this, f, kind);
+            String where = "image".equals(kind) ? "Pictures/Arkael"
+                    : "video".equals(kind) ? "Movies/Arkael"
+                    : "audio".equals(kind) ? "Music/Arkael" : "Download/Arkael";
+            return "masuk galeri \u2713\n" + f.getName() + "\n" + where
+                    + "\nukuran: " + AiFiles.humanSize(f.length())
+                    + "\nuri: " + u;
+        } catch (Exception e) {
+            return "gagal simpan ke galeri: " + e.getMessage()
+                    + "\n\nKalau gagal terus, pakai jalur file biasa: " + path;
+        }
+    }
+
+    /** find_image: cari gambar asli di internet, unduh, taruh di galeri. */
+    private String toolFindImage(JSONObject args) {
+        String q = args.optString("query", "").trim();
+        if (q.isEmpty()) q = args.optString("prompt", "").trim();
+        if (q.isEmpty()) return "kata kunci kosong";
+        final String key = q;
+        runOnUiThread(() -> bubble("AGENT \u00B7 find_image", key, false));
+        try {
+            java.util.List<AiPublish.Hit> hits = AiPublish.search(this, key);
+            StringBuilder sb = new StringBuilder();
+            int ok = 0;
+            for (AiPublish.Hit h : hits) {
+                if (ok >= 3) break;
+                try {
+                    File f = AiPublish.download(this, h);
+                    android.net.Uri u = AiPublish.toGallery(this, f, "image");
+                    ok++;
+                    final String fpath = f.getAbsolutePath();
+                    runOnUiThread(() -> bubble("GAMBAR \u00B7 " + key, fpath, false));
+                    sb.append("gambar ").append(ok).append(": ").append(f.getName()).append('\n');
+                    sb.append("  judul : ").append(h.title).append('\n');
+                    sb.append("  ukuran: ").append(h.width).append('x').append(h.height).append('\n');
+                    sb.append("  file  : ").append(fpath).append('\n');
+                    if (!h.page.isEmpty()) sb.append("  sumber: ").append(h.page).append('\n');
+                    sb.append("  galeri: tersimpan di Pictures/Arkael\n\n");
+                } catch (Exception e) {
+                    sb.append("gagal unduh ").append(h.title).append(": ").append(e.getMessage()).append('\n');
+                }
+            }
+            if (ok == 0) return "gagal mengambil gambar untuk \"" + key + "\".\n\n" + sb;
+            return "ketemu " + ok + " gambar, sudah masuk galeri (Pictures/Arkael).\n\n" + sb;
+        } catch (Exception e) {
+            return "pencarian gambar gagal: " + e.getMessage();
         }
     }
 

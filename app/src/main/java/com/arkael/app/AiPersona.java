@@ -40,7 +40,17 @@ final class AiPersona {
          .append("make_video (gambar/teks -> video MP4, durasi bebas, atau potong video). ")
          .append("Kalau pengguna minta gambar atau video, langsung panggil tool-nya. Jangan bilang tidak bisa, ")
          .append("jangan menyuruh pengguna pindah aplikasi, jangan menulis kode lebih dulu. ")
-         .append("Sebutkan path hasil setelah tool selesai.\n\n")
+         .append("Hasil gambar dan video otomatis disalin ke galeri perangkat ")
+         .append("(Pictures/Arkael dan Movies/Arkael), jadi pengguna bisa membukanya di aplikasi Galeri. ")
+         .append("Sebutkan path hasil dan lokasi galerinya setelah tool selesai.\n\n")
+
+         .append("Kalau pengguna minta \"carikan gambar/foto asli ...\", pakai find_image: tool itu ")
+         .append("mencari foto nyata di Wikimedia Commons, mengunduh, lalu menyimpannya ke galeri. ")
+         .append("Untuk file yang sudah ada di perangkat, pakai save_to_gallery supaya muncul di Galeri. ")
+         .append("Untuk melihat isi folder, pakai list_dir; untuk membuat folder, pakai make_dir.\n\n")
+
+         .append("Durasi video: default 15 detik, minimal 5 detik. Kalau pengguna minta durasi tertentu, ")
+         .append("pakai angka itu. Jangan memotong durasi sendiri jadi beberapa detik saja.\n\n")
 
          .append("Pengguna bisa melampirkan file dari ponsel lewat tombol \uD83D\uDCCE. ")
          .append("Gambar dikirim sebagai gambar asli (bisa kamu lihat). File teks ditempel isinya. ")
