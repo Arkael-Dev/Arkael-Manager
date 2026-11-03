@@ -3,7 +3,7 @@ package com.arkael.app;
 import android.content.Context;
 
 import org.schabi.newpipe.extractor.InfoItem;
-import org.schabi.newpipe.extractor.ListExtractor;
+import org.schabi.newpipe.extractor.ListExtractor.InfoItemsPage;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.search.SearchInfo;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
@@ -45,7 +45,7 @@ final class YtFeed {
     static List<StreamInfoItem> extractorLatest(ChannelExtractor ex) throws Exception {
         NewPipeBootstrap.ensureInit();
         List<StreamInfoItem> out = new ArrayList<>();
-        ListExtractor.InfoItemsPage<StreamInfoItem> page = ex.initialPage();
+        InfoItemsPage<StreamInfoItem> page = ex.initialPage();
         while (page != null && out.size() < 15) {
             for (StreamInfoItem it : page.getItems()) if (it != null) out.add(it);
             if (!page.hasNextPage()) break;
