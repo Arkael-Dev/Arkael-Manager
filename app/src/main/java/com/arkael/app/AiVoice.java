@@ -95,7 +95,11 @@ final class AiVoice implements TextToSpeech.OnInitListener {
                         }
                     }
                     /* mesin utama TTS_AUDIO juga ikut ditawarkan */
-                    String def = TextToSpeech.getDefaultEngine();
+                    String def = null;
+                    try {
+                        def = android.provider.Settings.Secure.getString(
+                                app.getContentResolver(), "tts_default_synth");
+                    } catch (Throwable ignore) {}
                     if (def != null) {
                         boolean have = false;
                         for (String[] e : out) if (e[0].equals(def)) { have = true; break; }
