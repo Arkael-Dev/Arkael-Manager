@@ -12,7 +12,7 @@ final class AiStore {
 
     /* Preset provider, sama dengan ai-agent-chat.sh */
     static final String[] PROVIDERS = {
-        "deepseek", "openai", "gemini", "claude", "openrouter", "groq", "ollama", "custom"
+        "deepseek", "openai", "gemini", "claude", "openrouter", "groq", "custom"
     };
 
     static String label(String p) {
@@ -23,7 +23,6 @@ final class AiStore {
             case "claude":     return "Claude";
             case "openrouter": return "OpenRouter";
             case "groq":       return "Groq";
-            case "ollama":     return "Ollama (lokal)";
             default:           return "Custom AI";
         }
     }
@@ -37,7 +36,6 @@ final class AiStore {
             case "claude":     return "https://api.anthropic.com/v1/chat/completions";
             case "openrouter": return "https://openrouter.ai/api/v1/chat/completions";
             case "groq":       return "https://api.groq.com/openai/v1/chat/completions";
-            case "ollama":     return "http://localhost:11434/v1/chat/completions";
             default:           return customUrl == null ? "" : customUrl;
         }
     }
@@ -51,13 +49,12 @@ final class AiStore {
             case "claude":     return "claude-sonnet-5-5";
             case "openrouter": return "openrouter/auto";
             case "groq":       return "llama-3.3-70b-versatile";
-            case "ollama":     return "qwen2.5:3b";
             default:           return "";
         }
     }
 
-    /** Ollama tidak butuh key. */
-    static boolean needsKey(String p) { return !"ollama".equals(p); }
+    /** Semua provider tersisa butuh API key. */
+    static boolean needsKey(String p) { return true; }
 
     /**
      * Nama field batas token, sama seperti TOKEN_FIELD di ai-agent-chat.sh:

@@ -171,13 +171,9 @@ final class AiClient {
                     java.net.ConnectException ce = findConn(e);
                     if (ce != null) {
                         tip = "\n\nTidak bisa menghubungi " + (url == null ? "-" : url.trim())
-                            + "\nServer tidak jalan atau alamat/port salah."
-                            + "\n\u2022 Ollama di HP ini: buka Termux, jalankan `ollama serve`"
-                            + " (default http://127.0.0.1:11434)."
-                            + "\n\u2022 Ollama di PC: jalankan dengan OLLAMA_HOST=0.0.0.0:11434,"
-                            + " lalu ganti endpoint ke http://IP-PC:11434/v1/chat/completions"
-                            + " (HP dan PC harus satu Wi-Fi)."
-                            + "\n\u2022 Jangan pakai \"localhost\" kalau server ada di perangkat lain.";
+                            + "\nServer tidak jalan, alamat salah, atau tak ada internet."
+                            + "\n\u2022 Cek endpoint di menu \u2699 \u2192 provider"
+                            + "\n\u2022 Pastikan nama host dan port benar";
                     }
                     sink.onError(e.getClass().getSimpleName() + (m == null ? "" : ": " + m) + tip);
                 } finally {

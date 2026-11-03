@@ -1278,9 +1278,7 @@ public class AiChatActivity extends AppCompatActivity {
         for (int i = 0; i < n; i++) {
             String p = AiStore.PROVIDERS[i];
             String mark;
-            if ("ollama".equals(p)) mark = "lokal, tanpa key";
-            else if (AiStore.key(this, p).isEmpty()) mark = "butuh API key";
-            else mark = "key tersimpan";
+            mark = AiStore.key(this, p).isEmpty() ? "butuh API key" : "key tersimpan";
             names[i] = AiStore.label(p) + "  \u00B7  " + mark;
             if (p.equals(cur)) check = i;
         }
@@ -1432,17 +1430,8 @@ public class AiChatActivity extends AppCompatActivity {
         pv.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         col.addView(pv);
 
-        if (eKey != null) {
-            col.addView(tag("API KEY \u00B7 diisi manual, disimpan di perangkat"));
-            col.addView(eKey);
-        } else {
-            col.addView(tag("API KEY"));
-            TextView nk = new TextView(this);
-            nk.setText("Ollama lokal, tidak butuh key.");
-            nk.setTextColor(Color.parseColor(SUB));
-            nk.setTextSize(12);
-            col.addView(nk);
-        }
+        col.addView(tag("API KEY \u00B7 diisi manual, disimpan di perangkat"));
+        col.addView(eKey);
         if (eUrl != null) {
             col.addView(tag("ENDPOINT"));
             col.addView(eUrl);
@@ -1482,7 +1471,7 @@ public class AiChatActivity extends AppCompatActivity {
     }
 
     private void testKey(final String prov, EditText eKey, EditText eModel, EditText eUrl) {
-        final String key = eKey == null ? "ollama" : eKey.getText().toString().trim();
+        final String key = eKey == null ? "" : eKey.getText().toString().trim();
         final String model = eModel == null ? AiStore.model(this, prov) : eModel.getText().toString().trim();
         final String custom = eUrl == null ? AiStore.customUrl(this) : eUrl.getText().toString().trim();
         final String ep = AiStore.url(prov, custom);
