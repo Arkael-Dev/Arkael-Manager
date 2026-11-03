@@ -19,7 +19,7 @@ import java.util.List;
  */
 final class AiGit {
 
-    static final String DEFAULT_BRANCH = "feature/ai-agent";
+    static final String DEFAULT_BRANCH = "feature/ai-agent-native";
     private static final String TEMPLATE = "aiagent";
     private static final int MAX_OUT = 4000;
 
