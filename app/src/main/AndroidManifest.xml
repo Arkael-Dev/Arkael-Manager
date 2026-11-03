@@ -83,6 +83,7 @@
             android:hardwareAccelerated="true"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"/>
         <activity android:name=".AnimeHubActivity" android:exported="false" android:label="Anime"/>
+        <activity android:name=".AiChatActivity" android:theme="@style/Theme.Arkael" android:windowSoftInputMode="adjustResize"/>
         <activity android:name=".AppSettingsActivity" android:exported="false" android:label="Settings"/>
         <service android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
             android:enabled="false" android:exported="false">
