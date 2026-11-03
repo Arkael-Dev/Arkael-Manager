@@ -397,22 +397,37 @@ public class AiChatActivity extends AppCompatActivity {
 
     private void toggleAgent() {
         final boolean on = !AiStore.agent(this);
-        if (on && !RootShell.hasRoot()) {
-            new AlertDialog.Builder(this)
-                .setTitle("Root tidak tersedia")
-                .setMessage("Mode agent menjalankan perintah lewat su. Perangkat ini belum memberi akses root, jadi perintah akan gagal.\n\nNyalakan tetap?")
-                .setNegativeButton("Batal", null)
-                .setPositiveButton("Nyalakan", (d, w) -> {
-                    AiStore.setAgent(this, true);
-                    refreshStatus();
-                    bubble("AGENT", "Mode agent AKTIF. Perintah dijalankan sebagai root dan ditampilkan di chat.", false);
-                })
-                .show();
+        if (!on) {
+            AiStore.setAgent(this, false);
+            refreshStatus();
+            bubble("AGENT", "Mode agent mati. Chat saja.", false);
             return;
         }
-        AiStore.setAgent(this, on);
-        refreshStatus();
-        bubble("AGENT", on ? "Mode agent AKTIF. Perintah dijalankan sebagai root." : "Mode agent mati. Chat saja.", false);
+        /* cek root di thread lain: su bisa memunculkan dialog izin dan memblokir UI */
+        new Thread(() -> {
+            final boolean root = RootShell.hasRoot();
+            runOnUiThread(() -> {
+                if (!root) askRootMissing();
+                else {
+                    AiStore.setAgent(AiChatActivity.this, true);
+                    refreshStatus();
+                    bubble("AGENT", "Mode agent AKTIF. Perintah dijalankan sebagai root.", false);
+                }
+            });
+        }, "arkael-ai-root").start();
+    }
+
+    private void askRootMissing() {
+        new AlertDialog.Builder(this)
+            .setTitle("Root tidak tersedia")
+            .setMessage("Mode agent menjalankan perintah lewat su. Perangkat ini belum memberi akses root, jadi perintah akan gagal.\n\nNyalakan tetap?")
+            .setNegativeButton("Batal", null)
+            .setPositiveButton("Nyalakan", (d, w) -> {
+                AiStore.setAgent(this, true);
+                refreshStatus();
+                bubble("AGENT", "Mode agent AKTIF. Perintah dijalankan sebagai root dan ditampilkan di chat.", false);
+            })
+            .show();
     }
 
     /** Editor untuk satu provider: key, model, custom URL, tes. */
