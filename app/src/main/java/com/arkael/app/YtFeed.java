@@ -45,7 +45,7 @@ final class YtFeed {
     static List<StreamInfoItem> extractorLatest(ChannelExtractor ex) throws Exception {
         NewPipeBootstrap.ensureInit();
         List<StreamInfoItem> out = new ArrayList<>();
-        ListExtractor.InfoItemsPage<StreamInfoItem> page = ex.getInitialPage();
+        ListExtractor.InfoItemsPage<StreamInfoItem> page = ex.initialPage();
         while (page != null && out.size() < 15) {
             for (StreamInfoItem it : page.getItems()) if (it != null) out.add(it);
             if (!page.hasNextPage()) break;
