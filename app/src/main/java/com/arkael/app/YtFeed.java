@@ -3,10 +3,12 @@ package com.arkael.app;
 import android.content.Context;
 
 import org.schabi.newpipe.extractor.InfoItem;
-import org.schabi.newpipe.extractor.channel.ChannelInfo;
+import org.schabi.newpipe.extractor.ListExtractor;
+import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.search.SearchInfo;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
 import org.schabi.newpipe.extractor.ServiceList;
+import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 
 import java.util.ArrayList;
@@ -37,9 +39,20 @@ final class YtFeed {
     /** Ambil video terbaru satu channel, maksimal ~15. Blocking: panggil di thread background. */
     static List<StreamInfoItem> channelLatest(Context c, String url) throws Exception {
         NewPipeBootstrap.ensureInit();
+        StreamingService yt = ServiceList.YouTube;
+        return extractorLatest(yt.getChannelExtractor(yt.getChannelQHFactory().fromUrl(url)));
+    }
+
+    /** Video dari extractor channel langsung (ChannelInfo di v0.26.5 tidak lagi menyimpan item). */
+    static List<StreamInfoItem> extractorLatest(ChannelExtractor ex) throws Exception {
+        NewPipeBootstrap.ensureInit();
         List<StreamInfoItem> out = new ArrayList<>();
-        ChannelInfo ci = ChannelInfo.getInfo(url);
-        if (ci.getRelatedItems() != null) out.addAll(ci.getRelatedItems());
+        ListExtractor.InfoItemsPage<StreamInfoItem> page = ex.getInitialPage();
+        while (page != null && out.size() < 15) {
+            for (StreamInfoItem it : page.getItems()) if (it != null) out.add(it);
+            if (!page.hasNextPage()) break;
+            page = ex.getPage(page.getNextPage());
+        }
         return out;
     }
 
