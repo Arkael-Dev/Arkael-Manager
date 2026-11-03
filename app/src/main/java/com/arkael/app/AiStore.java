@@ -64,6 +64,22 @@ final class AiStore {
         return "openai".equals(p) ? "max_completion_tokens" : "max_tokens";
     }
 
+    /** Suara AI dinyalakan: balasan dibacakan lewat TTS. */
+    static boolean voiceOn(Context c) { return sp(c).getBoolean("voice_on", false); }
+    static void setVoiceOn(Context c, boolean v) { sp(c).edit().putBoolean("voice_on", v).apply(); }
+
+    /** Nama paket TTS pilihan; kosong = pakai TTS bawaan sistem. */
+    static String voiceEngine(Context c) { return sp(c).getString("voice_engine", ""); }
+    static void setVoiceEngine(Context c, String v) {
+        sp(c).edit().putString("voice_engine", v == null ? "" : v.trim()).apply();
+    }
+
+    /** Bahasa STT/TTS, mis. "id-ID". */
+    static String voiceLang(Context c) { return sp(c).getString("voice_lang", "id-ID"); }
+    static void setVoiceLang(Context c, String v) {
+        sp(c).edit().putString("voice_lang", v == null || v.trim().isEmpty() ? "id-ID" : v.trim()).apply();
+    }
+
     static int maxTokens(Context c) {
         int v = sp(c).getInt("max_tokens", 8000);
         return v <= 0 ? 8000 : v;

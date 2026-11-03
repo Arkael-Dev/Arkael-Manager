@@ -1,6 +1,8 @@
 package com.arkael.app;
 
+import android.Manifest;
 import android.content.Context;
+import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -47,6 +49,13 @@ public class AiChatActivity extends AppCompatActivity {
     private int toolLoops = 0;
     /** Lampiran pesan berikutnya; dikosongkan setelah terkirim. */
     private final List<Attachment> pending = new ArrayList<>();
+
+    /* --- voice chat --- */
+    private AiVoice voice;
+    private boolean micOn = false;
+    private boolean autoSendAfterStt = false;
+    private Button micBtn;
+    private static final int REQ_MIC_AI = 7102;
 
     /** File yang dilampirkan plus tugasnya: kirim ke AI, langsung dibuatkan gambar, atau video. */
     private static final class Attachment {
@@ -111,6 +120,9 @@ public class AiChatActivity extends AppCompatActivity {
 
         root.addView(composer());
         setContentView(root);
+
+        voice = new AiVoice(this);
+        if (AiStore.voiceOn(this)) voice.initTts();
 
         if (!AiStore.ready(this)) {
             bubble("AI", "API key belum diisi.\n\nTekan tombol gear di kanan atas, pilih AI-nya, tempel API key, lalu Simpan.\n\nProvider awal: DeepSeek", false);
@@ -216,6 +228,18 @@ public class AiChatActivity extends AppCompatActivity {
         clip.setLayoutParams(clp);
         clip.setOnClickListener(v -> pickFile(Attachment.TO_AI));
         c.addView(clip);
+
+        micBtn = new Button(this);
+        micBtn.setText("\uD83C\uDFA4");
+        micBtn.setTextSize(15);
+        micBtn.setBackground(bg(CARD, 18));
+        micBtn.setTextColor(Color.parseColor(AiStore.voiceOn(this) ? BG : ACCENT));
+        if (AiStore.voiceOn(this)) micBtn.setBackground(bg(ACCENT, 18));
+        LinearLayout.LayoutParams mlp = new LinearLayout.LayoutParams(dp(46), dp(46));
+        mlp.setMarginStart(dp(8));
+        micBtn.setLayoutParams(mlp);
+        micBtn.setOnClickListener(v -> onMic());
+        c.addView(micBtn);
 
         Button send = new Button(this);
         send.setText("\u27A4");
@@ -421,6 +445,7 @@ public class AiChatActivity extends AppCompatActivity {
     }
 
     private void onSend() {
+        if (voice != null) voice.stopSpeak();
         if (busy) { Toast.makeText(this, "Tunggu jawaban sebelumnya", Toast.LENGTH_SHORT).show(); return; }
         final String q = input.getText().toString().trim();
         if (q.isEmpty() && pending.isEmpty()) return;
@@ -544,8 +569,116 @@ public class AiChatActivity extends AppCompatActivity {
 
         addAssistant(text, calls);
 
-        if (calls == null || calls.length() == 0) { busy = false; return; }
+        if (calls == null || calls.length() == 0) {
+            busy = false;
+            /* Hands-free: baca jawaban, lalu dengarkan lagi setelah suara habis. */
+            if (voice != null && AiStore.voiceOn(this)) {
+                voice.speakThen(text, () -> { if (micOn && !busy) startMicListening(); });
+            } else if (micOn) {
+                startMicListening();
+            }
+            return;
+        }
         runTools(ai, calls);
+    }
+
+    /* ---------------- voice chat ---------------- */
+
+    private boolean hasMicPermission() {
+        return android.os.Build.VERSION.SDK_INT < 23
+                || checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
+    }
+
+    /** Tombol mic: nyalakan/matikan mode suara. Saat nyala, balasan dibacakan. */
+    private void onMic() {
+        if (micOn) { stopVoice(); return; }
+        AiStore.setVoiceOn(this, true);
+        if (micBtn != null) {
+            micBtn.setTextColor(Color.parseColor(BG));
+            micBtn.setBackground(bg(ACCENT, 18));
+        }
+        micOn = true;
+        if (voice == null) voice = new AiVoice(this);
+        voice.initTts();
+        if (!hasMicPermission()) {
+            if (android.os.Build.VERSION.SDK_INT >= 23) {
+                requestPermissions(new String[]{Manifest.permission.RECORD_AUDIO}, REQ_MIC_AI);
+            }
+            return;
+        }
+        autoSendAfterStt = true;
+        startMicListening();
+    }
+
+    private void stopVoice() {
+        micOn = false;
+        autoSendAfterStt = false;
+        if (micBtn != null) {
+            micBtn.setTextColor(Color.parseColor(ACCENT));
+            micBtn.setBackground(bg(CARD, 18));
+        }
+        if (voice != null) { voice.stopMic(); voice.stopSpeak(); }
+        AiStore.setVoiceOn(this, false);
+    }
+
+    /** Rekam satu ucapan; hasilnya masuk ke kotak pesan lalu langsung dikirim. */
+    private void startMicListening() {
+        if (voice == null) voice = new AiVoice(this);
+        if (input != null) input.setHint("Mendengar\u2026");
+        if (status != null) status.setText("\uD83C\uDFA4 mendengar\u2026");
+
+        final String before = input == null ? "" : input.getText().toString().trim();
+        voice.startMic(new AiVoice.MicCb() {
+            @Override public void onRms(float level) {
+                runOnUiThread(() -> {
+                    int bars = (int) Math.max(0, Math.min(10, (level + 2f) * 2f));
+                    StringBuilder p = new StringBuilder("\uD83C\uDFA4 ");
+                    for (int i = 0; i < 10; i++) p.append(i < bars ? "\u2588" : "\u2591");
+                    if (status != null) status.setText(p.toString());
+                });
+            }
+            @Override public void onPartial(String text) {
+                runOnUiThread(() -> { if (input != null && !text.isEmpty()) input.setText(text); });
+            }
+            @Override public void onFinal(String text) {
+                runOnUiThread(() -> {
+                    if (input != null) input.setText(text);
+                    refreshStatus();
+                    if (autoSendAfterStt && !busy) onSend();
+                });
+            }
+            @Override public void onError(String msg) {
+                runOnUiThread(() -> {
+                    if (input != null && !before.isEmpty()) input.setText(before);
+                    refreshStatus();
+                    Toast.makeText(AiChatActivity.this, msg, Toast.LENGTH_LONG).show();
+                });
+            }
+            @Override public void onEnd() {
+                runOnUiThread(() -> { if (input != null) input.setHint("Tulis pesan\u2026"); });
+            }
+        });
+    }
+
+    @Override
+    protected void onDestroy() {
+        if (voice != null) voice.shutdown();
+        voice = null;
+        super.onDestroy();
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int req, String[] perms, int[] res) {
+        super.onRequestPermissionsResult(req, perms, res);
+        if (req == REQ_MIC_AI) {
+            if (res != null && res.length > 0 && res[0] == PackageManager.PERMISSION_GRANTED) {
+                autoSendAfterStt = true;
+                startMicListening();
+            } else {
+                stopVoice();
+                Toast.makeText(this, "Izin mikrofon ditolak. Mode suara dimatikan.", Toast.LENGTH_LONG).show();
+            }
+        }
     }
 
     private void addAssistant(String text, JSONArray calls) {
@@ -1270,11 +1403,13 @@ public class AiChatActivity extends AppCompatActivity {
     /** Menu AI ala ai-agent: pilih provider, isi key, pilih model, tes, simpan. */
     private void openSettings() {
         final int n = AiStore.PROVIDERS.length;
-        final String[] names = new String[n + 1];
+        final String[] names = new String[n + 2];
         final String cur = AiStore.provider(this);
         int check = 0;
         names[n] = "\u2699 Git  \u00B7  " + AiStore.gitOwner(this) + "/" + AiStore.gitRepo(this)
                 + "  \u00B7  " + (AiStore.gitToken(this).isEmpty() ? "belum ada token" : "token tersimpan");
+        names[n + 1] = "\uD83D\uDD0A Suara  \u00B7  " + AiStore.voiceLang(this)
+                + "  \u00B7  " + (AiStore.voiceOn(this) ? "aktif" : "nonaktif");
         for (int i = 0; i < n; i++) {
             String p = AiStore.PROVIDERS[i];
             String mark;
@@ -1286,11 +1421,121 @@ public class AiChatActivity extends AppCompatActivity {
             .setTitle("Pilih AI")
             .setSingleChoiceItems(names, check, (d, w) -> {
                 d.dismiss();
-                if (w >= n) openGitSettings();
+                if (w == n + 1) openVoiceSettings();
+                else if (w == n) openGitSettings();
                 else editProvider(AiStore.PROVIDERS[w]);
             })
             .setNegativeButton("Batal", null)
             .setNeutralButton("Agent", (d, w) -> toggleAgent())
+            .show();
+    }
+
+    /** Setelan suara: bahasa STT/TTS, mesin TTS, dan status mode suara. */
+    private void openVoiceSettings() {
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setPadding(dp(20), dp(14), dp(20), dp(4));
+
+        final String[] langs = {"id-ID", "en-US", "ms-MY", "zh-CN", "ja-JP", "ar-SA"};
+        final String[] langNames = {"Indonesia (id-ID)", "English US (en-US)", "Melayu (ms-MY)",
+                "\u4E2D\u6587 (zh-CN)", "\u65E5\u672C\u8A9E (ja-JP)", "\u0627\u0644\u0639\u0631\u0628\u064A\u0629 (ar-SA)"};
+        String curLang = AiStore.voiceLang(this);
+        int li = 0;
+        for (int i = 0; i < langs.length; i++) if (langs[i].equalsIgnoreCase(curLang)) li = i;
+
+        col.addView(tag("BAHASA SUARA \u00B7 pengenal & pembaca"));
+        TextView langBtn = new TextView(this);
+        langBtn.setText(langNames[li]);
+        langBtn.setTextColor(Color.parseColor(TXT));
+        langBtn.setTextSize(15);
+        langBtn.setPadding(dp(14), dp(12), dp(14), dp(12));
+        langBtn.setBackground(bg(CARD, 14));
+        final int[] picked = {li};
+        langBtn.setOnClickListener(v -> new AlertDialog.Builder(this)
+                .setTitle("Bahasa suara")
+                .setSingleChoiceItems(langNames, picked[0], (d, w) -> {
+                    picked[0] = w;
+                    langBtn.setText(langNames[w]);
+                    AiStore.setVoiceLang(this, langs[w]);
+                    d.dismiss();
+                }).show());
+        col.addView(langBtn);
+
+        final LinearLayout engines = new LinearLayout(this);
+        engines.setOrientation(LinearLayout.VERTICAL);
+        col.addView(tag("MESIN TTS"));
+        col.addView(engines);
+
+        final AiVoice probe = new AiVoice(this);
+        probe.listEngines(new AiVoice.EngineCb() {
+            @Override public void onList(final List<String[]> items) {
+                runOnUiThread(() -> {
+                    engines.removeAllViews();
+                    final List<String> pkg = new ArrayList<>();
+                    final List<String> name = new ArrayList<>();
+                    pkg.add("");
+                    name.add("Bawaan sistem");
+                    for (String[] e : items) { pkg.add(e[0]); name.add(e[1]); }
+                    final String[] arrPkg = pkg.toArray(new String[0]);
+                    final String[] arrName = name.toArray(new String[0]);
+                    final String cur = AiStore.voiceEngine(AiChatActivity.this);
+                    int ci = 0;
+                    for (int i = 0; i < arrPkg.length; i++) if (arrPkg[i].equals(cur)) ci = i;
+
+                    TextView b = new TextView(AiChatActivity.this);
+                    b.setText(arrName[ci]);
+                    b.setTextColor(Color.parseColor(TXT));
+                    b.setTextSize(15);
+                    b.setPadding(dp(14), dp(12), dp(14), dp(12));
+                    b.setBackground(bg(CARD, 14));
+                    final int[] sel = {ci};
+                    b.setOnClickListener(v -> new AlertDialog.Builder(AiChatActivity.this)
+                            .setTitle("Mesin TTS")
+                            .setSingleChoiceItems(arrName, sel[0], (d, w) -> {
+                                sel[0] = w;
+                                b.setText(arrName[w]);
+                                AiStore.setVoiceEngine(AiChatActivity.this, arrPkg[w]);
+                                if (voice != null) { voice.stopSpeak(); voice.shutdown(); voice = new AiVoice(AiChatActivity.this); voice.initTts(); }
+                                d.dismiss();
+                            }).show());
+                    engines.addView(b);
+
+                    TextView note = new TextView(AiChatActivity.this);
+                    note.setText(items.isEmpty()
+                            ? "Tak ada mesin TTS terpasang. Pasang \"Speech Recognition & Synthesis\" dari Play Store."
+                            : "Bahasa harus didukung mesin TTS yang dipilih. Kalau suara tidak keluar, ganti mesin atau bahasa.");
+                    note.setTextColor(Color.parseColor(SUB));
+                    note.setTextSize(12);
+                    note.setPadding(dp(2), dp(10), dp(2), dp(6));
+                    engines.addView(note);
+                });
+            }
+        });
+
+        TextView test = new TextView(this);
+        test.setText("\u25B6 Tes suara");
+        test.setTextColor(Color.parseColor(ACCENT));
+        test.setTextSize(14);
+        test.setPadding(dp(2), dp(14), dp(2), dp(6));
+        test.setOnClickListener(v -> {
+            if (voice != null) { voice.stopSpeak(); voice.shutdown(); }
+            voice = new AiVoice(this);
+            voice.initTts();
+            final String sample = "Halo, suara Arkael siap dipakai.";
+            final boolean was = AiStore.voiceOn(this);
+            AiStore.setVoiceOn(this, true);
+            new android.os.Handler(getMainLooper()).postDelayed(() -> {
+                voice.speak(sample);
+                AiStore.setVoiceOn(this, was);
+            }, 700);
+        });
+        col.addView(test);
+
+        new AlertDialog.Builder(this)
+            .setTitle("Suara AI")
+            .setView(col)
+            .setPositiveButton("Simpan", (d, w) -> refreshStatus())
+            .setNegativeButton("Tutup", null)
             .show();
     }
 
