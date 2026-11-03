@@ -8,7 +8,6 @@ import org.schabi.newpipe.extractor.channel.ChannelExtractor;
 import org.schabi.newpipe.extractor.search.SearchInfo;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
 import org.schabi.newpipe.extractor.ServiceList;
-import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.stream.StreamInfoItem;
 
 import java.util.ArrayList;
@@ -39,8 +38,7 @@ final class YtFeed {
     /** Ambil video terbaru satu channel, maksimal ~15. Blocking: panggil di thread background. */
     static List<StreamInfoItem> channelLatest(Context c, String url) throws Exception {
         NewPipeBootstrap.ensureInit();
-        StreamingService yt = ServiceList.YouTube;
-        return extractorLatest(yt.getChannelExtractor(yt.getChannelQHFactory().fromUrl(url)));
+        return extractorLatest(ServiceList.YouTube.getChannelExtractor(url));
     }
 
     /** Video dari extractor channel langsung (ChannelInfo di v0.26.5 tidak lagi menyimpan item). */

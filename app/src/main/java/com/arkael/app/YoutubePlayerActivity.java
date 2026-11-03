@@ -1655,8 +1655,9 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         final String[] modeNames = {"Bawaan Media3", "YouTube Android (rekomendasi)", "Chrome desktop", "Kustom…"};
         final String[] modes = {"default", "youtube", "chrome", "custom"};
         String cur = getSharedPreferences(YtNet.PREF, MODE_PRIVATE).getString(YtNet.K_UA, "default");
-        int sel = 0;
-        for (int i = 0; i < modes.length; i++) if (modes[i].equals(cur)) sel = i;
+        int selIdx = 0;
+        for (int i = 0; i < modes.length; i++) if (modes[i].equals(cur)) selIdx = i;
+        final int sel = selIdx;
 
         String[] opts = {
                 "Mode User-Agent: " + modeNames[sel],
