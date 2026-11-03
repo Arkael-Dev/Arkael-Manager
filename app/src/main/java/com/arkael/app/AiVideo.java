@@ -29,7 +29,6 @@ final class AiVideo {
 
     static final int FPS = 24;
     static final int MAX_SECONDS = 120;
-    private static final int BITRATE = 4000000;
 
     /** Satu bagian video: gambar (img) atau kartu teks (text). */
     static final class Clip {
@@ -122,7 +121,9 @@ final class AiVideo {
 
         try {
             MediaFormat fmt = MediaFormat.createVideoFormat(mime, w, h);
-            fmt.setInteger(MediaFormat.KEY_BIT_RATE, BITRATE);
+            // Bitrate ikut luas frame: 4 Mbps cuma cukup ~720p, 1080p butuh ~8 Mbps.
+            long br = (long) w * h * 4L;
+            fmt.setInteger(MediaFormat.KEY_BIT_RATE, (int) Math.max(2000000L, Math.min(br, 20000000L)));
             fmt.setInteger(MediaFormat.KEY_FRAME_RATE, FPS);
             fmt.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 1);
 
@@ -137,6 +138,8 @@ final class AiVideo {
             final int[] argb = new int[w * h];
             byte[] yuvBytes = null;
             int stride = -1;
+            int slice = h;
+            int ySizeNeed = 0, uvNeed = 0;
 
             // Gambar digambar ulang tiap ZOOM_EVERY frame dengan zoom naik pelan,
             // jadi video dari satu foto tetap terlihat hidup, bukan frame mati 6 detik.
@@ -163,15 +166,24 @@ final class AiVideo {
                 if (ib == null) throw new Exception("input buffer encoder null");
                 ib.clear();
                 int cap = ib.capacity();
-                if (cap < w * h * 3 / 2) {
-                    throw new Exception("buffer encoder terlalu kecil: " + cap
-                            + " < " + (w * h * 3 / 2) + " (" + w + "x" + h + ")");
+                // Stride & slice-height sebenarnya dari format input encoder. Salah di sini
+                // = video miring/pecah (gejala "hasil video busuk").
+                if (stride < 0) {
+                    stride = MediaFormatUtils.stride(codec.getInputFormat(), w,
+                            strideFor(cap, w, h));
+                    slice = MediaFormatUtils.sliceHeight(codec.getInputFormat(), h, h);
+                    ySizeNeed = stride * slice;
+                    uvNeed = ySizeNeed + ((stride / 2) * ((slice + 1) / 2)) * 2;
                 }
-                if (stride < 0) stride = strideFor(cap, w, h);
-                if (yuvBytes == null || yuvBytes.length < cap) yuvBytes = new byte[cap];
-                fillYuv(yuvBytes, cap, stride, w, h, argb, planar);
-                ib.put(yuvBytes, 0, cap);
-                codec.queueInputBuffer(in, 0, cap, f * 1000000L / FPS, 0);
+                if (cap < ySizeNeed) {
+                    throw new Exception("buffer encoder terlalu kecil: " + cap
+                            + " < " + ySizeNeed + " (" + w + "x" + h + " stride " + stride + ")");
+                }
+                int need = Math.min(cap, Math.max(uvNeed, ySizeNeed));
+                if (yuvBytes == null || yuvBytes.length < need) yuvBytes = new byte[need];
+                fillYuv(yuvBytes, need, stride, slice, w, h, argb, planar);
+                ib.put(yuvBytes, 0, need);
+                codec.queueInputBuffer(in, 0, need, f * 1000000L / FPS, 0);
 
                 pump(codec, mux, info, out);
             }
@@ -213,7 +225,7 @@ final class AiVideo {
             int id = codec.dequeueOutputBuffer(info, 0);
             if (id == MediaCodec.INFO_OUTPUT_FORMAT_CHANGED) { mux.ensure(codec, out); continue; }
             if (id == MediaCodec.INFO_TRY_AGAIN_LATER) return;
-            if (id < 0) continue;
+            if (id < 0) return;                      // BUFFERS_CHANGED/lainnya: berhenti, jangan spin
             mux.write(codec, id, info);
             codec.releaseOutputBuffer(id, false);
         }
@@ -358,9 +370,16 @@ final class AiVideo {
 
     /** Isi buffer encoder dengan YUV420 sesuai stride; sisa baris diisi hitam/netral. */
     static void fillYuv(byte[] dst, int cap, int stride, int w, int h, int[] argb, boolean planar) {
-        if (stride != w && (long) stride * h * 3 / 2 > cap) stride = w;
-        int ySize = stride * h;
-        if (ySize > cap) { stride = w; ySize = stride * h; }
+        fillYuv(dst, cap, stride, h, w, h, argb, planar);
+    }
+
+    /** Versi penuh: slice = tinggi buffer (>= h), warna dihitung dari h baris gambar. */
+    static void fillYuv(byte[] dst, int cap, int stride, int slice, int w, int h, int[] argb,
+            boolean planar) {
+        if (slice < h) slice = h;
+        if (stride < w) stride = w;
+        int ySize = stride * slice;
+        if (ySize > cap) { stride = w; slice = h; ySize = stride * slice; }
         for (int i = 0; i < ySize && i < cap; i++) dst[i] = 16;
         for (int i = ySize; i < cap; i++) dst[i] = (byte) 128;
 
@@ -374,11 +393,14 @@ final class AiVideo {
         }
 
         int cw = w / 2, ch = h / 2, half = stride / 2;
+        int chBuf = (slice + 1) / 2;          // baris chroma di buffer, ikut slice
         if (planar) {
-            int uo = ySize, vo = ySize + half * ch;
-            for (int j = 0; j < ch; j++) {
+            int uo = ySize, vo = ySize + half * chBuf;
+            for (int j = 0; j < chBuf; j++) {
+                int y0 = Math.min(j * 2, h - 2);   // baris gambar, dijepit di tepi bawah
+                if (y0 < 0) y0 = 0;
                 for (int i = 0; i < cw; i++) {
-                    int c = argb[(j * 2) * w + i * 2];
+                    int c = argb[y0 * w + i * 2];
                     int r = (c >> 16) & 0xff, g = (c >> 8) & 0xff, b = c & 0xff;
                     int u = ((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128;
                     int v = ((112 * r - 94 * g - 18 * b + 128) >> 8) + 128;
@@ -387,10 +409,12 @@ final class AiVideo {
                 }
             }
         } else {
-            for (int j = 0; j < ch; j++) {
+            for (int j = 0; j < chBuf; j++) {
+                int y0 = Math.min(j * 2, h - 2);
+                if (y0 < 0) y0 = 0;
                 int ro = ySize + j * stride;
                 for (int i = 0; i < cw; i++) {
-                    int c = argb[(j * 2) * w + i * 2];
+                    int c = argb[y0 * w + i * 2];
                     int r = (c >> 16) & 0xff, g = (c >> 8) & 0xff, b = c & 0xff;
                     int u = ((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128;
                     int v = ((112 * r - 94 * g - 18 * b + 128) >> 8) + 128;
