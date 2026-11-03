@@ -252,7 +252,6 @@ public class YoutubeSearchActivity extends Activity {
     }
 
     @Override
-    @Override
     protected void onResume() {
         super.onResume();
         // Refresh cepat: tab Riwayat/Disukai selalu dari data lokal (instan). Beranda cuma
@@ -340,7 +339,7 @@ public class YoutubeSearchActivity extends Activity {
         return t;
     }
 
-    private static void addItems(List<Row> out, java.util.Set<String> seen, List<? extends InfoItem> src, int max) {
+    private void addItems(List<Row> out, java.util.Set<String> seen, List<? extends InfoItem> src, int max) {
         int n = 0;
         if (src == null) return;
         for (InfoItem ii : src) {
