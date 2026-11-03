@@ -29,7 +29,8 @@
         android:label="Arkael Manager"
         android:icon="@mipmap/ic_arkael"
         android:theme="@style/Theme.Arkael"
-        android:requestLegacyExternalStorage="true">
+        android:requestLegacyExternalStorage="true"
+        android:networkSecurityConfig="@xml/network_security_config">
         <!-- Hasil AI (gambar/video) dibagikan lewat content:// supaya bisa dibuka app pemutar -->
         <provider
             android:name="androidx.core.content.FileProvider"

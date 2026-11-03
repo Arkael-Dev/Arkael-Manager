@@ -167,12 +167,33 @@ final class AiClient {
 
                 } catch (Exception e) {
                     String m = e.getMessage();
-                    sink.onError(e.getClass().getSimpleName() + (m == null ? "" : ": " + m));
+                    String tip = "";
+                    java.net.ConnectException ce = findConn(e);
+                    if (ce != null) {
+                        tip = "\n\nTidak bisa menghubungi " + (url == null ? "-" : url.trim())
+                            + "\nServer tidak jalan atau alamat/port salah."
+                            + "\n\u2022 Ollama di HP ini: buka Termux, jalankan `ollama serve`"
+                            + " (default http://127.0.0.1:11434)."
+                            + "\n\u2022 Ollama di PC: jalankan dengan OLLAMA_HOST=0.0.0.0:11434,"
+                            + " lalu ganti endpoint ke http://IP-PC:11434/v1/chat/completions"
+                            + " (HP dan PC harus satu Wi-Fi)."
+                            + "\n\u2022 Jangan pakai \"localhost\" kalau server ada di perangkat lain.";
+                    }
+                    sink.onError(e.getClass().getSimpleName() + (m == null ? "" : ": " + m) + tip);
                 } finally {
                     if (c != null) c.disconnect();
                 }
             }
         }, "arkael-ai").start();
+    }
+
+    /** Cari ConnectException/UnknownHostException di rantai cause. */
+    private static java.net.ConnectException findConn(Throwable t) {
+        for (int i = 0; t != null && i < 8; i++) {
+            if (t instanceof java.net.ConnectException) return (java.net.ConnectException) t;
+            t = t.getCause();
+        }
+        return null;
     }
 
     /** Sisa bagian key untuk pesan galat, tanpa membocorkan key utuh. */
