@@ -95,7 +95,7 @@ final class AiVoice implements TextToSpeech.OnInitListener {
                         }
                     }
                     /* mesin utama TTS_AUDIO juga ikut ditawarkan */
-                    String def = TextToSpeech.getDefaultEngine(app);
+                    String def = TextToSpeech.getDefaultEngine();
                     if (def != null) {
                         boolean have = false;
                         for (String[] e : out) if (e[0].equals(def)) { have = true; break; }
@@ -131,13 +131,8 @@ final class AiVoice implements TextToSpeech.OnInitListener {
         initTts();
         if (!ttsReady) { pendingSay = clean; return; }
         try {
-            if (Build.VERSION.SDK_INT >= 21) {
-                tts.speak(clean, TextToSpeech.QUEUE_FLUSH, null, "arkael-ai");
-            } else {
-                Bundle p = new Bundle();
-                p.putString(TextToSpeech.Engine.KEY_PARAM_UTTERANCE_ID, "arkael-ai");
-                tts.speak(clean, TextToSpeech.QUEUE_FLUSH, p);
-            }
+            /* minSdk 24: pakai overload Bundle + utteranceId, bukan HashMap era API < 21. */
+            tts.speak(clean, TextToSpeech.QUEUE_FLUSH, null, "arkael-ai");
         } catch (Exception ignore) {}
     }
 
@@ -179,9 +174,9 @@ final class AiVoice implements TextToSpeech.OnInitListener {
     private static boolean hasRecognizer(Context c) {
         if (!SpeechRecognizer.isRecognitionAvailable(c)) return false;
         Intent i = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        List<ResolveInfo> r = c.getPackageManager()
-                .queryIntentServices(i, Build.VERSION.SDK_INT >= 33
-                        ? PackageManager.ResolveInfoFlags.of(0) : 0);
+        List<ResolveInfo> r = Build.VERSION.SDK_INT >= 33
+                ? c.getPackageManager().queryIntentServices(i, PackageManager.ResolveInfoFlags.of(0))
+                : c.getPackageManager().queryIntentServices(i, 0);
         return r != null && !r.isEmpty();
     }
 
