@@ -78,8 +78,25 @@ final class AiClient {
                             JSONObject e = ej.optJSONObject("error");
                             if (e != null && !e.optString("message", "").isEmpty()) msg = e.optString("message");
                             else if (!ej.optString("message", "").isEmpty()) msg = ej.optString("message");
-                        } catch (Exception ignore) {}
+                        } catch (Exception ignore) {
+                            /* Gemini kadang balas array [{"error":{...}}] */
+                            try {
+                                JSONArray arr = new JSONArray(err);
+                                JSONObject ej = arr.optJSONObject(0);
+                                JSONObject e = ej == null ? null : ej.optJSONObject("error");
+                                if (e != null && !e.optString("message", "").isEmpty()) msg = e.optString("message");
+                            } catch (Exception ignore2) {}
+                        }
                         String tip = "";
+                        if (code == 429) {
+                            String ra = c.getHeaderField("Retry-After");
+                            tip = "\n\nKuota / rate limit provider (" + provider + ") habis."
+                                + "\n\u2022 Tunggu "
+                                + (ra == null || ra.trim().isEmpty() ? "beberapa saat" : ra.trim() + " detik")
+                                + " lalu kirim ulang"
+                                + "\n\u2022 Mode chat gratis punya batas per menit dan per hari"
+                                + "\n\u2022 Kurangi lampiran besar / gambar di pesan berikutnya";
+                        }
                         if (code == 401 || code == 403) {
                             tip = "\n\nKey ditolak provider (" + provider + ")."
                                 + "\n\u2022 Cek key di menu \u2699 \u2192 " + provider + ": " + keyMask(key)
