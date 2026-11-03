@@ -1074,7 +1074,8 @@ public class AiChatActivity extends AppCompatActivity {
             } finally {
                 os.close();
             }
-            runOnUiThread(() -> bubble("AGENT \u00B7 write_file", f.getAbsolutePath(), false));
+            final String done = f.getAbsolutePath();
+            runOnUiThread(() -> bubble("AGENT \u00B7 write_file", done, false));
             return "tertulis: " + f.getAbsolutePath() + "\n" + AiFiles.humanSize(f.length());
         } catch (Exception e) {
             return "gagal menulis: " + e.getMessage();
