@@ -10,6 +10,7 @@ import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.ComponentName;
 import android.content.Context;
+import android.content.SharedPreferences;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.pm.ActivityInfo;
@@ -329,6 +330,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         chips.addView(chip(Tr.s("🔊  Suara"), v -> showAudioLangDialog()));
         chips.addView(chip("⬇  Download", v -> showDownloadDialog()));
         chips.addView(chip("🧩  Extras", v -> showExtrasDialog()));
+        chips.addView(chip("🌐  Jaringan", v -> showNetworkDialog()));
         chipMode = chip("🔁  Otomatis", v -> showModeDialog());
         chips.addView(chipMode);
         chips.addView(chip("⏭  Berikutnya", v -> exGoNext(true)));
@@ -588,7 +590,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
         } else {
             b.clearVideoSizeConstraints();
         }
-        android.content.SharedPreferences sp = getSharedPreferences(PREFS, MODE_PRIVATE);
+        SharedPreferences sp = getSharedPreferences(PREFS, MODE_PRIVATE);
         String audioLang = sp.getString(K_AUDIOLANG, "");
         if (!audioLang.isEmpty()) b.setPreferredAudioLanguage(audioLang);
         controller.setTrackSelectionParameters(b.build());
@@ -1556,6 +1558,7 @@ public class YoutubePlayerActivity extends AppCompatActivity {
             for (int i = 0; i < exSegs.size(); i++) {
                 YtExtras.Seg g = exSegs.get(i);
                 if (exSkipped.contains(i)) continue;                 // sekali saja per segmen: kalau diputar ulang, tidak dipaksa
+                if (!YtExtras.sbWanted(this, g.category)) continue;  // kategori yang tidak dicentang user
                 if (pos >= g.startMs && pos < g.endMs - 400) {
                     exSkipped.add(i);
                     long to = g.endMs;
@@ -1621,6 +1624,110 @@ public class YoutubePlayerActivity extends AppCompatActivity {
                         if (!exOn("ex_ryd") && curInfo.getLikeCount() >= 0) likes.setText("👍 " + compact(curInfo.getLikeCount()));
                     }
                     if (videoUrl != null) loadExtras(videoUrl);
+                })
+                .setNeutralButton("Kategori…", (d, w) -> showSponsorCategories())
+                .setNegativeButton(Tr.s("Batal"), null)
+                .show();
+    }
+
+    /** Pilih kategori SponsorBlock mana yang dilewati. Dipakai saat memutar video berikutnya. */
+    private void showSponsorCategories() {
+        final String[] cats = YtExtras.sbCategories();
+        String[] names = new String[cats.length];
+        final boolean[] on = new boolean[cats.length];
+        for (int i = 0; i < cats.length; i++) {
+            names[i] = YtExtras.categoryLabel(cats[i]);
+            on[i] = getSharedPreferences("ark_yt_extras", MODE_PRIVATE).getBoolean("sb_" + cats[i], YtExtras.sbDefaultOn(cats[i]));
+        }
+        new AlertDialog.Builder(this)
+                .setTitle("SponsorBlock — kategori")
+                .setMultiChoiceItems(names, on, (d, which, checked) -> YtExtras.sbSet(this, cats[which], checked))
+                .setPositiveButton("OK", (d, w) -> {
+                    if (videoUrl != null) loadExtras(videoUrl);      // muat ulang segmen sesuai pilihan
+                })
+                .setNegativeButton(Tr.s("Batal"), null)
+                .show();
+    }
+
+    // ---------------------------------------------------------------- jaringan / cache (YtNet)
+
+    private void showNetworkDialog() {
+        final String[] modeNames = {"Bawaan Media3", "YouTube Android (rekomendasi)", "Chrome desktop", "Kustom…"};
+        final String[] modes = {"default", "youtube", "chrome", "custom"};
+        String cur = getSharedPreferences(YtNet.PREF, MODE_PRIVATE).getString(YtNet.K_UA, "default");
+        int sel = 0;
+        for (int i = 0; i < modes.length; i++) if (modes[i].equals(cur)) sel = i;
+
+        String[] opts = {
+                "Mode User-Agent: " + modeNames[sel],
+                "Cache video: " + (YtNet.cacheMb(this) <= 0 ? "mati" : YtNet.cacheMb(this) + " MB"),
+                "Kosongkan cache sekarang",
+        };
+        new AlertDialog.Builder(this)
+                .setTitle("Jaringan & cache")
+                .setItems(opts, (d, which) -> {
+                    if (which == 0) chooseUserAgent(modeNames, modes, sel);
+                    else if (which == 1) chooseCacheSize();
+                    else confirmClearCache();
+                })
+                .setMessage("User-Agent browser membantu kalau ada video yang menolak diputar. Cache menyimpan bagian video yang sudah ditonton di HP, jadi tidak diunduh ulang.")
+                .setNegativeButton("Tutup", null)
+                .show();
+    }
+
+    private void chooseUserAgent(final String[] modeNames, final String[] modes, int sel) {
+        new AlertDialog.Builder(this)
+                .setTitle("User-Agent")
+                .setSingleChoiceItems(modeNames, sel, (d, which) -> {
+                    d.dismiss();
+                    if (which == modes.length - 1) askCustomUserAgent();      // "Kustom…"
+                    else {
+                        YtNet.setMode(this, modes[which], null);
+                        Toast.makeText(this, "UA: " + modeNames[which], Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton(Tr.s("Batal"), null)
+                .show();
+    }
+
+    private void askCustomUserAgent() {
+        final android.widget.EditText et = new android.widget.EditText(this);
+        et.setText(getSharedPreferences(YtNet.PREF, MODE_PRIVATE).getString(YtNet.K_UA_CUSTOM, ""));
+        et.setHint("Mozilla/5.0 …");
+        new AlertDialog.Builder(this)
+                .setTitle("User-Agent kustom")
+                .setView(et)
+                .setPositiveButton("Simpan", (d, w) -> {
+                    YtNet.setMode(this, "custom", et.getText().toString().trim());
+                    Toast.makeText(this, "UA kustom disimpan", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton(Tr.s("Batal"), null)
+                .show();
+    }
+
+    private void chooseCacheSize() {
+        final String[] names = {"Mati", "128 MB", "256 MB", "512 MB", "1 GB", "2 GB"};
+        final int[] mb = {0, 128, 256, 512, 1024, 2048};
+        int cur = YtNet.cacheMb(this), sel = 2;
+        for (int i = 0; i < mb.length; i++) if (mb[i] == cur) sel = i;
+        new AlertDialog.Builder(this)
+                .setTitle("Batas cache video")
+                .setSingleChoiceItems(names, sel, (d, which) -> {
+                    d.dismiss();
+                    YtNet.setCacheMb(this, mb[which]);
+                    Toast.makeText(this, "Cache: " + names[which] + " (aktif setelah video berikutnya)", Toast.LENGTH_SHORT).show();
+                })
+                .setNegativeButton(Tr.s("Batal"), null)
+                .show();
+    }
+
+    private void confirmClearCache() {
+        new AlertDialog.Builder(this)
+                .setTitle("Kosongkan cache?")
+                .setMessage("Semua video yang tersimpan di cache akan dihapus dari HP. Kuota yang sudah dipakai tidak kembali.")
+                .setPositiveButton("Hapus", (d, w) -> {
+                    YtNet.clearCache(this);
+                    Toast.makeText(this, "Cache dikosongkan", Toast.LENGTH_SHORT).show();
                 })
                 .setNegativeButton(Tr.s("Batal"), null)
                 .show();

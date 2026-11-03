@@ -135,7 +135,10 @@ final class YtExtras {
         String category;
     }
 
-    private static final String SB_CATEGORIES = "[\"sponsor\",\"selfpromo\",\"interaction\"]";
+    // Kategori SponsorBlock yang dicek. "intro", "outro", "preview", "music_offtopic", "filler"
+    // ikut diminta tapi hanya dipakai kalau user menyalakannya sendiri (lihat sbWanted()).
+    private static final String SB_CATEGORIES =
+            "[\"sponsor\",\"selfpromo\",\"interaction\",\"intro\",\"outro\",\"preview\",\"music_offtopic\",\"filler\"]";
 
     /** Segmen yang dilewati. Pakai endpoint hash-prefix (4 hex) supaya ID video asli tidak dikirim ke server. */
     static List<Seg> sponsorSegments(String id) {
@@ -176,7 +179,32 @@ final class YtExtras {
         if ("sponsor".equals(c)) return "Sponsor";
         if ("selfpromo".equals(c)) return "Promosi sendiri";
         if ("interaction".equals(c)) return "Pengingat like/subscribe";
+        if ("intro".equals(c)) return "Intro / animasi pembuka";
+        if ("outro".equals(c)) return "Outro / kredit akhir";
+        if ("preview".equals(c)) return "Cuplikan ulasan";
+        if ("music_offtopic".equals(c)) return "Bukan bagian musik";
+        if ("filler".equals(c)) return "Isian / filler";
         return c;
+    }
+
+    /** Semua kategori yang tersedia untuk setelan (kunci, label). */
+    static String[] sbCategories() {
+        return new String[]{"sponsor", "selfpromo", "interaction", "intro", "outro", "preview", "music_offtopic", "filler"};
+    }
+
+    /** Default: hanya tiga kategori pertama, sisanya opt-in karena sering memotong bagian penting. */
+    static boolean sbDefaultOn(String cat) {
+        return "sponsor".equals(cat) || "selfpromo".equals(cat) || "interaction".equals(cat);
+    }
+
+    static boolean sbWanted(Context c, String cat) {
+        SharedPreferences p = c.getApplicationContext().getSharedPreferences("ark_yt_extras", Context.MODE_PRIVATE);
+        return p.getBoolean("sb_" + cat, sbDefaultOn(cat));
+    }
+
+    static void sbSet(Context c, String cat, boolean on) {
+        c.getApplicationContext().getSharedPreferences("ark_yt_extras", Context.MODE_PRIVATE)
+                .edit().putBoolean("sb_" + cat, on).apply();
     }
 
     // ---------------------------------------------------------------- Return YouTube Dislike

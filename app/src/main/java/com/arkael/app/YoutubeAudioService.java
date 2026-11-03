@@ -10,6 +10,7 @@ import androidx.media3.common.AudioAttributes;
 import androidx.media3.common.C;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
+import androidx.media3.common.util.UnstableApi;
 import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.session.MediaSession;
 import androidx.media3.session.MediaSessionService;
@@ -25,6 +26,7 @@ import java.util.List;
  * Activity, audio mode keeps playing in the background, and Android shows the standard media
  * notification (play / pause) for it. The Activity talks to this player through a MediaController.
  */
+@UnstableApi
 public class YoutubeAudioService extends MediaSessionService {
     private MediaSession session;
 
@@ -37,6 +39,8 @@ public class YoutubeAudioService extends MediaSessionService {
                         .setContentType(C.AUDIO_CONTENT_TYPE_MOVIE)
                         .build(), true)
                 .setHandleAudioBecomingNoisy(true)
+                // UA browser + cache disk: lihat YtNet
+                .setMediaSourceFactory(YtNet.mediaSourceFactory(this))
                 .build();
         // Tapping the notification re-opens the player screen and re-attaches to what is playing.
         Intent open = new Intent(this, YoutubePlayerActivity.class)

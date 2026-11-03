@@ -68,9 +68,9 @@
 
             <activity android:name=".GameListActivity" android:exported="false" android:label="Games"/>
 
-        <activity android:name=".YoutubeSearchActivity" android:exported="false" android:label="YouTube"
+        <activity android:name=".YoutubeSearchActivity" android:exported="false" android:label="Arkael YouTube"
             android:configChanges="orientation|screenSize|keyboardHidden"/>
-        <activity android:name=".YoutubePlayerActivity" android:exported="false" android:label="YouTube"
+        <activity android:name=".YoutubePlayerActivity" android:exported="false" android:label="Arkael YouTube"
             android:theme="@style/Theme.Arkael"
             android:supportsPictureInPicture="true"
             android:resizeableActivity="true"
