@@ -50,6 +50,16 @@ final class AiImage {
     /** Menghasilkan gambar dan mengembalikan path file. Melempar Exception berisi pesan siap tampil. */
     static String generate(Context ctx, String provider, String key, String customUrl,
                            String prompt, String size) throws Exception {
+        return generate(ctx, provider, key, customUrl, prompt, size, null);
+    }
+
+    /**
+     * Sama seperti generate(), plus reference = path gambar acuan (img2img).
+     * OpenAI/custom memakai /v1/images/edits (multipart). Pollinations tak punya img2img,
+     * jadi acuan cuma dipakai sebagai tambahan deskripsi.
+     */
+    static String generate(Context ctx, String provider, String key, String customUrl,
+                           String prompt, String size, String reference) throws Exception {
         prompt = normPrompt(prompt);
         if (prompt.isEmpty()) throw new Exception("prompt gambar kosong");
         size = normSize(size);
@@ -58,9 +68,15 @@ final class AiImage {
         if (!dir.exists() && !dir.mkdirs()) throw new Exception("tidak bisa membuat folder gambar");
         File out = new File(dir, "img_" + System.currentTimeMillis() + ".png");
 
+        boolean refOk = false;
+        File ref = reference == null || reference.trim().isEmpty() ? null : new File(reference.trim());
+        if (ref != null && ref.isFile() && AiFiles.isImage(ref) && ref.length() <= (4 << 20)) refOk = true;
+        if (ref != null && !refOk) prompt = prompt + " (acuan: " + ref.getName() + ")";
+
         byte[] data;
         if ("openai".equals(provider) || "custom".equals(provider)) {
-            data = viaOpenAi(provider, key, customUrl, prompt, size);
+            data = refOk ? viaOpenAiEdit(provider, key, customUrl, prompt, size, ref)
+                         : viaOpenAi(provider, key, customUrl, prompt, size);
         } else {
             data = viaPollinations(prompt, size);
         }
@@ -86,6 +102,73 @@ final class AiImage {
         int code = c.getResponseCode();
         if (code < 200 || code >= 300) throw new Exception("HTTP " + code + " dari image.pollinations.ai");
         return read(c.getInputStream());
+    }
+
+    /** img2img: POST multipart ke /images/edits (OpenAI gpt-image-1 / dall-e-2). */
+    private static byte[] viaOpenAiEdit(String provider, String key, String customUrl,
+                                        String prompt, String size, File ref) throws Exception {
+        String ep;
+        String base = "https://api.openai.com/v1";
+        if ("custom".equals(provider)) {
+            base = customUrl == null ? "" : customUrl.trim();
+            if (base.isEmpty()) throw new Exception("URL custom belum diisi");
+            for (String tail : new String[]{"/chat/completions", "/images/generations", "/images/edits"}) {
+                if (base.endsWith(tail)) base = base.substring(0, base.length() - tail.length());
+            }
+        }
+        ep = base + "/images/edits";
+
+        String boundary = "----arkael" + System.currentTimeMillis();
+        HttpURLConnection c = (HttpURLConnection) new URL(ep).openConnection();
+        c.setRequestMethod("POST");
+        c.setDoOutput(true);
+        c.setConnectTimeout(20000);
+        c.setReadTimeout(240000);
+        c.setRequestProperty("Content-Type", "multipart/form-data; boundary=" + boundary);
+        c.setRequestProperty("Authorization", "Bearer " + (key == null ? "" : key.trim()));
+
+        OutputStream os = c.getOutputStream();
+        try {
+            StringBuilder head = new StringBuilder();
+            head.append("--").append(boundary).append("\r\n");
+            head.append("Content-Disposition: form-data; name=\"model\"\r\n\r\ngpt-image-1\r\n");
+            head.append("--").append(boundary).append("\r\n");
+            head.append("Content-Disposition: form-data; name=\"prompt\"\r\n\r\n").append(prompt).append("\r\n");
+            head.append("--").append(boundary).append("\r\n");
+            head.append("Content-Disposition: form-data; name=\"size\"\r\n\r\n").append(size).append("\r\n");
+            head.append("--").append(boundary).append("\r\n");
+            head.append("Content-Disposition: form-data; name=\"n\"\r\n\r\n1\r\n");
+            head.append("--").append(boundary).append("\r\n");
+            head.append("Content-Disposition: form-data; name=\"image\"; filename=\"")
+                .append(AiFiles.safeName(ref.getName())).append("\"\r\n");
+            head.append("Content-Type: ").append(AiFiles.mime(ref)).append("\r\n\r\n");
+            os.write(head.toString().getBytes("UTF-8"));
+
+            InputStream in = new java.io.FileInputStream(ref);
+            try {
+                byte[] buf = new byte[64 * 1024];
+                int r;
+                while ((r = in.read(buf)) > 0) os.write(buf, 0, r);
+            } finally {
+                try { in.close(); } catch (Exception ignore) {}
+            }
+            os.write(("\r\n--" + boundary + "--\r\n").getBytes("UTF-8"));
+            os.flush();
+        } finally {
+            os.close();
+        }
+
+        int code = c.getResponseCode();
+        String raw = readText(code < 200 || code >= 300 ? c.getErrorStream() : c.getInputStream());
+        if (code < 200 || code >= 300) {
+            String msg = raw;
+            try {
+                JSONObject e = new JSONObject(raw).optJSONObject("error");
+                if (e != null && !e.optString("message", "").isEmpty()) msg = e.optString("message");
+            } catch (Exception ignore) {}
+            throw new Exception("HTTP " + code + " dari images/edits: " + msg);
+        }
+        return decodeImage(raw);
     }
 
     private static byte[] viaOpenAi(String provider, String key, String customUrl,
@@ -131,6 +214,11 @@ final class AiImage {
             throw new Exception("HTTP " + code + ": " + msg);
         }
 
+        return decodeImage(raw);
+    }
+
+    /** Balasan Images API: b64_json langsung, atau url yang diunduh. */
+    private static byte[] decodeImage(String raw) throws Exception {
         JSONObject j = new JSONObject(raw);
         JSONObject item = null;
         org.json.JSONArray arr = j.optJSONArray("data");

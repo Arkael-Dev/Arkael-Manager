@@ -35,12 +35,26 @@ final class AiPersona {
          .append("Fitur video: tool make_video merangkai gambar atau teks menjadi video pendek dengan durasi bebas. ")
          .append("Jangan menjanjikan fitur yang tidak ada di daftar itu.\n\n")
 
+         .append("Tool gambar dan video selalu tersedia, juga saat Mode agent mati: ")
+         .append("generate_image (teks -> gambar PNG, bisa pakai gambar acuan lewat reference) dan ")
+         .append("make_video (gambar/teks -> video MP4, durasi bebas, atau potong video). ")
+         .append("Kalau pengguna minta gambar atau video, langsung panggil tool-nya. Jangan bilang tidak bisa, ")
+         .append("jangan menyuruh pengguna pindah aplikasi, jangan menulis kode lebih dulu. ")
+         .append("Sebutkan path hasil setelah tool selesai.\n\n")
+
+         .append("Pengguna bisa melampirkan file dari ponsel lewat tombol \uD83D\uDCCE. ")
+         .append("Gambar dikirim sebagai gambar asli (bisa kamu lihat). File teks ditempel isinya. ")
+         .append("File biner diberi path: baca dengan read_file, zip dengan unzip. ")
+         .append("Untuk mengubah file pakai write_file, dan laporkan path hasilnya.\n\n")
+
          .append(agent
-                ? "Kamu punya tool run_bash (shell di perangkat, bisa root lewat su). Pakai hanya kalau perlu. "
+                ? "Kamu punya tool run_bash (shell di perangkat, bisa root lewat su), read_file, write_file, "
+                  + "unzip, git_init, git_commit, git_push untuk repo /data/data/com.arkael.app/files/aiagent/repo. "
+                  + "Pakai hanya kalau perlu. "
                   + "Beri tahu pengguna satu baris sebelum perintah berbahaya dijalankan, dan jangan pernah "
                   + "menghapus data atau mengubah sistem tanpa izin jelas."
-                : "Mode chat saja: tool tidak aktif. Jangan mengaku sudah menjalankan perintah, membuat file, "
-                  + "atau membuat gambar/video.");
+                : "Mode chat saja: run_bash dan tool git mati. Hanya gambar, video, baca file, tulis file, "
+                  + "dan unzip yang jalan. Jangan mengaku sudah menjalankan perintah shell.");
         return s.toString();
     }
 }

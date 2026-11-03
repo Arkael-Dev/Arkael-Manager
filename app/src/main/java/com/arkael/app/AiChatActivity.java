@@ -45,6 +45,41 @@ public class AiChatActivity extends AppCompatActivity {
     private final JSONArray history = new JSONArray();
     private boolean busy = false;
     private int toolLoops = 0;
+    /** Lampiran pesan berikutnya; dikosongkan setelah terkirim. */
+    private final List<Attachment> pending = new ArrayList<>();
+
+    /** File yang dilampirkan plus tugasnya: kirim ke AI, langsung dibuatkan gambar, atau video. */
+    private static final class Attachment {
+        static final String TO_AI = "ai";
+        static final String IMAGE = "image";
+        static final String VIDEO = "video";
+
+        final File file;
+        String task = TO_AI;
+
+        Attachment(File f) { this.file = f; }
+
+        boolean isImage() { return AiFiles.isImage(file); }
+
+        String taskLabel() {
+            if (IMAGE.equals(task)) return "jadikan gambar";
+            if (VIDEO.equals(task)) return "jadikan video";
+            return isImage() ? "lihat gambar" : "baca file";
+        }
+
+        /** Saran prompt untuk AI, melihat isi file lebih dulu. */
+        String promptFor() {
+            String n = file.getName();
+            if (IMAGE.equals(task)) return "Buat ulang gambar ini jadi versi baru: " + n;
+            if (VIDEO.equals(task)) return "Buat video dari gambar " + n;
+            String body = AiFiles.isText(file) ? AiFiles.textOf(file, 3000) : null;
+            if (body == null || body.trim().isEmpty()) return "Jelaskan isi file " + n;
+            return "Jelaskan isi file ini:\n(" + n + ")\n\n" + body;
+        }
+    }
+    private LinearLayout attachBar;
+    /** Maksud lampiran yang sedang dipilih (lihat Attachment). */
+    private String pendingTask = Attachment.TO_AI;
 
     private int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
 
@@ -142,6 +177,15 @@ public class AiChatActivity extends AppCompatActivity {
     }
 
     private View composer() {
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+
+        attachBar = new LinearLayout(this);
+        attachBar.setOrientation(LinearLayout.VERTICAL);
+        attachBar.setPadding(dp(12), dp(4), dp(12), 0);
+        attachBar.setVisibility(View.GONE);
+        col.addView(attachBar);
+
         LinearLayout c = new LinearLayout(this);
         c.setOrientation(LinearLayout.HORIZONTAL);
         c.setGravity(Gravity.BOTTOM);
@@ -162,6 +206,17 @@ public class AiChatActivity extends AppCompatActivity {
         input.setLayoutParams(ilp);
         c.addView(input);
 
+        Button clip = new Button(this);
+        clip.setText("\uD83D\uDCCE");
+        clip.setTextSize(15);
+        clip.setBackground(bg(CARD, 18));
+        clip.setTextColor(Color.parseColor(ACCENT));
+        LinearLayout.LayoutParams clp = new LinearLayout.LayoutParams(dp(46), dp(46));
+        clp.setMarginStart(dp(8));
+        clip.setLayoutParams(clp);
+        clip.setOnClickListener(v -> pickFile(Attachment.TO_AI));
+        c.addView(clip);
+
         Button send = new Button(this);
         send.setText("\u27A4");
         send.setTextColor(Color.parseColor(BG));
@@ -172,7 +227,153 @@ public class AiChatActivity extends AppCompatActivity {
         send.setLayoutParams(slp);
         send.setOnClickListener(v -> onSend());
         c.addView(send);
-        return c;
+        col.addView(c);
+        return col;
+    }
+
+    /** Pemilih file sistem: semua tipe, boleh banyak sekaligus. task = maksud lampiran. */
+    private void pickFile(String task) {
+        if (pending.size() >= AiFiles.MAX_ATTACH) {
+            Toast.makeText(this, "Maksimal " + AiFiles.MAX_ATTACH + " lampiran", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        try {
+            android.content.Intent i = new android.content.Intent(android.content.Intent.ACTION_OPEN_DOCUMENT);
+            i.addCategory(android.content.Intent.CATEGORY_OPENABLE);
+            i.setType("*/*");
+            i.putExtra(android.content.Intent.EXTRA_ALLOW_MULTIPLE, true);
+            pendingTask = task == null ? Attachment.TO_AI : task;
+            startActivityForResult(i, 4711);
+        } catch (Exception e) {
+            Toast.makeText(this, "Tidak ada pemilih file: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
+    }
+
+    @Override
+    protected void onActivityResult(int req, int res, android.content.Intent data) {
+        super.onActivityResult(req, res, data);
+        if (req != 4711 || res != RESULT_OK || data == null) return;
+        List<android.net.Uri> uris = new ArrayList<>();
+        if (data.getClipData() != null) {
+            for (int i = 0; i < data.getClipData().getItemCount(); i++) {
+                uris.add(data.getClipData().getItemAt(i).getUri());
+            }
+        } else if (data.getData() != null) {
+            uris.add(data.getData());
+        }
+        for (android.net.Uri u : uris) {
+            if (pending.size() >= AiFiles.MAX_ATTACH) break;
+            try {
+                Attachment a = new Attachment(AiFiles.saveFromUri(this, u));
+                a.task = pendingTask;
+                pending.add(a);
+            } catch (Exception e) {
+                Toast.makeText(this, "Gagal melampirkan: " + e.getMessage(), Toast.LENGTH_LONG).show();
+            }
+        }
+        renderAttach();
+    }
+
+    /**
+     * Ketuk chip = ganti tugas. Gambar: lihat <-> jadikan gambar <-> jadikan video.
+     * File lain: baca <-> jadikan gambar (dipakai sebagai acuan).
+     */
+    private void cycleTask(Attachment a) {
+        if (a.isImage()) {
+            a.task = Attachment.TO_AI.equals(a.task) ? Attachment.IMAGE
+                    : Attachment.IMAGE.equals(a.task) ? Attachment.VIDEO : Attachment.TO_AI;
+        } else {
+            a.task = Attachment.TO_AI.equals(a.task) ? Attachment.IMAGE : Attachment.TO_AI;
+        }
+        if (Attachment.IMAGE.equals(a.task) && a.isImage()) {
+            Toast.makeText(this, "Gambar akan dipakai sebagai acuan generate gambar", Toast.LENGTH_SHORT).show();
+        }
+        renderAttach();
+    }
+
+    /** Tombol aksi cepat di bawah chip: gambar / video / kirim saja. */
+    private void attachActions(LinearLayout bar) {
+        LinearLayout acts = new LinearLayout(this);
+        acts.setOrientation(LinearLayout.HORIZONTAL);
+        acts.setPadding(0, dp(2), 0, dp(6));
+        bar.addView(acts);
+
+        acts.addView(miniButton("\u2728 Gambar", () -> startAttachTask(Attachment.IMAGE)));
+        acts.addView(miniButton("\uD83C\uDFAC Video", () -> startAttachTask(Attachment.VIDEO)));
+        acts.addView(miniButton("\u27A4 Kirim", this::onSend));
+    }
+
+    private Button miniButton(String label, Runnable onClick) {
+        Button b = new Button(this);
+        b.setText(label);
+        b.setTextSize(11);
+        b.setAllCaps(false);
+        b.setTextColor(Color.parseColor(ACCENT));
+        b.setBackground(bg(CARD, 14));
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, dp(34));
+        lp.setMarginEnd(dp(6));
+        b.setLayoutParams(lp);
+        b.setPadding(dp(12), 0, dp(12), 0);
+        b.setOnClickListener(v -> onClick.run());
+        return b;
+    }
+
+    /** Kalau sudah ada lampiran: langsung jalankan tugasnya. Kalau belum: buka pemilih file. */
+    private void startAttachTask(String task) {
+        if (pending.isEmpty()) { pickFile(task); return; }
+        for (Attachment a : pending) a.task = task;
+        renderAttach();
+        onSend();
+    }
+
+    /** Chip lampiran: nama, jenis, ukuran, tombol buang. */
+    private void renderAttach() {
+        if (attachBar == null) return;
+        attachBar.removeAllViews();
+        if (pending.isEmpty()) { attachBar.setVisibility(View.GONE); return; }
+        attachBar.setVisibility(View.VISIBLE);
+
+        TextView head = new TextView(this);
+        head.setText("LAMPIRAN \u00B7 " + pending.size() + " file");
+        head.setTextColor(Color.parseColor(ACCENT));
+        head.setTextSize(10);
+        head.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        head.setPadding(0, 0, 0, dp(4));
+        attachBar.addView(head);
+
+        for (int i = 0; i < pending.size(); i++) {
+            final Attachment a = pending.get(i);
+            final File f = a.file;
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setBackground(bg(CARD, 12));
+            row.setPadding(dp(10), dp(7), dp(10), dp(7));
+            LinearLayout.LayoutParams rlp = new LinearLayout.LayoutParams(-1, -2);
+            rlp.bottomMargin = dp(4);
+            row.setLayoutParams(rlp);
+
+            TextView nm = new TextView(this);
+            nm.setText(f.getName() + "\n" + AiFiles.kind(f) + " \u00B7 " + AiFiles.humanSize(f.length())
+                    + "  \u00B7  " + a.taskLabel());
+            nm.setOnClickListener(v -> cycleTask(a));
+            nm.setTextColor(Color.parseColor(TXT));
+            nm.setTextSize(11);
+            nm.setLayoutParams(new LinearLayout.LayoutParams(0, -2, 1f));
+            row.addView(nm);
+
+            TextView x = new TextView(this);
+            x.setText("\u2715");
+            x.setTextColor(Color.parseColor(SUB));
+            x.setTextSize(15);
+            x.setPadding(dp(10), 0, dp(2), 0);
+            x.setOnClickListener(v -> { pending.remove(a); renderAttach(); });
+            row.addView(x);
+
+            attachBar.addView(row);
+        }
+        attachActions(attachBar);
+        scrollDown();
     }
 
     private GradientDrawable bg(String color, int radius) {
@@ -222,7 +423,7 @@ public class AiChatActivity extends AppCompatActivity {
     private void onSend() {
         if (busy) { Toast.makeText(this, "Tunggu jawaban sebelumnya", Toast.LENGTH_SHORT).show(); return; }
         final String q = input.getText().toString().trim();
-        if (q.isEmpty()) return;
+        if (q.isEmpty() && pending.isEmpty()) return;
         if (!AiStore.ready(this)) {
             bubble("AI", AiStore.problem(this) + ".\n\nMenu \u2699 terbuka: pilih AI, tempel key, tekan Tes.", false);
             openSettings();
@@ -235,13 +436,73 @@ public class AiChatActivity extends AppCompatActivity {
             if (im != null) im.hideSoftInputFromWindow(input.getWindowToken(), 0);
         } catch (Exception ignore) {}
 
-        bubble("KAMU", q, true);
+        final List<Attachment> files = new ArrayList<>(pending);
+        pending.clear();
+        renderAttach();
+
+        // Lampiran bergambar/video dijalankan langsung lewat tool, tanpa menunggu model memutuskan.
+        final List<Attachment> toMedia = new ArrayList<>();
+        final List<Attachment> toAi = new ArrayList<>();
+        for (Attachment a : files) {
+            boolean media = (Attachment.IMAGE.equals(a.task) || Attachment.VIDEO.equals(a.task))
+                    && a.isImage();
+            if (media) toMedia.add(a); else toAi.add(a);
+        }
+
+        StringBuilder shown = new StringBuilder(q);
+        for (Attachment a : files) {
+            shown.append(shown.length() == 0 ? "" : "\n").append("\uD83D\uDCCE ").append(a.file.getName())
+                 .append("  (").append(AiFiles.kind(a.file)).append(" \u00B7 ")
+                 .append(AiFiles.humanSize(a.file.length())).append(" \u00B7 ").append(a.taskLabel()).append(")");
+        }
+        bubble("KAMU", shown.toString(), true);
+        for (Attachment a : toAi) showAttachmentPreview(a.file);
+
+        String text = q;
+        if (text.isEmpty() && !toMedia.isEmpty()) {
+            text = toMedia.stream().map(Attachment::promptFor).reduce((x, y) -> x + "\n" + y).orElse("");
+        }
+
         try {
             JSONObject m = new JSONObject();
             m.put("role", "user");
-            m.put("content", q);
+            m.put("content", userContent(text, toAi));
             history.put(m);
         } catch (Exception ignore) {}
+
+        if (!toMedia.isEmpty()) {
+            final String prompt = text;
+            final TextView ai0 = bubble("AI", "", false);
+            busy = true;
+            toolLoops = 0;
+            new Thread(() -> {
+                StringBuilder sb = new StringBuilder();
+                for (Attachment a : toMedia) {
+                    String out = Attachment.VIDEO.equals(a.task)
+                            ? toolVideoFromPrompt(prompt, a.file)
+                            : toolImageFromPrompt(prompt, a.file);
+                    sb.append(out).append("\n\n");
+                    final String o = out;
+                    final String nm = Attachment.VIDEO.equals(a.task) ? "make_video" : "generate_image";
+                    runOnUiThread(() -> {
+                        TextView t = bubble("OUTPUT \u00B7 " + nm, o, false);
+                        showMedia(t, o);
+                    });
+                }
+                final String result = sb.toString().trim();
+                runOnUiThread(() -> {
+                    ai0.setText(result);
+                    try {
+                        JSONObject tm = new JSONObject();
+                        tm.put("role", "assistant");
+                        tm.put("content", result);
+                        history.put(tm);
+                    } catch (Exception ignore) {}
+                    busy = false;
+                });
+            }, "arkael-ai-media").start();
+            return;
+        }
 
         final TextView ai = bubble("AI", "", false);
         busy = true;
@@ -328,6 +589,14 @@ public class AiChatActivity extends AppCompatActivity {
                     out = toolVideo(args);
                 } else if ("run_bash".equals(name)) {
                     out = toolBash(args);
+                } else if ("read_file".equals(name)) {
+                    out = toolReadFile(args);
+                } else if ("write_file".equals(name)) {
+                    out = toolWriteFile(args);
+                } else if ("unzip".equals(name)) {
+                    out = toolUnzip(args);
+                } else if (name.startsWith("git_")) {
+                    out = toolGit(name, args);
                 } else {
                     out = "tool tidak dikenal: " + name;
                 }
@@ -374,10 +643,15 @@ public class AiChatActivity extends AppCompatActivity {
         String prompt = args.optString("prompt", "");
         String size = args.optString("size", "1024x1024");
         runOnUiThread(() -> bubble("AGENT \u00B7 generate_image", prompt, false));
+        String ref = args.optString("reference", "").trim();
+        if (!ref.isEmpty()) {
+            File rf = resolve(ref);
+            ref = rf.isFile() ? rf.getAbsolutePath() : "";
+        }
         try {
             String prov = AiStore.provider(this);
             String path = AiImage.generate(this, prov, AiStore.key(this),
-                    AiStore.customUrl(this), prompt, size);
+                    AiStore.customUrl(this), prompt, size, ref);
             File f = new File(path);
             return "gambar tersimpan\n" + path + "\nukuran file: " + (f.length() / 1024) + " KB"
                     + "\nformat: " + AiImage.normSize(size);
@@ -544,6 +818,130 @@ public class AiChatActivity extends AppCompatActivity {
         }
     }
 
+    /** Lampiran gambar -> generate_image dengan gambar itu sebagai acuan visual. */
+    private String toolImageFromPrompt(String prompt, File ref) {
+        try {
+            JSONObject a = new JSONObject();
+            a.put("prompt", prompt == null || prompt.trim().isEmpty()
+                    ? "Variasi baru dari gambar " + ref.getName()
+                    : prompt);
+            a.put("size", "1024x1024");
+            if (ref != null) a.put("reference", ref.getAbsolutePath());
+            return toolImage(a);
+        } catch (Exception e) {
+            return "gagal membuat gambar: " + e.getMessage();
+        }
+    }
+
+    /** Lampiran gambar -> make_video mode images dengan satu klip. */
+    private String toolVideoFromPrompt(String prompt, File img) {
+        try {
+            JSONObject a = new JSONObject();
+            a.put("mode", "images");
+            JSONArray arr = new JSONArray();
+            arr.put(img.getAbsolutePath());
+            a.put("images", arr);
+            a.put("seconds", 6);
+            a.put("size", "portrait");
+            return toolVideo(a);
+        } catch (Exception e) {
+            return "gagal membuat video: " + e.getMessage();
+        }
+    }
+
+    /**
+     * Isi pesan pengguna. Gambar dikirim sebagai image_url data URL (vision),
+     * teks ditempel inline, biner diberi path supaya bisa dibaca tool read_file.
+     */
+    private Object userContent(String q, List<Attachment> files) throws Exception {
+        if (files.isEmpty()) return q;
+
+        JSONArray parts = new JSONArray();
+        if (!q.isEmpty()) {
+            JSONObject t = new JSONObject();
+            t.put("type", "text");
+            t.put("text", q);
+            parts.put(t);
+        }
+
+        StringBuilder paths = new StringBuilder();
+        for (Attachment a : files) {
+            File f = a.file;
+            String kind = AiFiles.kind(f);
+            if ("image".equals(kind)) {
+                if (f.length() > AiFiles.MAX_IMAGE_BYTES) {
+                    parts.put(textPart("Lampiran gambar " + f.getName() + " terlalu besar ("
+                            + AiFiles.humanSize(f.length()) + "), tidak dikirim sebagai gambar.\n"
+                            + "Path: " + f.getAbsolutePath()));
+                    continue;
+                }
+                try {
+                    String b64 = AiFiles.base64Of(f);
+                    JSONObject url = new JSONObject();
+                    url.put("url", "data:" + AiFiles.mime(f) + ";base64," + b64);
+                    JSONObject img = new JSONObject();
+                    img.put("type", "image_url");
+                    img.put("image_url", url);
+                    parts.put(img);
+                    paths.append("- ").append(f.getName()).append(" = ").append(f.getAbsolutePath())
+                         .append(" (gambar, terkirim sebagai vision)\n");
+                } catch (Exception e) {
+                    parts.put(textPart("Gambar " + f.getName() + " gagal dibaca: " + e.getMessage()));
+                }
+            } else if ("text".equals(kind)) {
+                String body = AiFiles.textOf(f, 60000);
+                parts.put(textPart("=== FILE: " + f.getName() + " (" + AiFiles.humanSize(f.length())
+                        + ") ===\nPath: " + f.getAbsolutePath() + "\n\n" + (body == null ? "" : body)
+                        + "\n=== AKHIR " + f.getName() + " ==="));
+                paths.append("- ").append(f.getName()).append(" = ").append(f.getAbsolutePath())
+                     .append(" (teks, isi sudah di atas)\n");
+            } else {
+                String head = AiFiles.hexdump(f, 1024);
+                parts.put(textPart("=== FILE BINER: " + f.getName() + " (" + AiFiles.humanSize(f.length())
+                        + ") ===\nPath: " + f.getAbsolutePath()
+                        + "\n\nCuplikan hex:\n" + head
+                        + "\nUntuk membaca isinya pakai tool read_file dengan path di atas.\n"
+                        + "Kalau zip, pakai tool unzip.\n=== AKHIR " + f.getName() + " ==="));
+                paths.append("- ").append(f.getName()).append(" = ").append(f.getAbsolutePath())
+                     .append(" (biner)\n");
+            }
+        }
+        if (paths.length() > 0) {
+            parts.put(textPart("File yang dilampirkan pengguna di perangkat ini:\n" + paths
+                    + "Pakai path itu untuk tool read_file / write_file / unzip / git_add. "
+                    + "Jangan mengarang isi file: baca dulu."));
+        }
+        return parts;
+    }
+
+    private JSONObject textPart(String t) throws Exception {
+        JSONObject o = new JSONObject();
+        o.put("type", "text");
+        o.put("text", t);
+        return o;
+    }
+
+    /** Pratinjau lampiran pengguna di dalam chat. */
+    private void showAttachmentPreview(File f) {
+        if (!AiFiles.isImage(f)) return;
+        try {
+            android.graphics.Bitmap bm = AiVideo.decode(f, dp(360), dp(360));
+            if (bm == null) return;
+            android.widget.ImageView iv = new android.widget.ImageView(this);
+            iv.setImageBitmap(bm);
+            iv.setAdjustViewBounds(true);
+            iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+            iv.setBackground(bg(USER, 16));
+            iv.setPadding(dp(4), dp(4), dp(4), dp(4));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
+            lp.gravity = Gravity.END;
+            lp.topMargin = dp(4);
+            list.addView(iv, lp);
+            scrollDown();
+        } catch (Exception ignore) {}
+    }
+
+    /** Path absolut dipakai apa adanya; nama saja dicari di folder gambar/video app dan Pictures umum. */
     private JSONArray buildMessages() {
         JSONArray out = new JSONArray();
         try {
@@ -557,6 +955,212 @@ public class AiChatActivity extends AppCompatActivity {
     }
 
     /** Tool yang dikirim ke model. run_bash tetap dikirim, tapi ditolak saat mode agent mati. */
+    /** Tool akses file: dipakai AI untuk membaca/menulis file di perangkat. */
+    private java.util.List<JSONObject> fileTools() {
+        java.util.List<JSONObject> list = new ArrayList<>();
+        try {
+            JSONObject rp = new JSONObject();
+            rp.put("type", "object");
+            JSONObject rf = new JSONObject();
+            rf.put("type", "string");
+            rf.put("description", "Path absolut file, atau path relatif ke repo agent.");
+            rp.put("properties", new JSONObject().put("path", rf));
+            rp.put("required", new JSONArray().put("path"));
+            list.add(fnTool("read_file", "Membaca isi file dari perangkat (teks, atau cuplikan hex untuk biner). "
+                    + "Selalu baca file sebelum mengubahnya.", rp));
+
+            JSONObject wp = new JSONObject();
+            wp.put("type", "object");
+            JSONObject wpf = new JSONObject();
+            wpf.put("type", "string");
+            wpf.put("description", "Path absolut file yang ditulis. Folder dibuat otomatis.");
+            JSONObject wpc = new JSONObject();
+            wpc.put("type", "string");
+            wpc.put("description", "Isi file baru, teks lengkap.");
+            wp.put("properties", new JSONObject().put("path", wpf).put("content", wpc));
+            wp.put("required", new JSONArray().put("path").put("content"));
+            list.add(fnTool("write_file", "Menulis (atau menimpa) satu file teks di perangkat.", wp));
+
+            JSONObject up = new JSONObject();
+            up.put("type", "object");
+            JSONObject upz = new JSONObject();
+            upz.put("type", "string");
+            upz.put("description", "Path file zip.");
+            JSONObject upd = new JSONObject();
+            upd.put("type", "string");
+            upd.put("description", "Folder tujuan ekstrak (dibuat kalau belum ada).");
+            up.put("properties", new JSONObject().put("path", upz).put("dest", upd));
+            up.put("required", new JSONArray().put("path"));
+            list.add(fnTool("unzip", "Mengekstrak file zip ke folder tujuan. Entri yang keluar folder ditolak.", up));
+        } catch (Exception ignore) {}
+        return list;
+    }
+
+    /** Tool git: alur repo agent (init, tulis file, commit, push). */
+    private java.util.List<JSONObject> gitTools() {
+        java.util.List<JSONObject> list = new ArrayList<>();
+        try {
+            list.add(fnTool("git_init", "Menyiapkan repo agent di perangkat dari template (sekali saja). "
+                    + "Mengembalikan path repo dan status git.", emptyParams()));
+
+            JSONObject cp = new JSONObject();
+            cp.put("type", "object");
+            JSONObject cm = new JSONObject();
+            cm.put("type", "string");
+            cm.put("description", "Pesan commit singkat, bahasa Indonesia.");
+            cp.put("properties", new JSONObject().put("message", cm));
+            cp.put("required", new JSONArray().put("message"));
+            list.add(fnTool("git_commit", "Menambah semua perubahan (git add -A) dan commit di repo agent.", cp));
+
+            list.add(fnTool("git_push", "Push repo agent ke GitHub. Butuh user/token di menu \u2699 \u2192 Git. "
+                    + "Token tidak pernah ditampilkan.", emptyParams()));
+
+            list.add(fnTool("git_status", "Menampilkan branch, perubahan, dan remote repo agent (tanpa token).",
+                    emptyParams()));
+        } catch (Exception ignore) {}
+        return list;
+    }
+
+    private JSONObject emptyParams() throws Exception {
+        JSONObject p = new JSONObject();
+        p.put("type", "object");
+        p.put("properties", new JSONObject());
+        return p;
+    }
+
+    private JSONObject fnTool(String name, String desc, JSONObject params) throws Exception {
+        JSONObject fn = new JSONObject();
+        fn.put("name", name);
+        fn.put("description", desc);
+        fn.put("parameters", params);
+        JSONObject t = new JSONObject();
+        t.put("type", "function");
+        t.put("function", fn);
+        return t;
+    }
+
+    /** read_file: teks apa adanya, biner sebagai hexdump. */
+    private String toolReadFile(JSONObject args) {
+        String p = args.optString("path", "").trim();
+        if (p.isEmpty()) return "path kosong";
+        File f = resolveIn(p);
+        if (!f.isFile()) return "file tidak ditemukan: " + f.getAbsolutePath();
+        runOnUiThread(() -> bubble("AGENT \u00B7 read_file", f.getAbsolutePath(), false));
+        if (AiFiles.isText(f) || AiFiles.looksText(f)) {
+            String body = AiFiles.textOf(f, 60000);
+            return "path: " + f.getAbsolutePath() + "\nukuran: " + AiFiles.humanSize(f.length()) + "\n\n" + body;
+        }
+        return "path: " + f.getAbsolutePath() + "\nukuran: " + AiFiles.humanSize(f.length())
+                + "\njenis: biner\n\n" + AiFiles.hexdump(f, 2048);
+    }
+
+    /** write_file: tulis teks, buat folder induk, jangan sentuh folder sistem tanpa izin. */
+    private String toolWriteFile(JSONObject args) {
+        String p = args.optString("path", "").trim();
+        String body = args.optString("content", "");
+        if (p.isEmpty()) return "path kosong";
+        File f = new File(p);
+        if (!f.isAbsolute()) f = new File(AiGit.repo(this), p);
+        if (isForbidden(f)) {
+            return "menolak menulis ke area sistem: " + f.getAbsolutePath()
+                    + "\nTulis ke folder app (mis. " + AiGit.repo(this).getAbsolutePath() + ") dulu.";
+        }
+        try {
+            File dir = f.getParentFile();
+            if (dir != null && !dir.exists() && !dir.mkdirs()) return "tidak bisa membuat folder " + dir;
+            java.io.OutputStream os = new java.io.FileOutputStream(f);
+            try {
+                os.write(body.getBytes("UTF-8"));
+            } finally {
+                os.close();
+            }
+            runOnUiThread(() -> bubble("AGENT \u00B7 write_file", f.getAbsolutePath(), false));
+            return "tertulis: " + f.getAbsolutePath() + "\n" + AiFiles.humanSize(f.length());
+        } catch (Exception e) {
+            return "gagal menulis: " + e.getMessage();
+        }
+    }
+
+    /** Tolak path sistem yang bisa merusak perangkat. */
+    private boolean isForbidden(File f) {
+        try {
+            String c = f.getCanonicalPath();
+            for (String bad : new String[]{"/system", "/vendor", "/product", "/init.rc", "/data/system", "/proc", "/sys"}) {
+                if (c.equals(bad) || c.startsWith(bad + "/")) return true;
+            }
+            return false;
+        } catch (Exception e) {
+            return true;
+        }
+    }
+
+    private String toolUnzip(JSONObject args) {
+        String p = args.optString("path", "").trim();
+        String d = args.optString("dest", "").trim();
+        if (p.isEmpty()) return "path zip kosong";
+        File z = resolveIn(p);
+        File dest = d.isEmpty() ? new File(AiFiles.inbox(this), "unzip_" + System.currentTimeMillis()) : new File(d);
+        runOnUiThread(() -> bubble("AGENT \u00B7 unzip", z.getAbsolutePath(), false));
+        try {
+            return AiFiles.unzip(z, dest);
+        } catch (Exception e) {
+            return "gagal unzip: " + e.getMessage();
+        }
+    }
+
+    /** git_*: repo agent, hasil selalu diredaksi dari token. */
+    private String toolGit(String name, JSONObject args) {
+        runOnUiThread(() -> bubble("AGENT \u00B7 " + name, AiStore.gitOwner(this) + "/"
+                + AiStore.gitRepo(this) + " \u00B7 " + AiStore.gitBranch(this), false));
+        if (!AiStore.agent(this)) {
+            return "tool git butuh Mode agent. Nyalakan di menu \u2699 \u2192 Agent.";
+        }
+        if ("git_init".equals(name)) return AiGit.ensure(this);
+        if (!new File(AiGit.repo(this), ".git").exists()) AiGit.ensure(this);
+
+        String branch = AiStore.gitBranch(this);
+        if ("git_status".equals(name)) {
+            return AiGit.exec(this, "git status --short --branch && echo --- && git log --oneline -5");
+        }
+        if ("git_commit".equals(name)) {
+            String msg = args.optString("message", "").trim();
+            if (msg.isEmpty()) msg = "update dari Arkael-Ai-Agent";
+            msg = msg.replace("'", "").replace("\n", " ");
+            String cmd = "git checkout -q -B " + AiGit.shell(branch) + " 2>&1\n"
+                    + "git add -A 2>&1\n"
+                    + "git -c user.name=" + AiGit.shell(AiStore.gitUser(this))
+                    + " -c user.email=" + AiGit.shell(AiStore.gitEmail(this))
+                    + " commit -q -m " + AiGit.shell(msg) + " 2>&1\n"
+                    + "git log --oneline -3";
+            return AiGit.exec(this, cmd);
+        }
+        if ("git_push".equals(name)) {
+            String remote = AiGit.remote(this);
+            if (remote.isEmpty() || AiStore.gitToken(this).isEmpty()) {
+                return "push belum bisa: isi Owner, Repo, dan Token GitHub di menu \u2699 \u2192 Git.";
+            }
+            String cmd = "git checkout -q -B " + AiGit.shell(branch) + " 2>&1\n"
+                    + "git remote get-url origin >/dev/null 2>&1 || git remote add origin " + AiGit.shell(remote) + "\n"
+                    + "git remote set-url origin " + AiGit.shell(remote) + " 2>&1\n"
+                    + "git push -u origin " + AiGit.shell(branch) + " 2>&1";
+            return AiGit.exec(this, cmd);
+        }
+        return "tool git tidak dikenal: " + name;
+    }
+
+    /** Path: absolut dipakai apa adanya, relatif dicari di repo agent lalu folder cache lampiran. */
+    private File resolveIn(String p) {
+        File f = new File(p);
+        if (f.isAbsolute()) return f;
+        File inRepo = new File(AiGit.repo(this), p);
+        if (inRepo.exists()) return inRepo;
+        File inInbox = new File(AiFiles.inbox(this), p);
+        if (inInbox.exists()) return inInbox;
+        File byPath = resolve(p);
+        if (byPath.exists()) return byPath;
+        return inRepo;
+    }
+
     private JSONArray tools() {
         try {
             JSONObject props = new JSONObject();
@@ -589,6 +1193,11 @@ public class AiChatActivity extends AppCompatActivity {
             isize.put("type", "string");
             isize.put("description", "1024x1024 (kotak), 1024x1536 (tegak), 1536x1024 (lebar).");
             ip.put("size", isize);
+            JSONObject iref = new JSONObject();
+            iref.put("type", "string");
+            iref.put("description", "Opsional. Path gambar acuan di perangkat (img2img). "
+                    + "Isi kalau pengguna melampirkan gambar yang mau diubah.");
+            ip.put("reference", iref);
             JSONObject iparams = new JSONObject();
             iparams.put("type", "object");
             iparams.put("properties", ip);
@@ -596,7 +1205,9 @@ public class AiChatActivity extends AppCompatActivity {
 
             JSONObject ifn = new JSONObject();
             ifn.put("name", "generate_image");
-            ifn.put("description", "Membuat gambar dari teks dan menyimpannya sebagai file PNG di perangkat.");
+            ifn.put("description", "Membuat gambar dari teks dan menyimpannya sebagai file PNG di perangkat. "
+                    + "Panggil ini setiap kali pengguna minta gambar, ilustrasi, poster, atau avatar. "
+                    + "Kalau ada gambar acuan, isi reference dengan path-nya.");
             ifn.put("parameters", iparams);
 
             JSONObject itool = new JSONObject();
@@ -646,7 +1257,10 @@ public class AiChatActivity extends AppCompatActivity {
             vtool.put("type", "function");
             vtool.put("function", vfn);
 
-            return new JSONArray().put(tool).put(itool).put(vtool);
+            JSONArray all = new JSONArray().put(tool).put(itool).put(vtool);
+            for (JSONObject t : fileTools()) all.put(t);
+            if (AiStore.agent(this)) for (JSONObject t : gitTools()) all.put(t);
+            return all;
         } catch (Exception e) {
             return new JSONArray();
         }
@@ -654,10 +1268,13 @@ public class AiChatActivity extends AppCompatActivity {
 
     /** Menu AI ala ai-agent: pilih provider, isi key, pilih model, tes, simpan. */
     private void openSettings() {
-        final String[] names = new String[AiStore.PROVIDERS.length];
+        final int n = AiStore.PROVIDERS.length;
+        final String[] names = new String[n + 1];
         final String cur = AiStore.provider(this);
         int check = 0;
-        for (int i = 0; i < AiStore.PROVIDERS.length; i++) {
+        names[n] = "\u2699 Git  \u00B7  " + AiStore.gitOwner(this) + "/" + AiStore.gitRepo(this)
+                + "  \u00B7  " + (AiStore.gitToken(this).isEmpty() ? "belum ada token" : "token tersimpan");
+        for (int i = 0; i < n; i++) {
             String p = AiStore.PROVIDERS[i];
             String mark;
             if ("ollama".equals(p)) mark = "lokal, tanpa key";
@@ -670,11 +1287,94 @@ public class AiChatActivity extends AppCompatActivity {
             .setTitle("Pilih AI")
             .setSingleChoiceItems(names, check, (d, w) -> {
                 d.dismiss();
-                editProvider(AiStore.PROVIDERS[w]);
+                if (w >= n) openGitSettings();
+                else editProvider(AiStore.PROVIDERS[w]);
             })
             .setNegativeButton("Batal", null)
             .setNeutralButton("Agent", (d, w) -> toggleAgent())
             .show();
+    }
+
+    /** Setelan repo Git untuk mode agent: owner, repo, branch, identitas, token. */
+    private void openGitSettings() {
+        LinearLayout col = new LinearLayout(this);
+        col.setOrientation(LinearLayout.VERTICAL);
+        col.setPadding(dp(20), dp(14), dp(20), dp(4));
+
+        col.addView(tag("REPO GITHUB"));
+        final EditText eOwner = field("owner (user/org)", AiStore.gitOwner(this), false);
+        final EditText eRepo = field("nama repo", AiStore.gitRepo(this), false);
+        final EditText eBranch = field("branch", AiStore.gitBranch(this), false);
+        col.addView(eOwner);
+        col.addView(eRepo);
+        col.addView(eBranch);
+
+        col.addView(tag("IDENTITAS COMMIT"));
+        final EditText eUser = field("user.name", AiStore.gitUser(this), false);
+        final EditText eMail = field("user.email", AiStore.gitEmail(this), false);
+        col.addView(eUser);
+        col.addView(eMail);
+
+        col.addView(tag("TOKEN"));
+        final EditText eTok = field("personal access token (repo scope)", AiStore.gitToken(this), true);
+        col.addView(eTok);
+
+        TextView note = new TextView(this);
+        note.setText("Token hanya disimpan di perangkat dan tidak pernah ditampilkan utuh.\n"
+                + "Repo lokal: " + AiGit.repo(this).getAbsolutePath()
+                + "\ngit di ROM: " + (AiGit.gitAvailable() ? "tersedia" : "TIDAK ADA (commit/push butuh git)"));
+        note.setTextColor(Color.parseColor(SUB));
+        note.setTextSize(10);
+        note.setPadding(0, dp(8), 0, 0);
+        col.addView(note);
+
+        ScrollView sv = new ScrollView(this);
+        sv.addView(col);
+
+        new AlertDialog.Builder(this)
+            .setTitle("Git \u00B7 repo agent")
+            .setView(sv)
+            .setNegativeButton("Tutup", null)
+            .setNeutralButton("Siapkan", (d, w) -> {
+                saveGit(eOwner, eRepo, eBranch, eUser, eMail, eTok);
+                runGitAsync("init", null);
+            })
+            .setPositiveButton("Simpan", (d, w) -> {
+                saveGit(eOwner, eRepo, eBranch, eUser, eMail, eTok);
+                Toast.makeText(this, "Setelan Git tersimpan", Toast.LENGTH_SHORT).show();
+                refreshStatus();
+            })
+            .show();
+    }
+
+    private void saveGit(EditText o, EditText r, EditText b, EditText u, EditText m, EditText t) {
+        AiStore.setGitOwner(this, o.getText().toString());
+        AiStore.setGitRepo(this, r.getText().toString());
+        AiStore.setGitBranch(this, b.getText().toString());
+        AiStore.setGitUser(this, u.getText().toString());
+        AiStore.setGitEmail(this, m.getText().toString());
+        AiStore.setGitToken(this, t.getText().toString());
+    }
+
+    /** Jalankan git di thread lain; hasil masuk ke chat. */
+    private void runGitAsync(String what, String message) {
+        final TextView tv = bubble("GIT \u00B7 " + what, "menjalankan\u2026", false);
+        new Thread(() -> {
+            String out;
+            try {
+                JSONObject a = new JSONObject();
+                if (message != null) a.put("message", message);
+                out = toolGit("git_" + what, a);
+            } catch (Exception e) {
+                out = "gagal: " + e.getMessage();
+            }
+            final String o = AiGit.redact(out);
+            runOnUiThread(() -> {
+                tv.setText(o);
+                showMedia(tv, o);
+                scrollDown();
+            });
+        }, "arkael-ai-git").start();
     }
 
     private void toggleAgent() {

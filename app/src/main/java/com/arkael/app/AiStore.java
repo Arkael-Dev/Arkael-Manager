@@ -111,6 +111,31 @@ final class AiStore {
     }
 
     static boolean agent(Context c)      { return sp(c).getBoolean("agent", false); }
+
+    /* --- Git: repo tujuan push, dipakai tool git_* dan menu Git --- */
+    static String gitOwner(Context c)  { return sp(c).getString("git_owner", "Arkael-Dev"); }
+    static String gitRepo(Context c)   { return sp(c).getString("git_repo", "ai-agent"); }
+    static String gitBranch(Context c) {
+        String b = sp(c).getString("git_branch", AiGit.DEFAULT_BRANCH);
+        return b == null || b.trim().isEmpty() ? AiGit.DEFAULT_BRANCH : b.trim();
+    }
+    static String gitUser(Context c)   { return sp(c).getString("git_user", "arkael-agent"); }
+    static String gitEmail(Context c)  { return sp(c).getString("git_email", "agent@arkael.local"); }
+    static String gitToken(Context c)  { return sp(c).getString("git_token", ""); }
+    /** Token hanya ditampilkan samar; token utuh tak pernah dicetak. */
+    static String gitTokenMask(Context c) { return keyMask(gitToken(c)); }
+
+    static void setGitOwner(Context c, String v)  { sp(c).edit().putString("git_owner", trim(v, "Arkael-Dev")).apply(); }
+    static void setGitRepo(Context c, String v)   { sp(c).edit().putString("git_repo", trim(v, "ai-agent")).apply(); }
+    static void setGitBranch(Context c, String v) { sp(c).edit().putString("git_branch", trim(v, AiGit.DEFAULT_BRANCH)).apply(); }
+    static void setGitUser(Context c, String v)   { sp(c).edit().putString("git_user", trim(v, "arkael-agent")).apply(); }
+    static void setGitEmail(Context c, String v)  { sp(c).edit().putString("git_email", trim(v, "agent@arkael.local")).apply(); }
+    static void setGitToken(Context c, String v)  { sp(c).edit().putString("git_token", trim(v, "")).apply(); }
+
+    private static String trim(String v, String def) {
+        String s = v == null ? "" : v.trim();
+        return s.isEmpty() ? def : s;
+    }
     static boolean confirm(Context c)    { return sp(c).getBoolean("confirm", true); }
     static int maxIter(Context c)        { return sp(c).getInt("max_iters", 25); }
 
