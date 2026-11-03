@@ -25,28 +25,33 @@ final class AiClient {
 
     private AiClient() {}
 
-    static void chat(final String base, final String key, final String model,
+    static void chat(final String url, final String provider, final String key, final String model,
                      final JSONArray messages, final JSONArray tools,
                      final boolean stream, final Sink sink) {
         new Thread(new Runnable() {
             @Override public void run() {
                 HttpURLConnection c = null;
                 try {
-                    String root = base == null ? "" : base.trim();
-                    while (root.endsWith("/")) root = root.substring(0, root.length() - 1);
-                    if (root.isEmpty()) { sink.onError("Base URL kosong"); return; }
+                    String ep = url == null ? "" : url.trim();
+                    if (ep.isEmpty()) { sink.onError("Endpoint kosong"); return; }
 
-                    c = (HttpURLConnection) new URL(root + "/chat/completions").openConnection();
+                    c = (HttpURLConnection) new URL(ep).openConnection();
                     c.setRequestMethod("POST");
                     c.setDoOutput(true);
                     c.setConnectTimeout(20000);
                     c.setReadTimeout(240000);
                     c.setRequestProperty("Content-Type", "application/json");
                     c.setRequestProperty("Authorization", "Bearer " + key);
+                    if ("claude".equals(provider)) {
+                        /* ai-agent-chat.sh: Claude butuh header sendiri selain Bearer */
+                        c.setRequestProperty("x-api-key", key);
+                        c.setRequestProperty("anthropic-version", "2023-06-01");
+                    }
                     c.setRequestProperty("Accept", stream ? "text/event-stream" : "application/json");
 
                     JSONObject body = new JSONObject();
                     body.put("model", model);
+                    body.put("max_tokens", 8000);
                     body.put("messages", messages);
                     body.put("stream", stream);
                     if (tools != null && tools.length() > 0) {

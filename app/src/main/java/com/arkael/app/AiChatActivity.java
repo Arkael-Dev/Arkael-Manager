@@ -73,11 +73,10 @@ public class AiChatActivity extends AppCompatActivity {
         setContentView(root);
 
         if (!AiStore.ready(this)) {
-            bubble("AI", "API key belum diisi.\n\nTekan tombol gear di kanan atas, tempel API key dari provider kamu, lalu Simpan.\n\nBase URL default: " + AiStore.DEF_BASE
-                    + "\nModel default: " + AiStore.DEF_MODEL, false);
+            bubble("AI", "API key belum diisi.\n\nTekan tombol gear di kanan atas, pilih AI-nya, tempel API key, lalu Simpan.\n\nProvider awal: DeepSeek", false);
             openSettings();
         } else {
-            bubble("AI", "Siap. Model: " + AiStore.model(this) + "\nBase URL: " + AiStore.base(this)
+            bubble("AI", "Siap.\n" + AiStore.label(AiStore.provider(this)) + " \u00B7 " + AiStore.model(this)
                     + "\nMode agent: " + (AiStore.agent(this) ? "AKTIF (perintah dijalankan sebagai root)" : "nonaktif"), false);
         }
         refreshStatus();
@@ -208,7 +207,7 @@ public class AiChatActivity extends AppCompatActivity {
 
     private void refreshStatus() {
         String mode = AiStore.agent(this) ? "agent: root" : "mode chat";
-        status.setText(AiStore.model(this) + "  \u00B7  " + mode);
+        status.setText(AiStore.label(AiStore.provider(this)) + "  \u00B7  " + AiStore.model(this) + "  \u00B7  " + mode);
     }
 
     private void onSend() {
@@ -239,7 +238,9 @@ public class AiChatActivity extends AppCompatActivity {
 
     private void ask(final TextView ai, final StringBuilder acc) {
         JSONArray msgs = buildMessages();
-        AiClient.chat(AiStore.base(this), AiStore.key(this), AiStore.model(this), msgs,
+        final String prov = AiStore.provider(this);
+        final String ep = AiStore.url(prov, AiStore.customUrl(this));
+        AiClient.chat(ep, prov, AiStore.key(this), AiStore.model(this), msgs,
                 AiStore.agent(this) ? tools() : null, true, new AiClient.Sink() {
             @Override public void onDelta(final String text) {
                 runOnUiThread(() -> {
@@ -369,32 +370,91 @@ public class AiChatActivity extends AppCompatActivity {
         }
     }
 
+    /** Menu AI ala ai-agent: pilih provider, isi key, pilih model, tes, simpan. */
     private void openSettings() {
+        final String[] names = new String[AiStore.PROVIDERS.length];
+        final String cur = AiStore.provider(this);
+        int check = 0;
+        for (int i = 0; i < AiStore.PROVIDERS.length; i++) {
+            String p = AiStore.PROVIDERS[i];
+            String mark;
+            if ("ollama".equals(p)) mark = "lokal, tanpa key";
+            else if (AiStore.key(this, p).isEmpty()) mark = "butuh API key";
+            else mark = "key tersimpan";
+            names[i] = AiStore.label(p) + "  \u00B7  " + mark;
+            if (p.equals(cur)) check = i;
+        }
+        new AlertDialog.Builder(this)
+            .setTitle("Pilih AI")
+            .setSingleChoiceItems(names, check, (d, w) -> {
+                d.dismiss();
+                editProvider(AiStore.PROVIDERS[w]);
+            })
+            .setNegativeButton("Batal", null)
+            .setNeutralButton("Agent", (d, w) -> toggleAgent())
+            .show();
+    }
+
+    private void toggleAgent() {
+        final boolean on = !AiStore.agent(this);
+        if (on && !RootShell.hasRoot()) {
+            new AlertDialog.Builder(this)
+                .setTitle("Root tidak tersedia")
+                .setMessage("Mode agent menjalankan perintah lewat su. Perangkat ini belum memberi akses root, jadi perintah akan gagal.\n\nNyalakan tetap?")
+                .setNegativeButton("Batal", null)
+                .setPositiveButton("Nyalakan", (d, w) -> {
+                    AiStore.setAgent(this, true);
+                    refreshStatus();
+                    bubble("AGENT", "Mode agent AKTIF. Perintah dijalankan sebagai root dan ditampilkan di chat.", false);
+                })
+                .show();
+            return;
+        }
+        AiStore.setAgent(this, on);
+        refreshStatus();
+        bubble("AGENT", on ? "Mode agent AKTIF. Perintah dijalankan sebagai root." : "Mode agent mati. Chat saja.", false);
+    }
+
+    /** Editor untuk satu provider: key, model, custom URL, tes. */
+    private void editProvider(final String prov) {
         LinearLayout col = new LinearLayout(this);
         col.setOrientation(LinearLayout.VERTICAL);
         col.setPadding(dp(20), dp(14), dp(20), dp(4));
 
-        final EditText eKey = field("API key (tempel di sini)", AiStore.key(this), true);
-        final EditText eBase = field("Base URL", AiStore.base(this), false);
-        final EditText eModel = field("Model", AiStore.model(this), false);
+        final EditText eKey = AiStore.needsKey(prov) ? field("tempel API key di sini", AiStore.key(this, prov), true) : null;
+        final EditText eModel = field("model", AiStore.model(this, prov), false);
+        final EditText eUrl = "custom".equals(prov)
+                ? field("https://host/v1/chat/completions", AiStore.customUrl(this), false) : null;
 
-        col.addView(tag("API KEY \u00B7 diisi manual"));
-        col.addView(eKey);
-        col.addView(tag("BASE URL (kompatibel OpenAI)"));
-        col.addView(eBase);
+        col.addView(tag("PROVIDER"));
+        TextView pv = new TextView(this);
+        pv.setText(AiStore.label(prov));
+        pv.setTextColor(Color.parseColor(TXT));
+        pv.setTextSize(14);
+        pv.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+        col.addView(pv);
+
+        if (eKey != null) {
+            col.addView(tag("API KEY \u00B7 diisi manual, disimpan di perangkat"));
+            col.addView(eKey);
+        } else {
+            col.addView(tag("API KEY"));
+            TextView nk = new TextView(this);
+            nk.setText("Ollama lokal, tidak butuh key.");
+            nk.setTextColor(Color.parseColor(SUB));
+            nk.setTextSize(12);
+            col.addView(nk);
+        }
+        if (eUrl != null) {
+            col.addView(tag("ENDPOINT"));
+            col.addView(eUrl);
+        }
         col.addView(tag("MODEL"));
         col.addView(eModel);
 
-        final android.widget.CheckBox cb = new android.widget.CheckBox(this);
-        cb.setText("Mode agent (jalankan perintah, butuh root)");
-        cb.setTextColor(Color.parseColor(TXT));
-        cb.setTextSize(13);
-        cb.setChecked(AiStore.agent(this));
-        cb.setPadding(0, dp(10), 0, 0);
-        col.addView(cb);
-
         TextView hint = new TextView(this);
-        hint.setText("Contoh: api.deepseek.com/v1 \u2192 model deepseek-chat\nOpenAI: api.openai.com/v1 \u2192 gpt-4o-mini\nGroq: api.groq.com/openai/v1 \u2192 llama-3.3-70b-versatile");
+        hint.setText("Endpoint: " + AiStore.url(prov, AiStore.customUrl(this))
+                + "\nTombol Tes mengirim satu permintaan kecil. Kalau berhasil, pengaturan langsung disimpan.");
         hint.setTextColor(Color.parseColor(SUB));
         hint.setTextSize(11);
         hint.setPadding(0, dp(10), 0, 0);
@@ -404,28 +464,44 @@ public class AiChatActivity extends AppCompatActivity {
         sv.addView(col);
 
         new AlertDialog.Builder(this)
-            .setTitle("Pengaturan AI")
+            .setTitle("Atur " + AiStore.label(prov))
             .setView(sv)
             .setNegativeButton("Batal", null)
-            .setNeutralButton("Tes", (d, w) -> testKey(eKey, eBase, eModel))
+            .setNeutralButton("Tes", (d, w) -> testKey(prov, eKey, eModel, eUrl))
             .setPositiveButton("Simpan", (d, w) -> {
-                AiStore.save(this, eBase.getText().toString(), eKey.getText().toString(),
-                        eModel.getText().toString(), cb.isChecked());
-                refreshStatus();
-                Toast.makeText(this, AiStore.ready(this) ? "Tersimpan" : "API key masih kosong", Toast.LENGTH_SHORT).show();
+                persist(prov, eKey, eModel, eUrl);
+                Toast.makeText(this, "Tersimpan: " + AiStore.label(prov), Toast.LENGTH_SHORT).show();
             })
             .show();
     }
 
-    private void testKey(EditText eKey, EditText eBase, EditText eModel) {
-        final String k = eKey.getText().toString().trim();
-        final String base = eBase.getText().toString().trim();
-        final String model = eModel.getText().toString().trim();
-        if (k.isEmpty()) { Toast.makeText(this, "Isi API key dulu", Toast.LENGTH_SHORT).show(); return; }
+    private void persist(String prov, EditText eKey, EditText eModel, EditText eUrl) {
+        AiStore.setProvider(this, prov);
+        if (eKey != null) AiStore.setKey(this, prov, eKey.getText().toString());
+        if (eModel != null) AiStore.setModel(this, prov, eModel.getText().toString());
+        if (eUrl != null) AiStore.setCustomUrl(this, eUrl.getText().toString());
+        refreshStatus();
+    }
 
-        AiStore.save(this, base, k, model, AiStore.agent(this));
-        final TextView tv = bubble("AI", "Menguji koneksi\u2026", false);
+    private void testKey(final String prov, EditText eKey, EditText eModel, EditText eUrl) {
+        final String key = eKey == null ? "ollama" : eKey.getText().toString().trim();
+        final String model = eModel == null ? AiStore.model(this, prov) : eModel.getText().toString().trim();
+        final String custom = eUrl == null ? AiStore.customUrl(this) : eUrl.getText().toString().trim();
+        final String ep = AiStore.url(prov, custom);
+
+        if (AiStore.needsKey(prov) && key.isEmpty()) {
+            Toast.makeText(this, "Isi API key dulu", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        if (ep.isEmpty()) {
+            Toast.makeText(this, "Endpoint masih kosong", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        final TextView tv = bubble("TES " + AiStore.label(prov), "Menghubungi " + ep + "\u2026", false);
         final StringBuilder a = new StringBuilder();
+        final String shownModel = model.isEmpty() ? AiStore.defModel(prov) : model;
+
         JSONArray msgs = new JSONArray();
         try {
             JSONObject m = new JSONObject();
@@ -433,13 +509,24 @@ public class AiChatActivity extends AppCompatActivity {
             m.put("content", "ping");
             msgs.put(m);
         } catch (Exception ignore) {}
-        AiClient.chat(base, k, model, msgs, null, false, new AiClient.Sink() {
+
+        AiClient.chat(ep, prov, key, shownModel, msgs, null, false, new AiClient.Sink() {
             @Override public void onDelta(String t) {}
             @Override public void onDone(String full, JSONArray calls) {
-                runOnUiThread(() -> tv.setText("Koneksi OK \u2713\n" + (full.length() > 300 ? full.substring(0, 300) + "\u2026" : full)));
+                runOnUiThread(() -> {
+                    tv.setText("Koneksi OK \u2713  " + AiStore.label(prov) + " \u00B7 " + shownModel
+                            + "\n\n" + (full.length() > 300 ? full.substring(0, 300) + "\u2026" : full));
+                    AiStore.setProvider(AiChatActivity.this, prov);
+                    if (eKey != null) AiStore.setKey(AiChatActivity.this, prov, key);
+                    AiStore.setModel(AiChatActivity.this, prov, shownModel);
+                    if ("custom".equals(prov)) AiStore.setCustomUrl(AiChatActivity.this, custom);
+                    refreshStatus();
+                    Toast.makeText(AiChatActivity.this, "Tersimpan", Toast.LENGTH_SHORT).show();
+                });
             }
             @Override public void onError(String err) {
-                runOnUiThread(() -> tv.setText("Gagal \u2717\n" + err));
+                runOnUiThread(() -> tv.setText("Gagal \u2717  " + AiStore.label(prov)
+                        + "\n\n" + err + "\n\nCek key, model, dan endpoint."));
             }
         });
     }
