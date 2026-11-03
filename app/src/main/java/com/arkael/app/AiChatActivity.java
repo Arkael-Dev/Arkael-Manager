@@ -16,6 +16,10 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
+
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -40,6 +44,7 @@ public class AiChatActivity extends AppCompatActivity {
     private TextView status;
     private final JSONArray history = new JSONArray();
     private boolean busy = false;
+    private int toolLoops = 0;
 
     private int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
 
@@ -240,6 +245,7 @@ public class AiChatActivity extends AppCompatActivity {
 
         final TextView ai = bubble("AI", "", false);
         busy = true;
+        toolLoops = 0;
         final StringBuilder acc = new StringBuilder();
         ask(ai, acc);
     }
@@ -278,8 +284,7 @@ public class AiChatActivity extends AppCompatActivity {
         addAssistant(text, calls);
 
         if (calls == null || calls.length() == 0) { busy = false; return; }
-        if (!AiStore.agent(this)) { busy = false; return; }
-        runTools(ai, calls, 0);
+        runTools(ai, calls);
     }
 
     private void addAssistant(String text, JSONArray calls) {
@@ -292,32 +297,49 @@ public class AiChatActivity extends AppCompatActivity {
         } catch (Exception ignore) {}
     }
 
-    private void runTools(final TextView ai, final JSONArray calls, final int depth) {
-        if (depth >= MAX_TOOL_LOOPS) { busy = false; bubble("AGENT", "Batas langkah tercapai.", false); return; }
+    private void runTools(final TextView ai, final JSONArray calls) {
+        if (++toolLoops > MAX_TOOL_LOOPS) {
+            busy = false;
+            bubble("AGENT", "Batas " + MAX_TOOL_LOOPS + " langkah tool tercapai. Lanjutkan dengan pesan baru.", false);
+            return;
+        }
         new Thread(() -> {
             for (int i = 0; i < calls.length(); i++) {
-                String cmd = "";
+                String name = "";
                 String id = "";
+                JSONObject args = new JSONObject();
                 try {
                     JSONObject p = calls.getJSONObject(i);
                     id = p.optString("id");
                     JSONObject fn = p.optJSONObject("function");
                     if (fn == null) continue;
-                    JSONObject args = new JSONObject(fn.optString("arguments", "{}"));
-                    cmd = args.optString("command", "");
+                    name = fn.optString("name", "");
+                    String raw = fn.optString("arguments", "{}");
+                    if (!raw.trim().startsWith("{")) raw = "{}";
+                    args = new JSONObject(raw);
                 } catch (Exception ignore) {}
 
-                final String show = cmd;
-                runOnUiThread(() -> bubble("AGENT \u00B7 run_bash", show, false));
-
-                String out = "";
-                try { out = RootShell.run(cmd); } catch (Exception e) { out = "gagal: " + e.getMessage(); }
+                String out;
+                if (!AiStore.agent(this) && "run_bash".equals(name)) {
+                    out = "run_bash tidak aktif. Nyalakan Mode agent (menu \u2699 \u2192 Agent) dulu.";
+                } else if ("generate_image".equals(name)) {
+                    out = toolImage(args);
+                } else if ("make_video".equals(name)) {
+                    out = toolVideo(args);
+                } else if ("run_bash".equals(name)) {
+                    out = toolBash(args);
+                } else {
+                    out = "tool tidak dikenal: " + name;
+                }
                 if (out == null) out = "";
                 if (out.length() > MAX_TOOL_OUT) out = out.substring(0, MAX_TOOL_OUT) + "\n\u2026(output dipotong)";
                 if (out.trim().isEmpty()) out = "(tidak ada output)";
 
                 final String o = out;
-                runOnUiThread(() -> bubble("OUTPUT", o, false));
+                runOnUiThread(() -> {
+                    TextView t = bubble("OUTPUT \u00B7 " + name, o, false);
+                    showMedia(t, o);
+                });
 
                 try {
                     JSONObject t = new JSONObject();
@@ -329,10 +351,196 @@ public class AiChatActivity extends AppCompatActivity {
             }
             runOnUiThread(() -> {
                 final TextView next = bubble("AI", "", false);
-                final StringBuilder a = new StringBuilder();
-                ask(next, a);
+                ask(next, new StringBuilder());
             });
         }, "arkael-ai-tool").start();
+    }
+
+    /** run_bash: shell di perangkat, sudah punya jalan sendiri (root lewat su). */
+    private String toolBash(JSONObject args) {
+        String cmd = args.optString("command", "");
+        if (cmd.trim().isEmpty()) return "perintah kosong";
+        runOnUiThread(() -> bubble("AGENT \u00B7 run_bash", cmd, false));
+        String out;
+        try { out = RootShell.run(cmd); } catch (Exception e) { return "gagal: " + e.getMessage(); }
+        if (out == null) return "";
+        if (out.trim().isEmpty()) return "(tidak ada output)";
+        return out;
+    }
+
+    /** generate_image: hasil berupa path file, lalu ditampilkan di dalam chat. */
+    private String toolImage(JSONObject args) {
+        String prompt = args.optString("prompt", "");
+        String size = args.optString("size", "1024x1024");
+        runOnUiThread(() -> bubble("AGENT \u00B7 generate_image", prompt, false));
+        try {
+            String prov = AiStore.provider(this);
+            String path = AiImage.generate(this, prov, AiStore.key(this),
+                    AiStore.customUrl(this), prompt, size);
+            File f = new File(path);
+            return "gambar tersimpan\n" + path + "\nukuran file: " + (f.length() / 1024) + " KB"
+                    + "\nformat: " + AiImage.normSize(size);
+        } catch (Exception e) {
+            return "gagal membuat gambar: " + e.getMessage()
+                    + "\n\nPetunjuk: kalau provider butuh key (OpenAI), isi key di menu \u2699. "
+                    + "Tanpa key, coba provider lain \u2014 gambar tetap bisa dibuat lewat jalur gratis.";
+        }
+    }
+
+    /**
+     * make_video: dua mode.
+     *  - images: daftar path gambar (hasil generate_image atau file di perangkat) -> video.
+     *  - text:   teks/daftar adegan -> video kartu teks bertahap.
+     *  - trim:   source = path video + durasi -> potong.
+     * Durasi bebas (detik), dibagi rata ke semua clip.
+     */
+    private String toolVideo(JSONObject args) {
+        String mode = args.optString("mode", "text").trim().toLowerCase();
+        int seconds = AiVideo.clampSeconds(args.optInt("seconds", 10));
+        String sizeStr = args.optString("size", "portrait");
+        runOnUiThread(() -> bubble("AGENT \u00B7 make_video", mode + " \u00B7 " + seconds + " dtk \u00B7 " + sizeStr, false));
+
+        try {
+            if ("trim".equals(mode)) {
+                String src = args.optString("source", "").trim();
+                if (src.isEmpty()) return "mode trim butuh parameter source (path video)";
+                File in = resolve(src);
+                if (!in.isFile()) return "file video tidak ditemukan: " + src;
+                String out = AiVideo.trim(this, in, seconds);
+                return "video dipotong " + seconds + " dtk\n" + out;
+            }
+
+            List<AiVideo.Clip> clips = new ArrayList<>();
+
+            if ("images".equals(mode)) {
+                JSONArray arr = args.optJSONArray("images");
+                if (arr != null) {
+                    for (int i = 0; i < arr.length(); i++) {
+                        String p = arr.optString(i, "").trim();
+                        if (p.isEmpty()) continue;
+                        File f = resolve(p);
+                        if (f.isFile()) clips.add(new AiVideo.Clip(f));
+                    }
+                }
+                String one = args.optString("image", "").trim();
+                if (clips.isEmpty() && !one.isEmpty()) {
+                    File f = resolve(one);
+                    if (f.isFile()) clips.add(new AiVideo.Clip(f));
+                }
+                if (clips.isEmpty()) return "tidak ada gambar yang bisa dipakai. Isi images[] atau image.";
+            } else {
+                JSONArray arr = args.optJSONArray("scenes");
+                if (arr != null) {
+                    for (int i = 0; i < arr.length(); i++) {
+                        String t = arr.optString(i, "").trim();
+                        if (!t.isEmpty()) clips.add(new AiVideo.Clip(t));
+                    }
+                }
+                if (clips.isEmpty()) {
+                    String t = args.optString("text", "").trim();
+                    if (t.isEmpty()) t = args.optString("prompt", "").trim();
+                    if (t.isEmpty()) return "mode text butuh parameter text atau scenes[]";
+                    clips.add(new AiVideo.Clip(t));   // satu kartu teks, durasi sesuai permintaan
+                }
+            }
+
+            int[] wh = AiVideo.parseSize(sizeStr);
+            String out = AiVideo.build(this, clips, seconds, wh[0], wh[1]);
+            File f = new File(out);
+            return "video dibuat\n" + out
+                    + "\ndurasi: " + seconds + " detik \u00B7 " + wh[0] + "x" + wh[1]
+                    + " \u00B7 " + AiVideo.FPS + " fps \u00B7 " + clips.size() + " bagian"
+                    + "\nukuran file: " + (f.length() / 1024) + " KB";
+        } catch (Exception e) {
+            return "gagal membuat video: " + e.getMessage();
+        }
+    }
+
+    /** Path absolut dipakai apa adanya; nama saja dicari di folder gambar/video app dan Pictures umum. */
+    private File resolve(String p) {
+        File f = new File(p);
+        if (f.isAbsolute()) return f;
+        File[] roots = {
+                new File(getExternalFilesDir(null), "Pictures"),
+                new File(getExternalFilesDir(null), "Movies"),
+                new File(getExternalFilesDir(null), ""),
+        };
+        for (File r : roots) {
+            File c = new File(r, p);
+            if (c.isFile()) return c;
+        }
+        return f;
+    }
+
+    /** Kalau output tool menyebut file gambar/video, tampilkan pratinjau di chat. */
+    private void showMedia(TextView tv, String out) {
+        String path = null;
+        for (String line : out.split("\n")) {
+            String s = line.trim();
+            if (s.startsWith("/") && (s.endsWith(".png") || s.endsWith(".jpg")
+                    || s.endsWith(".jpeg") || s.endsWith(".mp4"))) { path = s; break; }
+        }
+        if (path == null) return;
+        File f = new File(path);
+        if (!f.isFile()) return;
+
+        if (path.endsWith(".mp4")) {
+            TextView play = new TextView(this);
+            play.setText("\u25B6  Putar video");
+            play.setTextColor(Color.parseColor(BG));
+            play.setTextSize(13);
+            play.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
+            play.setGravity(Gravity.CENTER);
+            play.setBackground(bg(ACCENT, 14));
+            play.setPadding(dp(12), dp(10), dp(12), dp(10));
+            play.setOnClickListener(v -> openVideo(f));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-2, -2);
+            lp.topMargin = dp(6);
+            list.addView(play, lp);
+            scrollDown();
+            return;
+        }
+
+        try {
+            android.graphics.Bitmap bm = AiVideo.decode(f, dp(360), dp(360));
+            if (bm == null) return;
+            android.widget.ImageView iv = new android.widget.ImageView(this);
+            iv.setImageBitmap(bm);
+            iv.setAdjustViewBounds(true);
+            iv.setScaleType(android.widget.ImageView.ScaleType.FIT_CENTER);
+            iv.setBackground(bg(CARD, 16));
+            iv.setPadding(dp(4), dp(4), dp(4), dp(4));
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(-1, -2);
+            lp.topMargin = dp(6);
+            list.addView(iv, lp);
+            scrollDown();
+        } catch (Exception ignore) {}
+    }
+
+    /**
+     * Android 7+ wajib pakai content:// untuk mengirim file ke app lain.
+     * Folder app (getExternalFilesDir) bisa dibagi lewat FileProvider bawaan paket ini;
+     * kalau tidak tersedia, jatuh ke file:// dengan peringatan.
+     */
+    private android.net.Uri openFileUri(File f) {
+        try {
+            return androidx.core.content.FileProvider.getUriForFile(this,
+                    getPackageName() + ".ai_files", f);
+        } catch (Exception e) {
+            return android.net.Uri.fromFile(f);
+        }
+    }
+
+    private void openVideo(File f) {
+        try {
+            android.net.Uri u = openFileUri(f);
+            android.content.Intent i = new android.content.Intent(android.content.Intent.ACTION_VIEW);
+            i.setDataAndType(u, "video/mp4");
+            i.addFlags(android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION);
+            startActivity(i);
+        } catch (Exception e) {
+            Toast.makeText(this, "Tidak bisa membuka video: " + e.getMessage(), Toast.LENGTH_LONG).show();
+        }
     }
 
     private JSONArray buildMessages() {
@@ -340,17 +548,14 @@ public class AiChatActivity extends AppCompatActivity {
         try {
             JSONObject sys = new JSONObject();
             sys.put("role", "system");
-            sys.put("content", "Kamu asisten di dalam aplikasi Android Arkael Manager. "
-                    + "Jawab singkat, jelas, pakai bahasa yang sama dengan pengguna. "
-                    + (AiStore.agent(this)
-                        ? "Kamu punya tool run_bash untuk menjalankan perintah shell di perangkat (akses root lewat su). Gunakan hanya jika perlu, jelaskan singkat sebelum menjalankan."
-                        : "Mode chat saja: jangan mengaku sudah menjalankan perintah."));
+            sys.put("content", AiPersona.system(AiStore.agent(this)));
             out.put(sys);
             for (int i = 0; i < history.length(); i++) out.put(history.get(i));
         } catch (Exception ignore) {}
         return out;
     }
 
+    /** Tool yang dikirim ke model. run_bash tetap dikirim, tapi ditolak saat mode agent mati. */
     private JSONArray tools() {
         try {
             JSONObject props = new JSONObject();
@@ -373,7 +578,74 @@ public class AiChatActivity extends AppCompatActivity {
             tool.put("type", "function");
             tool.put("function", fn);
 
-            return new JSONArray().put(tool);
+            // generate_image
+            JSONObject ip = new JSONObject();
+            JSONObject iprompt = new JSONObject();
+            iprompt.put("type", "string");
+            iprompt.put("description", "Deskripsi gambar yang diinginkan, bahasa apa pun, detail jelas.");
+            ip.put("prompt", iprompt);
+            JSONObject isize = new JSONObject();
+            isize.put("type", "string");
+            isize.put("description", "1024x1024 (kotak), 1024x1536 (tegak), 1536x1024 (lebar).");
+            ip.put("size", isize);
+            JSONObject iparams = new JSONObject();
+            iparams.put("type", "object");
+            iparams.put("properties", ip);
+            iparams.put("required", new JSONArray().put("prompt"));
+
+            JSONObject ifn = new JSONObject();
+            ifn.put("name", "generate_image");
+            ifn.put("description", "Membuat gambar dari teks dan menyimpannya sebagai file PNG di perangkat.");
+            ifn.put("parameters", iparams);
+
+            JSONObject itool = new JSONObject();
+            itool.put("type", "function");
+            itool.put("function", ifn);
+
+            // make_video
+            JSONObject vp = new JSONObject();
+            JSONObject vmode = new JSONObject();
+            vmode.put("type", "string");
+            vmode.put("description", "images = dari gambar, text = kartu teks, trim = potong video yang ada.");
+            vp.put("mode", vmode);
+            JSONObject vimages = new JSONObject();
+            vimages.put("type", "array");
+            vimages.put("description", "Daftar path gambar (boleh hasil generate_image).");
+            vimages.put("items", new JSONObject().put("type", "string"));
+            vp.put("images", vimages);
+            JSONObject vscenes = new JSONObject();
+            vscenes.put("type", "array");
+            vscenes.put("description", "Daftar teks per adegan untuk mode text.");
+            vscenes.put("items", new JSONObject().put("type", "string"));
+            vp.put("scenes", vscenes);
+            JSONObject vsec = new JSONObject();
+            vsec.put("type", "integer");
+            vsec.put("description", "Durasi total dalam detik, bebas 1-120. Contoh 10 untuk 10 detik.");
+            vp.put("seconds", vsec);
+            JSONObject vsize = new JSONObject();
+            vsize.put("type", "string");
+            vsize.put("description", "portrait, landscape, square, 480p, 720p, 1080p, atau WxH.");
+            vp.put("size", vsize);
+            JSONObject vsrc = new JSONObject();
+            vsrc.put("type", "string");
+            vsrc.put("description", "Path video sumber untuk mode trim.");
+            vp.put("source", vsrc);
+            JSONObject vparams = new JSONObject();
+            vparams.put("type", "object");
+            vparams.put("properties", vp);
+            vparams.put("required", new JSONArray().put("mode"));
+
+            JSONObject vfn = new JSONObject();
+            vfn.put("name", "make_video");
+            vfn.put("description", "Membuat video MP4 dari gambar atau teks dengan durasi bebas, "
+                    + "atau memotong video yang sudah ada.");
+            vfn.put("parameters", vparams);
+
+            JSONObject vtool = new JSONObject();
+            vtool.put("type", "function");
+            vtool.put("function", vfn);
+
+            return new JSONArray().put(tool).put(itool).put(vtool);
         } catch (Exception e) {
             return new JSONArray();
         }
