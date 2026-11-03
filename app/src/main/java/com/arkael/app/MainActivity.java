@@ -248,6 +248,7 @@ public class MainActivity extends AppCompatActivity {
         findViewById(R.id.btn_game_launcher).setOnClickListener(v -> startActivity(new Intent(this, GameLauncherActivity.class)));
         findViewById(R.id.btn_translate).setOnClickListener(v -> toggleTranslate());
         findViewById(R.id.btn_keybox_generator).setOnClickListener(v -> launchKeyboxGenerator());
+        findViewById(R.id.btn_ai_chat).setOnClickListener(v -> startActivity(new Intent(this, AiChatActivity.class)));
 
         navSystem.setOnClickListener(v -> { 
             viewFlipper.setDisplayedChild(0); animateIn(findViewById(R.id.monitor_content)); 

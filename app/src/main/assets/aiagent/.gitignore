@@ -1,0 +1,7 @@
+*.jks
+*.keystore
+*.log
+.env
+local.properties
+*.apk
+*.zip

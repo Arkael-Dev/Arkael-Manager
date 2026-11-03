@@ -25,11 +25,33 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK"/>
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC"/>
     <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS"/>
+    <!-- Voice chat: STT/TTS dicari lewat PackageManager -->
+    <queries>
+        <intent>
+            <action android:name="android.speech.RecognitionService" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
     <application android:localeConfig="@xml/ax_locales_config"
         android:label="Arkael Manager"
         android:icon="@mipmap/ic_arkael"
         android:theme="@style/Theme.Arkael"
-        android:requestLegacyExternalStorage="true">
+        android:requestLegacyExternalStorage="true"
+        android:networkSecurityConfig="@xml/network_security_config">
+        <!-- Hasil AI (gambar/video) dibagikan lewat content:// supaya bisa dibuka app pemutar -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.ai_files"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/ai_files_paths" />
+        </provider>
+
+
 
         <activity android:name=".MainActivity" android:exported="true">
             <intent-filter>
@@ -83,6 +105,7 @@
             android:hardwareAccelerated="true"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|uiMode"/>
         <activity android:name=".AnimeHubActivity" android:exported="false" android:label="Anime"/>
+        <activity android:name=".AiChatActivity" android:theme="@style/Theme.Arkael" android:windowSoftInputMode="adjustResize"/>
         <activity android:name=".AppSettingsActivity" android:exported="false" android:label="Settings"/>
         <service android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
             android:enabled="false" android:exported="false">

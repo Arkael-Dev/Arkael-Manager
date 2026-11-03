@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Folder hasil AI (gambar & video) yang boleh dibagikan ke app pemutar lain. -->
+<paths>
+    <external-files-path name="ai_pictures" path="Pictures/" />
+    <external-files-path name="ai_movies" path="Movies/" />
+    <cache-path name="ai_cache" path="." />
+</paths>
