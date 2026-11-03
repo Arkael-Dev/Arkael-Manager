@@ -53,6 +53,8 @@ public class YoutubeSearchActivity extends Activity {
 
     private static final String TAG = "ArkaelYT";
     private static final class Row {
+        long durSecs;      // 0 = tidak diketahui
+        long posMs;        // titik lanjut tonton (0 = belum ditonton)
         String url, title, uploader, duration, thumb;
     }
 
@@ -68,6 +70,8 @@ public class YoutubeSearchActivity extends Activity {
     private int fSort = 0;     // 0 relevansi, 1 terbaru
     private static final String[] F_TIME = {Tr.s("Semua waktu"), "Hari ini", "Minggu ini", "Bulan ini", "Tahun ini"};
     private static final long[] F_MS = {0L, 86400000L, 7 * 86400000L, 30 * 86400000L, 365 * 86400000L};
+    private int lastHistSize = -1;   // untuk refresh cepat (lihat onResume)
+    private long lastResumeMs;
     private int searchGen = 0;   // bumped on every new search so a slow old search can't overwrite a newer result
 
     private int dp(float v) { return (int) (v * getResources().getDisplayMetrics().density + 0.5f); }
@@ -85,13 +89,13 @@ public class YoutubeSearchActivity extends Activity {
         col.setPadding(dp(16), dp(24), dp(16), 0);
 
         TextView h = new TextView(this);
-        h.setText("YouTube");
+        h.setText("Arkael YouTube");
         h.setTextColor(Color.WHITE);
         h.setTextSize(24);
         h.setTypeface(Typeface.DEFAULT, Typeface.BOLD);
         col.addView(h);
         TextView sub = new TextView(this);
-        sub.setText("Tanpa iklan, tanpa akun. Pilih video dari Beranda, atau cari di atas. Buka video lalu keluar dari app untuk mode layar kecil.");
+        sub.setText("Tanpa iklan, tanpa akun. Tap untuk memutar · tahan lama untuk simpan ke playlist. Keluar dari pemutar untuk mode layar kecil.");
         sub.setTextColor(Color.parseColor("#8B95A3"));
         sub.setTextSize(12);
         sub.setPadding(0, dp(4), 0, dp(12));
@@ -107,7 +111,7 @@ public class YoutubeSearchActivity extends Activity {
         searchRow.setPadding(dp(14), 0, dp(6), 0);
 
         query = new EditText(this);
-        query.setHint("Search YouTube");
+        query.setHint("Cari video, channel, atau lagu");
         query.setHintTextColor(Color.parseColor("#556070"));
         query.setTextColor(Color.WHITE);
         query.setBackground(null);
@@ -224,6 +228,14 @@ public class YoutubeSearchActivity extends Activity {
             @Override public View getView(int i, View v, ViewGroup parent) { return row(items.get(i)); }
         };
         lv.setAdapter(adapter);
+        lv.setOnItemLongClickListener(new AdapterView.OnItemLongClickListener() {
+            @Override public boolean onItemLongClick(AdapterView<?> p, View v, int i, long id) {
+                Row r = items.get(i);
+                if (r.url == null) return false;
+                showRowMenu(r);
+                return true;
+            }
+        });
         lv.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override public void onItemClick(AdapterView<?> p, View v, int i, long id) {
                 Row r = items.get(i);
@@ -240,12 +252,23 @@ public class YoutubeSearchActivity extends Activity {
     }
 
     @Override
+    @Override
     protected void onResume() {
         super.onResume();
-        // Opening YouTube shows the home feed right away (nothing to type); history / likes refresh on return.
+        // Refresh cepat: tab Riwayat/Disukai selalu dari data lokal (instan). Beranda cuma
+        // diambil ulang kalau daftar tontonan berubah atau sudah lewat 5 menit, jadi balik
+        // dari pemutar tidak bikin spinner muter lagi.
+        long now = System.currentTimeMillis();
+        boolean stale = now - lastResumeMs > 5 * 60_000L;
+        lastResumeMs = now;
+        int hs = YtStore.history(this).size();
+        boolean changed = hs != lastHistSize;
+        lastHistSize = hs;
         if (mode == 4) showSubs();
+        else if (mode == 5) openLibrary(0);
         else if (mode == 1 || mode == 2) showStored(mode);
-        else if (mode == 3 && items.isEmpty() && spinner.getVisibility() != View.VISIBLE) showHome();
+        else if (mode == 3 && (items.isEmpty() || changed || stale) && spinner.getVisibility() != View.VISIBLE) showHome();
+        else if (mode == 0 && changed) adapter.notifyDataSetChanged();   // progress bar hasil pencarian ikut segar
     }
 
     private TextView tab(String label, final int m) {
@@ -285,6 +308,11 @@ public class YoutubeSearchActivity extends Activity {
         t.setTextColor(Color.parseColor(on ? "#FFFFFF" : "#8B95A3"));
     }
 
+    private static String mainWord(String q) {
+        int i = q.indexOf(' ');
+        return i < 0 ? q : q.substring(0, i);
+    }
+
     private TextView catChip(String label, final String q) {
         TextView t = new TextView(this);
         t.setText(label);
@@ -297,6 +325,14 @@ public class YoutubeSearchActivity extends Activity {
         t.setBackground(g);
         t.setOnClickListener(new View.OnClickListener() {
             @Override public void onClick(View v) { query.setText(q); doSearch(); }
+        });
+        t.setOnLongClickListener(new View.OnLongClickListener() {
+            @Override public boolean onLongClick(View v) {
+                // long-press = cari kata itu saja, tanpa embel-embel "terbaru"
+                query.setText(mainWord(q));
+                doSearch();
+                return true;
+            }
         });
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.rightMargin = dp(8);
@@ -318,6 +354,8 @@ public class YoutubeSearchActivity extends Activity {
             row.uploader = si.getUploaderName();
             long secs = si.getDuration();
             row.duration = secs > 0 ? fmt(secs) : null;
+            row.durSecs = secs > 0 ? secs : 0;
+            row.posMs = YtExtras.getPosition(YoutubeSearchActivity.this, si.getUrl());
             row.thumb = bestThumb(si);
             out.add(row);
             n++;
@@ -397,6 +435,8 @@ public class YoutubeSearchActivity extends Activity {
             r.title = e.title == null ? "" : e.title;
             r.uploader = e.uploader == null ? "" : e.uploader;
             r.duration = e.duration > 0 ? fmt(e.duration) : null;
+            r.durSecs = e.duration;
+            r.posMs = YtExtras.getPosition(this, e.url);
             r.thumb = e.thumb;
             items.add(r);
         }
@@ -440,6 +480,34 @@ public class YoutubeSearchActivity extends Activity {
         if (it.thumb != null) Glide.with(this).load(it.thumb).into(thumb);
         r.addView(thumb, new LinearLayout.LayoutParams(dp(120), dp(68)));
 
+        // garis merah di bawah thumbnail = seberapa jauh video ini sudah ditonton
+        if (it.posMs > 0 && it.durSecs > 0) {
+            LinearLayout wrap = new LinearLayout(this);
+            wrap.setOrientation(LinearLayout.VERTICAL);
+            wrap.addView(thumb, new LinearLayout.LayoutParams(dp(120), dp(68)));
+            View bar = new View(this);
+            GradientDrawable bg = new GradientDrawable();
+            bg.setColor(Color.parseColor("#33FFFFFF"));
+            bg.setCornerRadius(dp(2));
+            bar.setBackground(bg);
+            LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, dp(3));
+            blp.topMargin = dp(3);
+            wrap.addView(bar, blp);
+            float frac = Math.min(1f, it.posMs / (it.durSecs * 1000f));
+            View fill = new View(this);
+            GradientDrawable fg = new GradientDrawable();
+            fg.setColor(Color.parseColor("#FF4444"));
+            fg.setCornerRadius(dp(2));
+            fill.setBackground(fg);
+            int fw = Math.max(dp(3), (int) (dp(120) * frac));
+            LinearLayout.LayoutParams flp = new LinearLayout.LayoutParams(fw, dp(3));
+            flp.topMargin = -dp(3);
+            wrap.addView(fill, flp);
+            r.addView(wrap, new LinearLayout.LayoutParams(dp(120), dp(74)));
+        } else {
+            r.addView(thumb, new LinearLayout.LayoutParams(dp(120), dp(68)));
+        }
+
         LinearLayout t = new LinearLayout(this);
         t.setOrientation(LinearLayout.VERTICAL);
         TextView n = new TextView(this);
@@ -459,7 +527,95 @@ public class YoutubeSearchActivity extends Activity {
         LinearLayout.LayoutParams tl = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
         tl.leftMargin = dp(10);
         r.addView(t, tl);
+
+        // tombol ✕: buang dari daftar (riwayat saja) — pengganti swipe-to-delete
+        if (mode == 1 && it.url != null) {
+            TextView x = new TextView(this);
+            x.setText("✕");
+            x.setTextColor(Color.parseColor("#556070"));
+            x.setTextSize(16);
+            x.setPadding(dp(10), dp(10), dp(4), dp(10));
+            x.setOnClickListener(new View.OnClickListener() {
+                @Override public void onClick(View v) {
+                    YtStore.removeHistory(YoutubeSearchActivity.this, it.url);
+                    if (mode == 1) showStored(1);
+                }
+            });
+            r.addView(x);
+        }
         return r;
+    }
+
+    /** Tekan lama sebuah video: simpan ke playlist, buka channel, atau salin link. */
+    private void showRowMenu(final Row r) {
+        final String[] opts = {"▶  Putar sekarang", "＋  Simpan ke playlist", "📋  Salin link", "⏱  Mulai dari awal"};
+        new android.app.AlertDialog.Builder(this)
+                .setTitle(r.title)
+                .setItems(opts, new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int w) {
+                        if (w == 0) {
+                            Intent in = new Intent(YoutubeSearchActivity.this, YoutubePlayerActivity.class);
+                            in.putExtra("url", r.url);
+                            in.putExtra("title", r.title);
+                            startActivity(in);
+                        } else if (w == 1) {
+                            saveToPlaylist(r);
+                        } else if (w == 2) {
+                            android.content.ClipboardManager cm = (android.content.ClipboardManager) getSystemService(CLIPBOARD_SERVICE);
+                            cm.setPrimaryClip(android.content.ClipData.newPlainText("link", r.url));
+                            Toast.makeText(YoutubeSearchActivity.this, "Link disalin", Toast.LENGTH_SHORT).show();
+                        } else {
+                            YtExtras.clearPosition(YoutubeSearchActivity.this, r.url);
+                            Toast.makeText(YoutubeSearchActivity.this, "Posisi lanjut dihapus", Toast.LENGTH_SHORT).show();
+                            adapter.notifyDataSetChanged();
+                        }
+                    }
+                })
+                .show();
+    }
+
+    private void saveToPlaylist(final Row r) {
+        final java.util.List<YtLibrary.Pl> pls = YtLibrary.playlists(this);
+        final String[] names = new String[pls.size() + 1];
+        names[0] = "＋  Playlist baru…";
+        for (int i = 0; i < pls.size(); i++) names[i + 1] = pls.get(i).name;
+        new android.app.AlertDialog.Builder(this)
+                .setTitle("Simpan ke playlist")
+                .setItems(names, new android.content.DialogInterface.OnClickListener() {
+                    @Override public void onClick(android.content.DialogInterface d, int w) {
+                        if (w == 0) {
+                            final android.widget.EditText et = new android.widget.EditText(YoutubeSearchActivity.this);
+                            et.setHint("Nama playlist");
+                            new android.app.AlertDialog.Builder(YoutubeSearchActivity.this)
+                                    .setTitle("Playlist baru")
+                                    .setView(et)
+                                    .setPositiveButton("Buat", new android.content.DialogInterface.OnClickListener() {
+                                        @Override public void onClick(android.content.DialogInterface d2, int w2) {
+                                            String nm = et.getText().toString().trim();
+                                            if (nm.isEmpty()) return;
+                                            YtLibrary.Pl p = YtLibrary.createPlaylist(YoutubeSearchActivity.this, nm);
+                                            addRowTo(p.id, r);
+                                        }
+                                    })
+                                    .setNegativeButton(Tr.s("Batal"), null)
+                                    .show();
+                        } else {
+                            addRowTo(pls.get(w - 1).id, r);
+                        }
+                    }
+                })
+                .show();
+    }
+
+    private void addRowTo(String plId, Row r) {
+        YtStore.Entry e = new YtStore.Entry();
+        e.url = r.url;
+        e.title = r.title;
+        e.uploader = r.uploader;
+        e.thumb = r.thumb;
+        e.duration = r.durSecs;
+        boolean added = YtLibrary.addToPlaylist(this, plId, e);
+        Toast.makeText(this, added ? "Disimpan ke playlist" : "Sudah ada di playlist itu", Toast.LENGTH_SHORT).show();
     }
 
     private void doSearch() {
@@ -487,6 +643,8 @@ public class YoutubeSearchActivity extends Activity {
                         row.uploader = si.getUploaderName();
                         long secs = si.getDuration();
                         row.duration = secs > 0 ? fmt(secs) : null;
+                        row.durSecs = secs > 0 ? secs : 0;
+                        row.posMs = YtExtras.getPosition(YoutubeSearchActivity.this, si.getUrl());
                         row.thumb = bestThumb(si);
                         result.add(row);
                     }

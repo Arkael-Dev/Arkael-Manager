@@ -20,6 +20,16 @@ Branch: `feature/arkael-yt-revanced` (turunan `feature/ai-agent-native`, tidak m
 | Label & menu memakai nama **Arkael YouTube** | `AndroidManifest.xml`, beranda |
 | `YtNet.java`, `YtFeed.java` | modul jaringan/cache dan feed channel lokal |
 
+## Perbaikan UI (tanpa login Google)
+- **Garis merah "lanjut tonton"** di bawah thumbnail hasil pencarian, riwayat, dan beranda:
+  langsung kelihatan video mana yang belum selesai.
+- **Tekan lama** sebuah video → Putar sekarang / Simpan ke playlist / Salin link / Mulai dari awal.
+- **Tombol ✕** di tab Riwayat untuk membuang satu video.
+- **Refresh lebih cepat**: balik dari pemutar tidak memuat ulang beranda (hanya kalau riwayat
+  berubah atau sudah 5 menit); tab Riwayat/Disukai instan dari data lokal.
+- Tap chip kategori = cari kategori, **tekan lama = cari kata intinya** saja.
+- Judul app: **Arkael YouTube**; teks bantuan diperbarui.
+
 ## Belum
 - Beranda "langganan" dari channel yang diikuti (kerangka `YtFeed` sudah ada, UI belum).
 - Login Google untuk langganan akun asli.

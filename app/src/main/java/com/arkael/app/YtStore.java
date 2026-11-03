@@ -20,6 +20,14 @@ final class YtStore {
         long time;       // when it was watched / liked (ms)
     }
 
+    /** Buang satu video dari riwayat (bukan disukai). */
+    static synchronized void removeHistory(Context c, String url) {
+        if (url == null) return;
+        java.util.List<Entry> l = history(c);
+        for (int i = l.size() - 1; i >= 0; i--) if (url.equals(l.get(i).url)) l.remove(i);
+        write(c, K_HISTORY, l);
+    }
+
     private static final String PREF = "ark_yt";
     private static final String K_HISTORY = "history";
     private static final String K_LIKES = "likes";
