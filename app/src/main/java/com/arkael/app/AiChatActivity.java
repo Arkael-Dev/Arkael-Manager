@@ -55,6 +55,7 @@ public class AiChatActivity extends AppCompatActivity {
     private boolean micOn = false;
     private boolean autoSendAfterStt = false;
     private Button micBtn;
+    private Button btnSpk;   /* tombol bisukan suara jawaban, terpisah dari mode suara */
     private static final int REQ_MIC_AI = 7102;
 
     /** File yang dilampirkan plus tugasnya: kirim ke AI, langsung dibuatkan gambar, atau video. */
@@ -240,6 +241,16 @@ public class AiChatActivity extends AppCompatActivity {
         micBtn.setLayoutParams(mlp);
         micBtn.setOnClickListener(v -> onMic());
         c.addView(micBtn);
+
+        btnSpk = new Button(this);
+        btnSpk.setTextSize(15);
+        btnSpk.setBackground(bg(CARD, 18));
+        LinearLayout.LayoutParams blp = new LinearLayout.LayoutParams(dp(46), dp(46));
+        blp.setMarginStart(dp(8));
+        btnSpk.setLayoutParams(blp);
+        btnSpk.setOnClickListener(v -> toggleSpeak());
+        c.addView(btnSpk);
+        applyVoiceUi();
 
         Button send = new Button(this);
         send.setText("\u27A4");
@@ -589,15 +600,39 @@ public class AiChatActivity extends AppCompatActivity {
                 || checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED;
     }
 
+    /** Segarkan tampilan tombol mic + speaker sesuai state sebenarnya. */
+    private void applyVoiceUi() {
+        if (micBtn != null) {
+            micBtn.setTextColor(Color.parseColor(micOn ? BG : ACCENT));
+            micBtn.setBackground(bg(micOn ? ACCENT : CARD, 18));
+        }
+        if (btnSpk != null) {
+            boolean on = AiStore.voiceOn(this);
+            btnSpk.setText(on ? "\uD83D\uDD0A" : "\uD83D\uDD07");
+            btnSpk.setTextColor(Color.parseColor(on ? ACCENT : SUB));
+        }
+    }
+
+    /** Tombol speaker: bisukan / nyalakan suara jawaban. Pendengar mic tetap jalan. */
+    private void toggleSpeak() {
+        boolean on = !AiStore.voiceOn(this);
+        AiStore.setVoiceOn(this, on);
+        if (on) {
+            if (voice == null) voice = new AiVoice(this);
+            voice.initTts();
+        } else if (voice != null) {
+            voice.stopSpeak();
+        }
+        applyVoiceUi();
+        Toast.makeText(this, on ? "Suara jawaban nyala" : "Suara jawaban dibisukan", Toast.LENGTH_SHORT).show();
+    }
+
     /** Tombol mic: nyalakan/matikan mode suara. Saat nyala, balasan dibacakan. */
     private void onMic() {
         if (micOn) { stopVoice(); return; }
         AiStore.setVoiceOn(this, true);
-        if (micBtn != null) {
-            micBtn.setTextColor(Color.parseColor(BG));
-            micBtn.setBackground(bg(ACCENT, 18));
-        }
         micOn = true;
+        applyVoiceUi();
         if (voice == null) voice = new AiVoice(this);
         voice.initTts();
         if (!hasMicPermission()) {
@@ -613,12 +648,9 @@ public class AiChatActivity extends AppCompatActivity {
     private void stopVoice() {
         micOn = false;
         autoSendAfterStt = false;
-        if (micBtn != null) {
-            micBtn.setTextColor(Color.parseColor(ACCENT));
-            micBtn.setBackground(bg(CARD, 18));
-        }
         if (voice != null) { voice.stopMic(); voice.stopSpeak(); }
         AiStore.setVoiceOn(this, false);
+        applyVoiceUi();
     }
 
     /** Rekam satu ucapan; hasilnya masuk ke kotak pesan lalu langsung dikirim. */
@@ -1713,7 +1745,7 @@ public class AiChatActivity extends AppCompatActivity {
         new AlertDialog.Builder(this)
             .setTitle("Suara AI")
             .setView(col)
-            .setPositiveButton("Simpan", (d, w) -> refreshStatus())
+            .setPositiveButton("Simpan", (d, w) -> { refreshStatus(); applyVoiceUi(); })
             .setNegativeButton("Tutup", null)
             .show();
     }
