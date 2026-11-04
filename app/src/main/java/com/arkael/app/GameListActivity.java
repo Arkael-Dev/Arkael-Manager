@@ -81,7 +81,7 @@ public class GameListActivity extends Activity {
 
         LinearLayout tools = new LinearLayout(this);
         tools.setOrientation(LinearLayout.HORIZONTAL);
-        String[] toolNames = {"Backup", "Restore", "Stats", "Clean"};
+        String[] toolNames = {"Backup", "Restore", "History", "Clean"};
         for (int ti = 0; ti < toolNames.length; ti++) {
             final int tk = ti;
             android.widget.Button tb = new android.widget.Button(this);
@@ -92,7 +92,7 @@ public class GameListActivity extends Activity {
                 @Override public void onClick(View v) {
                     if (tk == 0) ProfileTools.backup(GameListActivity.this);
                     else if (tk == 1) ProfileTools.restore(GameListActivity.this);
-                    else if (tk == 2) ProfileTools.stats(GameListActivity.this);
+                    else if (tk == 2) startActivity(new android.content.Intent(GameListActivity.this, SessionLogActivity.class));
                     else ProfileTools.cleanNow(GameListActivity.this);
                 }
             });

@@ -8,11 +8,14 @@ import android.content.SharedPreferences;
 import org.json.JSONArray;
 import org.json.JSONObject;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /** Statistik sesi game: durasi, rata-rata FPS (kalau overlay hidup), suhu baterai tertinggi, baterai terpakai. */
 final class SessionStats {
     private static final String PREFS = "ark_stats";
+    private static final int MAX = 100;          // sesi yang disimpan
     private static String pkg;
     private static long t0, fpsSum;
     private static int bat0, fpsN;
@@ -53,15 +56,91 @@ final class SessionStats {
         if (maxT > 0) sb.append(" · battery max ").append(String.format(Locale.US, "%.1f", maxT)).append("°C");
         if (bat0 >= 0 && bat1 >= 0) sb.append(" · ").append(bat1 - bat0).append("% battery");
         String sum = sb.toString();
+        int avg = fpsN > 0 ? Math.round(fpsSum / (float) fpsN) : 0;
         try {
             JSONArray old = log(c), neu = new JSONArray();
             JSONObject e = new JSONObject();
             e.put("pkg", p); e.put("t", System.currentTimeMillis()); e.put("sum", sum);
+            e.put("sec", sec);
+            e.put("fps", avg);
+            e.put("temp", maxT > 0 ? (double) maxT : 0d);
+            e.put("bat", bat0 >= 0 && bat1 >= 0 ? bat1 - bat0 : 0);
             neu.put(e);
-            for (int i = 0; i < old.length() && i < 19; i++) neu.put(old.get(i));
+            for (int i = 0; i < old.length() && i < MAX - 1; i++) neu.put(old.get(i));
             c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString("log", neu.toString()).apply();
         } catch (Throwable ignored) {}
         return sum;
+    }
+
+    // ---------------------------------------------------------------- riwayat & agregat
+
+    /** Satu sesi game yang tersimpan. */
+    static final class Entry {
+        String pkg = "", sum = "";
+        long t, sec;
+        int fps, bat;
+        float temp;
+    }
+
+    /** Riwayat terbaru dulu. Entri lama tanpa angka tetap terbaca (sec/fps/temp = 0). */
+    static List<Entry> list(Context c) {
+        List<Entry> out = new ArrayList<Entry>();
+        JSONArray a = log(c);
+        for (int i = 0; i < a.length(); i++) {
+            JSONObject o = a.optJSONObject(i);
+            if (o == null) continue;
+            Entry e = new Entry();
+            e.pkg = o.optString("pkg");
+            e.sum = o.optString("sum");
+            e.t = o.optLong("t");
+            e.sec = o.optLong("sec", 0);
+            e.fps = o.optInt("fps", 0);
+            e.bat = o.optInt("bat", 0);
+            e.temp = (float) o.optDouble("temp", 0);
+            out.add(e);
+        }
+        return out;
+    }
+
+    /** Ringkasan semua sesi: total, 7 hari terakhir, dan game yang paling sering dimainkan. */
+    static final class Totals {
+        int sessions;
+        long sec, weekSec, weekSessions;
+        int bestFps;
+        String topPkg = "";
+        long topSec;
+        float hottest;
+    }
+
+    static Totals totals(Context c) {
+        Totals t = new Totals();
+        long weekAgo = System.currentTimeMillis() - 7L * 24 * 3600 * 1000;
+        java.util.HashMap<String, Long> per = new java.util.HashMap<String, Long>();
+        for (Entry e : list(c)) {
+            t.sessions++;
+            t.sec += e.sec;
+            if (e.t >= weekAgo) { t.weekSec += e.sec; t.weekSessions++; }
+            if (e.fps > t.bestFps) t.bestFps = e.fps;
+            if (e.temp > t.hottest) t.hottest = e.temp;
+            if (e.pkg != null && !e.pkg.isEmpty()) {
+                Long v = per.get(e.pkg);
+                long s = (v == null ? 0 : v.longValue()) + e.sec;
+                per.put(e.pkg, Long.valueOf(s));
+                if (s > t.topSec) { t.topSec = s; t.topPkg = e.pkg; }
+            }
+        }
+        return t;
+    }
+
+    static void clear(Context c) {
+        c.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove("log").apply();
+    }
+
+    /** "2 h 15 min" / "45 min" / "40 s" */
+    static String dur(long sec) {
+        if (sec >= 3600) return (sec / 3600) + " h " + ((sec % 3600) / 60) + " min";
+        if (sec >= 60) return (sec / 60) + " min";
+        return sec + " s";
     }
 
     static JSONArray log(Context c) {

@@ -372,6 +372,67 @@ public class GameModeActivity extends Activity {
         cR.addView(rh);
         col.addView(cR);
 
+        // --- heat guard ---
+        LinearLayout cH = card();
+        cH.addView(label("BATTERY HEAT GUARD", Color.parseColor("#00E5FF"), 11, true));
+        LinearLayout rowH = new LinearLayout(this);
+        rowH.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout th = new LinearLayout(this);
+        th.setOrientation(LinearLayout.VERTICAL);
+        th.addView(label("Warn when the battery gets hot", Color.WHITE, 14, true));
+        th.addView(label("Toast + sound once a minute while playing. Uses the battery temperature, the same number Settings shows.", Color.parseColor("#8B95A3"), 11, false));
+        rowH.addView(th, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        Switch swHeat = new Switch(this);
+        swHeat.setChecked(HeatGuard.enabled(this));
+        swHeat.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(CompoundButton v, boolean on) { HeatGuard.setEnabled(GameModeActivity.this, on); }
+        });
+        rowH.addView(swHeat);
+        cH.addView(rowH);
+
+        final TextView tvLim = label("", Color.WHITE, 13, true);
+        tvLim.setPadding(0, dp(10), 0, dp(2));
+        cH.addView(tvLim);
+        Button bLim = new Button(this);
+        bLim.setText("Change limit");
+        bLim.setAllCaps(false);
+        bLim.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                String[] names = new String[HeatGuard.LIMITS.length];
+                int cur = 0;
+                float lim = HeatGuard.limit(GameModeActivity.this);
+                for (int i = 0; i < names.length; i++) {
+                    names[i] = String.format(java.util.Locale.US, "%.0f\u00B0C", HeatGuard.LIMITS[i]);
+                    if (HeatGuard.LIMITS[i] == lim) cur = i;
+                }
+                new android.app.AlertDialog.Builder(GameModeActivity.this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
+                        .setTitle("Warn at")
+                        .setSingleChoiceItems(names, cur, new android.content.DialogInterface.OnClickListener() {
+                            @Override public void onClick(android.content.DialogInterface d, int w) {
+                                HeatGuard.setLimit(GameModeActivity.this, HeatGuard.LIMITS[w]);
+                                tvLim.setText(limitText());
+                                d.dismiss();
+                            }
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            }
+        });
+        cH.addView(bLim);
+
+        final CheckBox cbCool = new CheckBox(this);
+        cbCool.setText("Turn CPU/GPU down automatically when it gets that hot");
+        cbCool.setTextColor(Color.WHITE);
+        cbCool.setChecked(HeatGuard.autoCool(this));
+        cbCool.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+            @Override public void onCheckedChanged(CompoundButton v, boolean on) { HeatGuard.setAutoCool(GameModeActivity.this, on); }
+        });
+        cH.addView(cbCool);
+        cH.addView(label("When it cools down 2.5\u00B0C below the limit the warning is allowed again. Set things back with Restore in the GAME MODE panel.", Color.parseColor("#8B95A3"), 11, false));
+        col.addView(cH);
+
+        tvLim.setText(limitText());
+
         // --- temperature source ---
         LinearLayout cT = card();
         cT.addView(label("TEMPERATURE SOURCE", Color.parseColor("#00E5FF"), 11, true));
@@ -454,6 +515,11 @@ public class GameModeActivity extends Activity {
         col.addView(c4);
 
         setContentView(sv);
+    }
+
+    private String limitText() {
+        return "Warn at " + String.format(java.util.Locale.US, "%.0f", HeatGuard.limit(this)) + "\u00B0C battery"
+                + (HeatGuard.autoCool(this) ? " · auto cool" : "");
     }
 
     private void boostNow() {

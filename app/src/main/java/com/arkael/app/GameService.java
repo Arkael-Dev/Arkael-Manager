@@ -187,13 +187,58 @@ public class GameService extends Service {
     }
 
     private void checkHeat() {
-        float t = temp.read(true, TempProbe.CPU_MAX, BatteryInfo.temp(this));
-        if (t <= 0f) t = (float) probe.read(this).cpuTemp;
-        if (t >= HEAT_LIMIT_C) {
+        float cpu = temp.read(true, TempProbe.CPU_MAX, BatteryInfo.temp(this));
+        if (cpu <= 0f) cpu = (float) probe.read(this).cpuTemp;
+        if (cpu >= HEAT_LIMIT_C) {
             Booster.setThermalRelax(this, false);
             thermalActive = false;
-            toast("Thermal control restored at " + Math.round(t) + "°C");
+            toast("Thermal control restored at " + Math.round(cpu) + "°C");
         }
+        checkBatteryHeat();
+    }
+
+    private long lastHeatToast;
+    private boolean cooled;
+
+    /** Baterai > limit: peringatan sekali per menit, dan setelan diturunkan kalau Auto cool aktif. */
+    private void checkBatteryHeat() {
+        if (!HeatGuard.enabled(this)) return;
+        float b = BatteryInfo.temp(this);
+        if (b < 0f) return;
+        float lim = HeatGuard.limit(this);
+        if (b < 2f || b < lim) {
+            if (b > 0f && b < lim - 2.5f) cooled = false;          // sudah dingin lagi, boleh memperingatkan ulang
+            return;
+        }
+        long now = System.currentTimeMillis();
+        if (now - lastHeatToast > 60000) {
+            lastHeatToast = now;
+            toast("Battery " + String.format(java.util.Locale.US, "%.1f", b) + "\u00B0C — limit "
+                    + String.format(java.util.Locale.US, "%.0f", lim) + "\u00B0C");
+            HeatGuard.beep(this);
+        }
+        if (!cooled && HeatGuard.autoCool(this)) {
+            cooled = true;
+            bgRun(new Runnable() { @Override public void run() {
+                applyCool();
+                toast("Too hot: CPU/GPU turned down");
+            } });
+        }
+    }
+
+    /** Turunkan ke setelan paling aman yang tersedia: powersave (kalau ada) + GPU minimum + matikan thermal relax. */
+    private void applyCool() {
+        try {
+            java.util.List<String> g = Booster.governors();
+            if (g.contains("powersave")) Booster.setGovernor(this, "powersave");
+            else if (g.contains("sched_power")) Booster.setGovernor(this, "sched_power");
+            Booster.GpuInfo info = Booster.gpu();
+            if (info.ok() && info.mhz.length > 0) Booster.setGpuMax(this, info.mhz[0]);
+            Booster.setThermalRelax(this, false);
+            thermalActive = false;
+            Booster.markManual(this);
+        } catch (Throwable ignored) {}
+        main.post(new Runnable() { @Override public void run() { if (turbo != null) turbo.say("Cooling down..."); } });
     }
 
     // ---------------------------------------------------------------- side handle

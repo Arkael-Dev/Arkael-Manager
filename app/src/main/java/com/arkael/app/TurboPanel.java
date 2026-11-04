@@ -80,6 +80,8 @@ final class TurboPanel {
     private RingView cpuRing, gpuRing;
     private TextView cpuMain, gpuMain;
     private final TextView[] modeBtns = new TextView[4];
+    private LinearLayout tPing;
+    private volatile int pingMs = Integer.MIN_VALUE;   // MIN_VALUE = belum diukur
     private ValueAnimator phaseAnim;
 
     private boolean land, alive, pickerOpen;
@@ -528,6 +530,12 @@ final class TurboPanel {
                 } });
             }
         });
+        tPing = tile(tr("Latency", "Latensi"), pingMs == Integer.MIN_VALUE ? "—" : NetPing.label(pingMs), "📶", false, new View.OnClickListener() {
+            @Override public void onClick(View v) {
+                say(tr("Measuring latency...", "Mengukur latensi..."));
+                host.bg(new Runnable() { @Override public void run() { measurePing(true); } });
+            }
+        });
         LinearLayout tShot = tile("Screenshot", tr("Take picture", "Ambil gambar"), "📸", false, new View.OnClickListener() {
             @Override public void onClick(View v) { host.screenshot(); }
         });
@@ -535,7 +543,8 @@ final class TurboPanel {
         LinearLayout tRec = tile(tr("Record screen", Tr.s("Rekam layar")), rec ? "ON" : "OFF", rec ? "⏹" : "⏺", rec, new View.OnClickListener() {
             @Override public void onClick(View v) { host.toggleRecord(); }
         });
-        addRows(tMon, tDnd, tBoost, tPop, tShot, tRec);
+        addRows(tMon, tDnd, tBoost, tPop, tPing, tShot, tRec);
+        startPing();
     }
 
     // ---- tools page
@@ -722,9 +731,32 @@ final class TurboPanel {
                     main.post(new Runnable() { @Override public void run() { if (alive) applyStats(snap); } });
                 } });
             }
+            if (++pingTick % 5 == 0 && tPing != null) startPing();
             main.postDelayed(this, 2000);
         }
     };
+
+    private int pingTick;
+    private volatile boolean pinging;
+
+    private void startPing() {
+        host.bg(new Runnable() { @Override public void run() { measurePing(false); } });
+    }
+
+    /** Ukur latensi (thread background). noisy = tampilkan hasil di baris status. */
+    private void measurePing(final boolean noisy) {
+        if (pinging) return;
+        pinging = true;
+        final int v = NetPing.best();
+        pingMs = v;
+        pinging = false;
+        main.post(new Runnable() { @Override public void run() {
+            if (!alive) return;
+            if (tPing != null) updateTile(tPing, NetPing.label(v), NetPing.grade(v) == 0);
+            if (noisy) say(v < 0 ? tr("No reply · check your connection", "Tidak ada balasan · cek koneksi")
+                    : tr("Latency ", "Latensi ") + NetPing.label(v));
+        } });
+    }
 
     private void startTicks() {
         main.removeCallbacks(tick);
