@@ -477,7 +477,6 @@ public class YoutubeSearchActivity extends Activity {
         thumb.setBackground(tg);
         thumb.setClipToOutline(true);
         if (it.thumb != null) Glide.with(this).load(it.thumb).into(thumb);
-        r.addView(thumb, new LinearLayout.LayoutParams(dp(120), dp(68)));
 
         // garis merah di bawah thumbnail = seberapa jauh video ini sudah ditonton
         if (it.posMs > 0 && it.durSecs > 0) {
