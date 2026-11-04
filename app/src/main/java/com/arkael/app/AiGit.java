@@ -167,8 +167,12 @@ final class AiGit {
             throws Exception {
         String[] children = am.list(assetPath);
         if (children == null || children.length == 0) {
-            String name = assetPath.substring(assetPath.lastIndexOf('/') + 1);
-            File f = new File(dest, name);
+            // file: pakai path relatif lengkap (folder + nama), jangan hanya basename
+            String fileName = assetPath.substring(assetPath.lastIndexOf('/') + 1);
+            String relPath = rel.isEmpty() ? fileName : rel + "/" + fileName;
+            File f = new File(dest, relPath);
+            File parent = f.getParentFile();
+            if (parent != null && !parent.exists()) parent.mkdirs();
             InputStream in = am.open(assetPath);
             try {
                 OutputStream os = new FileOutputStream(f);
