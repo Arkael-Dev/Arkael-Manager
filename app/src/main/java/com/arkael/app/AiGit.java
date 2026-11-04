@@ -186,7 +186,7 @@ final class AiGit {
             } finally {
                 try { in.close(); } catch (Exception ignore) {}
             }
-            out.add(rel.isEmpty() ? name : rel + "/" + name);
+            out.add(relPath);
             return;
         }
         for (String c : children) {
