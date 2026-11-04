@@ -3,8 +3,11 @@ package com.arkael.app;
 import android.content.Context;
 
 import org.schabi.newpipe.extractor.InfoItem;
-import org.schabi.newpipe.extractor.ListExtractor.InfoItemsPage;
+import org.schabi.newpipe.extractor.StreamingService;
 import org.schabi.newpipe.extractor.channel.ChannelExtractor;
+import org.schabi.newpipe.extractor.channel.tabs.ChannelTabInfo;
+import org.schabi.newpipe.extractor.channel.tabs.ChannelTabs;
+import org.schabi.newpipe.extractor.linkhandler.ListLinkHandler;
 import org.schabi.newpipe.extractor.search.SearchInfo;
 import org.schabi.newpipe.extractor.search.SearchExtractor;
 import org.schabi.newpipe.extractor.ServiceList;
@@ -38,18 +41,31 @@ final class YtFeed {
     /** Ambil video terbaru satu channel, maksimal ~15. Blocking: panggil di thread background. */
     static List<StreamInfoItem> channelLatest(Context c, String url) throws Exception {
         NewPipeBootstrap.ensureInit();
-        return extractorLatest(ServiceList.YouTube.getChannelExtractor(url));
+        return extractorLatest(ServiceList.YouTube, ServiceList.YouTube.getChannelExtractor(url));
     }
 
-    /** Video dari extractor channel langsung (ChannelInfo di v0.26.5 tidak lagi menyimpan item). */
-    static List<StreamInfoItem> extractorLatest(ChannelExtractor ex) throws Exception {
+    /**
+     * Video terbaru dari ChannelExtractor. Di v0.26.5 ChannelInfo tidak menyimpan item dan
+     * ChannelExtractor tidak punya getPage(); daftar video diambil lewat tab "videos"
+     * (ChannelTabInfo), itu API yang tersedia di versi ini.
+     */
+    static List<StreamInfoItem> extractorLatest(StreamingService service, ChannelExtractor ex) throws Exception {
         NewPipeBootstrap.ensureInit();
+        ex.fetchPage();
+        ListLinkHandler tab = null;
+        for (ListLinkHandler h : ex.getTabs()) {
+            if (h.getContentFilters().size() > 0 && ChannelTabs.VIDEOS.equals(h.getContentFilters().get(0))) {
+                tab = h;
+                break;
+            }
+        }
         List<StreamInfoItem> out = new ArrayList<>();
-        InfoItemsPage<StreamInfoItem> page = ex.initialPage();
-        while (page != null && out.size() < 15) {
-            for (StreamInfoItem it : page.getItems()) if (it != null) out.add(it);
-            if (!page.hasNextPage()) break;
-            page = ex.getPage(page.getNextPage());
+        if (tab == null) return out;
+        ChannelTabInfo info = ChannelTabInfo.getInfo(service, tab);
+        if (info.getRelatedItems() == null) return out;
+        for (InfoItem it : info.getRelatedItems()) {
+            if (out.size() >= 15) break;
+            if (it instanceof StreamInfoItem) out.add((StreamInfoItem) it);
         }
         return out;
     }
